@@ -12,6 +12,7 @@
 // into the DOM as text through textContent, and images load only from http
 // and https addresses; nothing here assigns HTML.
 
+import { STORE } from './edition.js';
 import { displayHost, formatDuration, formatEstimate, isHttpUrl } from './media.js';
 import { onTikTok, onYouTube } from './sessions.js';
 
@@ -287,8 +288,9 @@ function apply(item, answer) {
   }
   // A post the site shows only to a signed-in viewer has no details to give a
   // probe, which never lends a session. İndir stays: whether it gets the post
-  // is what this line says.
-  if (answer?.signIn) {
+  // is what this line says. The store build, which lends no session, leaves
+  // the row as the page described it.
+  if (answer?.signIn && !STORE) {
     item.meta.textContent = t(answer.withSession ? 'rowWithSession' : 'rowSignIn');
     return;
   }
@@ -329,6 +331,8 @@ function renderList(reply) {
   let items = [];
   if (reply?.protectedService) {
     list.replaceChildren(emptyNode('protectedTitle', 'protectedBody'));
+  } else if (reply?.unlisted) {
+    list.replaceChildren(emptyNode('unlistedTitle', 'unlistedBody'));
   } else if (Array.isArray(reply?.rows) && reply.rows.length === 1) {
     list.classList.add('single');
     items = [featureNode(reply.rows[0])];
@@ -444,6 +448,8 @@ function renderOther(reply) {
 // Every answer carries every switch's facts, and any press can move the
 // others -- a claim empties every jar -- so all are drawn from each one.
 function renderSessions(reply) {
+  // The store build has no switches; its popup has no rows to draw them in.
+  if (STORE) return;
   renderLink(reply);
   renderTiktok(reply);
   renderOther(reply);
@@ -466,7 +472,7 @@ async function checkApp() {
 
 const SWITCHES = { youtube: 'linkSwitch', tiktok: 'tiktokSwitch', other: 'otherSwitch' };
 
-for (const [site, id] of Object.entries(SWITCHES)) {
+for (const [site, id] of STORE ? [] : Object.entries(SWITCHES)) {
   el(id).addEventListener('click', async () => {
     const toggle = el(id);
     const turningOn = toggle.getAttribute('aria-checked') !== 'true';
@@ -501,10 +507,12 @@ async function start() {
   el('host').textContent = host;
   el('host').hidden = host === '';
   // Shown before the app answers, so the card does not grow under the pointer.
-  onYouTubeTab = onYouTube(tab?.url);
-  el('youtubeRow').hidden = !onYouTubeTab;
-  onTikTokTab = onTikTok(tab?.url);
-  el('tiktokRow').hidden = !onTikTokTab;
+  if (!STORE) {
+    onYouTubeTab = onYouTube(tab?.url);
+    el('youtubeRow').hidden = !onYouTubeTab;
+    onTikTokTab = onTikTok(tab?.url);
+    el('tiktokRow').hidden = !onTikTokTab;
+  }
 
   void checkApp();
   const reply = Number.isInteger(tab?.id) ? await ask('scan', { tabId: tab.id }) : null;

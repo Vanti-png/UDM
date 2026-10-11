@@ -1,4 +1,14 @@
-// Build the Chrome Web Store upload for the connector extension.
+// Build the uploads for the connector extension. Three come out of the one
+// folder:
+//
+//   node scripts/pack-extension.mjs            extension-upload.zip, for the Chrome
+//                                              Web Store: the store build (see
+//                                              extension/edition.js)
+//   node scripts/pack-extension.mjs --firefox  extension-firefox.zip, the full
+//                                              build, for addons.mozilla.org
+//   node scripts/pack-extension.mjs --full     extension-full.zip, the full build
+//                                              for Chrome, published beside the
+//                                              app and loaded unpacked
 //
 // Two things make this more than `zip -r`:
 //
@@ -24,6 +34,8 @@ import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { forStore } from './extension-edition.mjs';
+
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(root, 'extension');
 
@@ -34,7 +46,12 @@ const source = join(root, 'extension');
 // the app on the same computer, never off it.
 const FIREFOX = process.argv.includes('--firefox');
 const FIREFOX_ID = 'connector@universaldownloader.app';
-const target = join(root, FIREFOX ? 'extension-firefox.zip' : 'extension-upload.zip');
+// Any other Chrome package is the store build, unless the full one is asked for.
+const STORE = !FIREFOX && !process.argv.includes('--full');
+const target = join(
+  root,
+  FIREFOX ? 'extension-firefox.zip' : STORE ? 'extension-upload.zip' : 'extension-full.zip',
+);
 
 function forFirefox(manifest) {
   delete manifest.minimum_chrome_version;
@@ -73,12 +90,15 @@ function collect(dir) {
 }
 
 function contentsOf(file) {
-  if (relative(source, file) !== 'manifest.json') return readFileSync(file);
-
-  let manifest = JSON.parse(readFileSync(file, 'utf8'));
-  delete manifest.key;
-  if (FIREFOX) manifest = forFirefox(manifest);
-  return Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  const name = relative(source, file).split(sep).join('/');
+  let contents = readFileSync(file);
+  if (name === 'manifest.json') {
+    let manifest = JSON.parse(contents.toString('utf8'));
+    delete manifest.key;
+    if (FIREFOX) manifest = forFirefox(manifest);
+    contents = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
+  }
+  return STORE ? forStore(name, contents) : contents;
 }
 
 // A fixed timestamp, so the same sources produce the same bytes and a rejected
@@ -141,5 +161,5 @@ end.writeUInt32LE(offset, 16);
 writeFileSync(target, Buffer.concat([...locals, directory, end]));
 
 const { version } = JSON.parse(readFileSync(join(source, 'manifest.json'), 'utf8'));
-console.log(`\npacked ${files.length} files, version ${version} -> ${target}`);
+console.log(`\npacked ${files.length} files, version ${version}, ${STORE ? 'store' : 'full'} build -> ${target}`);
 console.log('the signing key and the developer notes are not in it');

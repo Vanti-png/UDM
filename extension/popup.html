@@ -24,9 +24,12 @@
 
     <section class="card list" id="list" aria-live="polite" hidden></section>
 
+    <!-- full -->
     <!-- Each site's switch is shown on that site's own pages, where it is
          about the page in front of the user; the other sites' switch, which
-         is about whichever page İndir is pressed on, always. -->
+         is about whichever page İndir is pressed on, always. The store build
+         has no sessions, and leaves out everything to the end of the fence
+         (scripts/extension-edition.mjs). -->
     <section class="card">
       <div class="setting" id="youtubeRow" hidden>
         <div class="text">
@@ -56,6 +59,7 @@
         </button>
       </div>
     </section>
+    <!-- /full -->
 
     <script src="i18n.js"></script>
     <script type="module" src="popup.js"></script>

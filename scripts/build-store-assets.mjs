@@ -7,6 +7,11 @@
 // thing: they come out of extension/media.js, fed the requests a page playing a
 // stream would have made, exactly as the service worker feeds it.
 //
+// The popup is the store build's (scripts/extension-edition.mjs): these images
+// are for the Chrome Web Store, whose copy has no session switches -- the full
+// build's, with a YouTube session switch in them, were part of what review
+// refused.
+//
 // Throwaway tooling: it writes to store-assets/ and keeps nothing else.
 //
 //   node scripts/build-store-assets.mjs            dark, as the app opens on Windows
@@ -20,6 +25,7 @@ import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { rows } from '../extension/media.js';
+import { forStore } from './extension-edition.mjs';
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..');
 const extension = join(repo, 'extension');
@@ -225,14 +231,14 @@ const CONCERT_DETAILS = {
 
 const COPY = {
   en: {
-    videos: ['Every video on the page, one button away', 'See what you will get, press Get, and Universal Downloader takes it from there.'],
-    sites: ['Works on the sites you already use', 'Vimeo, X, Dailymotion and more go straight to the app at your default quality.'],
+    videos: ['Every video on the page, one button away', 'See what you will get, press Get, and the video opens in Universal Downloader, where you choose the quality.'],
+    sites: ['Works on the sites you already use', 'Vimeo, X, Dailymotion and more open straight in the app.'],
     privacy: ['Nothing leaves your computer', 'No server, no analytics, no account. The extension talks only to Universal Downloader on this computer.'],
     tile: ['Universal Downloader', 'Connector'],
   },
   tr: {
-    videos: ['Sayfadaki her video, bir düğme uzağınızda', "Kaç p, hangi biçim, ne kadar yer tutacağı önceden görünür. İndir'e basın; gerisini Universal Downloader halleder."],
-    sites: ['Zaten kullandığınız sitelerde çalışır', 'Vimeo, X, Dailymotion ve daha fazlası varsayılan kalitenizle doğrudan uygulamaya gider.'],
+    videos: ['Sayfadaki her video, bir düğme uzağınızda', "Kaç p, hangi biçim, ne kadar yer tutacağı önceden görünür. İndir'e basın; video Universal Downloader'da açılır, kaliteyi orada seçersiniz."],
+    sites: ['Zaten kullandığınız sitelerde çalışır', 'Vimeo, X, Dailymotion ve daha fazlası doğrudan uygulamada açılır.'],
     privacy: ['Hiçbir şey bilgisayarınızdan çıkmaz', 'Sunucu yok, analitik yok, hesap yok. Eklenti yalnızca bu bilgisayardaki Universal Downloader ile konuşur.'],
     tile: ['Universal Downloader', 'Connector'],
   },
@@ -243,8 +249,8 @@ const COPY = {
 if (existsSync(work)) rmSync(work, { recursive: true, force: true });
 mkdirSync(work, { recursive: true });
 
-for (const file of ['popup.html', 'popup.css', 'theme.css', 'popup.js', 'i18n.js', 'media.js', 'sessions.js']) {
-  writeFileSync(join(work, file), readFileSync(join(extension, file)));
+for (const file of ['popup.html', 'popup.css', 'theme.css', 'popup.js', 'i18n.js', 'media.js', 'sessions.js', 'edition.js']) {
+  writeFileSync(join(work, file), forStore(file, readFileSync(join(extension, file))));
 }
 cpSync(join(extension, 'fonts'), join(work, 'fonts'), { recursive: true });
 
@@ -317,7 +323,7 @@ window.chrome = {
       *, *::before, *::after { animation: none !important; transition: none !important; }
     </style>`;
 
-    const page = readFileSync(join(extension, 'popup.html'), 'utf8')
+    const page = readFileSync(join(work, 'popup.html'), 'utf8')
       .replace('<script src="i18n.js"></script>', `<script src="mock-${locale}-${state}.js"></script>\n<script src="i18n.js"></script>`)
       .replace('</head>', `${forScreenshot}</head>`);
     writeFileSync(join(work, `popup-${locale}-${state}.html`), page);

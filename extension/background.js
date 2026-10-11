@@ -18,6 +18,10 @@
 // answer and is done, and the worker may be collected the instant it returns.
 // Nothing here talks to any server.
 //
+// The Chrome Web Store build does only the first job (extension/edition.js):
+// every session path below asks `STORE` first, and that build carries no
+// `cookies` or `alarms` permission for one to use.
+//
 // The same short life is why what the worker learns about a tab is kept in
 // `chrome.storage.session` rather than in a variable, and why every listener
 // is registered synchronously at the top of this file: Chrome only delivers an
@@ -27,6 +31,7 @@
 // The wire format is src-tauri/src/bridge/protocol.rs. Field names come from
 // there, not from taste.
 
+import { STORE } from './edition.js';
 import {
   MAX_ITEMS,
   classify,
@@ -43,6 +48,7 @@ import {
   sizeFrom,
   toPayload,
   tooSmall,
+  unlisted,
 } from './media.js';
 import {
   OTHER,
@@ -207,7 +213,8 @@ function linkOf(result) {
 
 async function callHost(request) {
   const result = await sendNative(request);
-  const link = linkOf(result);
+  // Remembered for the cookie listener's sake, which the store build has none of.
+  const link = STORE ? undefined : linkOf(result);
   if (link !== undefined) {
     try {
       await chrome.storage.local.set({ [LINK_KEY]: link });
@@ -384,6 +391,7 @@ let disabledAskedAt = 0;
 // tells this extension until the host refuses it, which it does without
 // keeping anything. Every push after that is held back here.
 async function backgroundPush({ fromCookie = false, only = null } = {}) {
+  if (STORE) return;
   const sites = [];
   for (const site of Object.keys(SITES)) {
     if ((only === null || only.has(site)) && (await isOn(site))) sites.push(site);
@@ -747,6 +755,12 @@ async function scan(message) {
     showCount(tabId, null, 0);
     return { ok: true, url, protectedService: service, rows: [] };
   }
+  // A site this build lists nothing for says so, rather than read as a page
+  // with no video on it.
+  if (unlisted(url)) {
+    showCount(tabId, null, 0);
+    return { ok: true, url, protectedService: null, unlisted: true, rows: [] };
+  }
 
   // The record counts for this page only if it is this page's: the popup can
   // open before the worker has heard that the tab moved on.
@@ -792,6 +806,10 @@ async function scan(message) {
 // to count them. The other sites' switch has no such line: which site it
 // would read is the page's to say, and it reads nothing until İndir.
 async function linkReply(result) {
+  // The store build has no switches, and reads no cookie to describe one.
+  if (STORE) {
+    return { result, signedIn: false, linkOff: true, tiktokOn: false, tiktokSignedIn: false, otherOn: false };
+  }
   const linkOff = await isOff();
   const tiktokOn = await isTiktokOn();
   const lending = result.ok && result.status?.bound === true && result.status.enabled === true;
@@ -808,6 +826,16 @@ async function linkReply(result) {
 
 async function status() {
   let result = await callHost({ type: 'status', ...(await peer()) });
+  if (STORE) {
+    // A profile an earlier store copy bound, back when it lent YouTube's
+    // session, is let go: this copy lends nothing, and a binding left behind
+    // would keep the app holding a session nobody refreshes.
+    if (result.ok && result.status?.bound) {
+      const forgotten = await callHost({ type: 'forget', ...(await peer()) });
+      if (forgotten.ok) result = forgotten;
+    }
+    return linkReply(result);
+  }
   if (result.ok && result.status?.bound) {
     // An app put back to a version that keeps YouTube's session alone cannot
     // take TikTok's. Its switch goes off now, as the first push it refused
@@ -949,8 +977,10 @@ async function lends(site) {
 async function download(message) {
   const fields = toPayload(message.payload);
   if (!fields) return { result: { ok: false, code: 'malformed', message: '' } };
-  await lendFor(fields.url);
-  await lendOther(fields.pageUrl ?? fields.url);
+  if (!STORE) {
+    await lendFor(fields.url);
+    await lendOther(fields.pageUrl ?? fields.url);
+  }
   return { result: await callHost({ type: 'download', ...(await peer()), ...fields }) };
 }
 
@@ -1100,7 +1130,8 @@ async function probeAnswer(fields) {
   return probing.get(key);
 }
 
-const ACTIONS = { scan, status, download, probe, connect, forget };
+// The store build answers no switch press: it has no switches to press.
+const ACTIONS = STORE ? { scan, status, download, probe } : { scan, status, download, probe, connect, forget };
 
 chrome.webRequest.onHeadersReceived.addListener(
   onHeaders,
@@ -1152,7 +1183,7 @@ chrome.tabs.onRemoved.addListener((tabId) => dropTab(tabId));
 chrome.tabs.onReplaced.addListener((_added, removed) => dropTab(removed));
 
 chrome.runtime.onInstalled.addListener((details) => {
-  ensureAlarm();
+  if (!STORE) ensureAlarm();
   // Opening the page ourselves is the whole reason this design needs no pairing
   // code: the first thing the user sees is the instructions, rather than a
   // toolbar icon Chrome has already hidden behind the puzzle-piece button. Only
@@ -1160,35 +1191,50 @@ chrome.runtime.onInstalled.addListener((details) => {
   if (details.reason === 'install') {
     // A new install is a new profile id that no app has bound, so the cookie
     // listener has nothing to ask about until a switch is turned on.
-    void chrome.storage.local.set({ [LINK_KEY]: 'unbound' });
+    if (!STORE) void chrome.storage.local.set({ [LINK_KEY]: 'unbound' });
     chrome.tabs.create({ url: chrome.runtime.getURL('welcome.html') });
   } else if (details.reason === 'update') {
     // 1.0.2 kept the host's last answer here. Nothing reads it any more, and
     // what this extension stores is meant to be exactly what the privacy
     // policy lists.
     void chrome.storage.local.remove('lastResult').catch(() => {});
+    // A store copy updated from one that lent YouTube's session lets the app
+    // drop it, and keeps none of the switches' state: it has no switches.
+    if (STORE) void retireSessions();
   }
 });
 
+async function retireSessions() {
+  if ((await storedLink()) === 'bound') await callHost({ type: 'forget', ...(await peer()) });
+  await chrome.storage.local.remove([OFF_KEY, TIKTOK_KEY, OTHER_KEY, LINK_KEY]).catch(() => {});
+}
+
 chrome.runtime.onStartup.addListener(() => {
+  if (STORE) return;
   ensureAlarm();
   void backgroundPush();
 });
 
-chrome.alarms.onAlarm.addListener((alarm) => {
-  if (alarm.name === REFRESH_ALARM) void backgroundPush();
-});
+// Neither API exists in the store build, which asks for neither permission;
+// reaching for one there would throw before the listeners below it exist.
+if (!STORE) {
+  chrome.alarms.onAlarm.addListener((alarm) => {
+    if (alarm.name === REFRESH_ALARM) void backgroundPush();
+  });
+}
 
 // With access to every site this fires for every cookie the browser writes, so
 // the test is the first thing it does: only the cookies of a site whose session
 // can be lent are a reason to send it again, and of TikTok's only the sign-in's
 // own. Whether that site's switch is on is the push's to ask, once the burst a
 // sign-in writes has settled.
-chrome.cookies.onChanged.addListener((change) => {
-  const site = siteOfDomain(change.cookie.domain);
-  if (site === null || !worthPushing(site, change.cookie.name)) return;
-  schedulePush(site);
-});
+if (!STORE) {
+  chrome.cookies.onChanged.addListener((change) => {
+    const site = siteOfDomain(change.cookie.domain);
+    if (site === null || !worthPushing(site, change.cookie.name)) return;
+    schedulePush(site);
+  });
+}
 
 // Only this extension's own pages may ask for anything, and only by name. A
 // page in a tab never can: nothing here injects a script that would listen,

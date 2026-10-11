@@ -20,6 +20,8 @@
   "emptyBody": { "message": "Videoyu oynatın; burada görünür." },
   "protectedTitle": { "message": "Bu sitenin videoları korumalı" },
   "protectedBody": { "message": "Universal Downloader bunları indiremez." },
+  "unlistedTitle": { "message": "Bu sitede kullanılamaz" },
+  "unlistedBody": { "message": "Bu sitedeki videolar burada listelenmez." },
 
   "noticeNotInstalled": { "message": "Universal Downloader'ı bir kez açın" },
   "noticeUpdate": { "message": "Universal Downloader'ı güncelleyin" },

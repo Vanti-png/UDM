@@ -1,11 +1,18 @@
 # Privacy policy — Universal Downloader Connector
 
-_Last updated: 8 October 2026_
+_Last updated: 11 October 2026_
 
 This extension does not have a server. Nothing it sees is sent to the
 developer, to any website, or to any third party. There is no analytics, no
 telemetry and no account. The only thing it ever sends anything to is the
 Universal Downloader application on your own computer.
+
+**Two editions.** The copy from the **Chrome Web Store** lists videos and hands
+the one you press Get on to the app, and nothing more: it has no session
+switches, does not ask for the `cookies` permission and reads no cookies, and
+it lists nothing on YouTube. Everything below about sign-ins and cookies
+applies only to the **full edition** -- the one on addons.mozilla.org and the
+one published with the app for loading unpacked.
 
 ## What it looks at, and why
 
@@ -128,12 +135,19 @@ extension marks it as protected and offers no way to download it.
 
 # Gizlilik politikası — Universal Downloader Connector
 
-_Son güncelleme: 8 Ekim 2026_
+_Son güncelleme: 11 Ekim 2026_
 
 Bu eklentinin sunucusu yok. Gördüğü hiçbir şey geliştiriciye, herhangi bir
 siteye veya üçüncü bir tarafa gönderilmiyor. Analitik yok, telemetri yok, hesap
 yok. Bir şey gönderdiği tek yer, kendi bilgisayarınızdaki Universal Downloader
 uygulamasıdır.
+
+**İki sürüm.** **Chrome Web Mağazası**ndaki kopya videoları listeler ve İndir'e
+bastığınızı uygulamaya verir; o kadar: oturum anahtarları yoktur, `cookies`
+iznini istemez, hiçbir çerez okumaz ve YouTube'da hiçbir şey listelemez.
+Aşağıda oturumlar ve çerezlerle ilgili yazılanların hepsi yalnızca **tam sürüm**
+içindir -- addons.mozilla.org'daki ve uygulamayla birlikte paketsiz kurulmak
+üzere yayımlanan sürüm.
 
 ## Neye bakıyor, neden
 

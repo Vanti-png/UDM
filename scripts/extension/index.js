@@ -4,3 +4,4 @@
 // keeps working on both.
 import './media.test.mjs';
 import './sessions.test.mjs';
+import './edition.test.mjs';

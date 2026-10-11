@@ -272,7 +272,7 @@ export const tr: Record<TranslationKey, string> = {
     'Tarayıcında oynayan videoları tek tıkla bu uygulamaya gönderir.',
   'settings.browserLink': 'Tarayıcı oturumları',
   'settings.browserLinkHint':
-    "Yalnızca hesabının görebildiği videolar için tarayıcındaki YouTube ve TikTok oturumlarını, uzantıda Diğer siteler açıksa İndir'e bastığın sitenin oturumunu da kullanır. Oturumlar bu bilgisayarda şifreli durur; diğer sitelerinki bir saat sonra silinir.",
+    "Yalnızca hesabının görebildiği videolar için tarayıcındaki YouTube ve TikTok oturumlarını, uzantıda Diğer siteler açıksa İndir'e bastığın sitenin oturumunu da kullanır. Oturumlar bu bilgisayarda şifreli durur; diğer sitelerinki bir saat sonra silinir. Oturumlar uzantının tam sürümünde var (Firefox ve GitHub); Chrome Web Mağazası sürümünde yok.",
   'settings.linkBroken': 'Tarayıcılar yardımcıyı başlatamıyor',
   'settings.linkBrokenHint':
     'Uzantının bu uygulamaya ulaşmasını sağlayan kayıt eksik ya da başka bir yeri gösteriyor. Bunu bir tarayıcı güncellemesi, bir temizlik aracı veya uygulamanın ikinci bir kopyası yapmış olabilir. Onar, kaydı geri yazar.',
@@ -299,7 +299,7 @@ export const tr: Record<TranslationKey, string> = {
   'settings.linkOtherSites': 'Diğer siteler',
   'settings.linkOtherFresh': '{site} · oturum açık',
   'settings.linkTiktokHint':
-    "Yaş sınırlı TikTok gönderileri için tarayıcıda TikTok'a giriş yap, sonra uzantıda TikTok oturumunu aç.",
+    "Yaş sınırlı TikTok gönderileri için tarayıcıda TikTok'a giriş yap, sonra uzantının tam sürümünde TikTok oturumunu aç.",
   'settings.linkBrowserFallback': 'Tarayıcı',
   'settings.linkRepair': 'Onar',
   'settings.linkRepairFailed': 'Bağlantı onarılamadı',
@@ -597,7 +597,7 @@ export const tr: Record<TranslationKey, string> = {
     'YouTube bu videoyu yalnızca kanalın üyeliğine sahip bir hesaba veriyor. Telefonda bu oturum kullanılamıyor; bilgisayardaki uygulamayla indirebilirsin.',
   'error.tiktokSignIn.title': "Bu gönderi için TikTok'ta oturum açmak gerekiyor",
   'error.tiktokSignIn.message':
-    "TikTok bu gönderiyi yalnızca oturum açmış izleyicilere gösteriyor. TikTok'a giriş yaptığın tarayıcıda uzantıdan TikTok oturumunu aç, sonra tekrar dene.",
+    "TikTok bu gönderiyi yalnızca oturum açmış izleyicilere gösteriyor. TikTok'a giriş yaptığın tarayıcıda uzantının tam sürümünden TikTok oturumunu aç, sonra tekrar dene.",
   'error.tiktokSignIn.messageMobile':
     'TikTok bu gönderiyi yalnızca oturum açmış izleyicilere gösteriyor. Telefonda TikTok oturumu henüz kullanılamıyor; bilgisayardaki uygulamayla indirebilirsin.',
   'error.tiktokSignIn.action': 'Ayarlarda göster',

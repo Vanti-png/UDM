@@ -11,6 +11,8 @@
 // what the browser already fetched into rows; the app makes every real
 // decision again, with the page in front of it.
 
+import { STORE } from './edition.js';
+
 export const MAX_ITEMS = 60;
 export const MAX_ROWS = 30;
 
@@ -119,11 +121,13 @@ export const PAGE_SITES = [
 ];
 
 // Sites the popup lists nothing for, not even a stream one of their players
-// fetched. Empty: it is the lever to pull if store review ever insists that
-// YouTube go (its three hosts go here), and the only one. Taking YouTube out
-// of PAGE_SITES alone would not do it, because the page fallback in `rows`
-// offers any page with a <video> on it, and YouTube's is one.
-export const UNLISTED_SITES = [];
+// fetched. Empty in the full build. The Chrome Web Store refused a downloader
+// that works on YouTube, so its build lists YouTube here -- the watch pages,
+// the short links and the embeds other sites carry -- and that is the whole of
+// how YouTube goes. Taking it out of PAGE_SITES alone would not do it, because
+// the page fallback in `rows` offers any page with a <video> on it, and
+// YouTube's is one.
+export const UNLISTED_SITES = STORE ? ['youtube.com', 'youtu.be', 'youtube-nocookie.com'] : [];
 
 // A mirror of PROTECTED in src-tauri/src/providers/detect.rs, kept in the same
 // order so the two can be compared line by line. The app refuses these by name;
@@ -565,7 +569,7 @@ export function protectedService(raw) {
   return found ? found[1] : null;
 }
 
-function unlisted(raw) {
+export function unlisted(raw) {
   const url = parseHttp(raw);
   if (!url) return false;
   const host = url.hostname.toLowerCase();

@@ -103,8 +103,21 @@ already implies.
 
 ## Packaging for the store
 
+There are two builds of the same files (`edition.js`). The **full build** is
+this folder as it is: it lists YouTube and has the three session switches. The
+**store build** is what the Chrome Web Store accepts after it refused 1.0.5 for
+working on YouTube: `scripts/extension-edition.mjs` flips `STORE` in
+`edition.js` (YouTube goes into `UNLISTED_SITES`, every session path is
+skipped), drops the `cookies` and `alarms` permissions, cuts the session markup
+fenced by `<!-- full -->` out of `popup.html` and `welcome.html`, and leaves
+the session messages out of both locales. `scripts/extension/edition.test.mjs`
+holds the store build to all of that, imported for real.
+
 `node scripts/pack-extension.mjs` writes `extension-upload.zip` at the
-repository root. It removes the `key` from the manifest -- Google's guidance is
+repository root: the store build, for the Chrome Web Store, and the only zip
+that ever goes there. `--full` writes `extension-full.zip`, the full build for
+Chrome, published beside the app for loading unpacked. Both remove the `key`
+from the manifest -- Google's guidance is
 to strip it -- and leaves out `key.pem` (which must never leave the machine that
 publishes), `make-icons.mjs`, `.gitignore`, these notes, `PRIVACY.md`,
 `STORE-LISTING.md` and any test file. Everything else ships, `media.js` and
@@ -112,7 +125,8 @@ publishes), `make-icons.mjs`, `.gitignore`, these notes, `PRIVACY.md`,
 visible in the output rather than in the listing.
 
 `node scripts/pack-extension.mjs --firefox` writes `extension-firefox.zip` for
-addons.mozilla.org from the same files. Only the manifest differs: the
+addons.mozilla.org from the same files, as the full build. Only the manifest
+differs: the
 background runs as a module script instead of a service worker, the id is
 `connector@universaldownloader.app` (`FIREFOX_EXTENSION_ID` in
 `src-tauri/src/bridge/protocol.rs`), and it declares that no data is collected.

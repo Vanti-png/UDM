@@ -45,6 +45,14 @@
   "emptyBody": { "message": "Play the video and it shows up here." },
   "protectedTitle": { "message": "This site's videos are protected" },
   "protectedBody": { "message": "Universal Downloader can't download them." },
+  "unlistedTitle": {
+    "message": "Not available on this site",
+    "description": "Empty state of the list on a site this edition of the extension lists nothing for."
+  },
+  "unlistedBody": {
+    "message": "Videos on this site are not listed here.",
+    "description": "Second line under unlistedTitle."
+  },
 
   "noticeNotInstalled": { "message": "Open Universal Downloader once" },
   "noticeUpdate": {

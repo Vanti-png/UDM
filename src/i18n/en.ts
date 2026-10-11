@@ -276,7 +276,7 @@ export const en = {
     'Sends the videos playing in your browser to this app with one click.',
   'settings.browserLink': 'Browser sign-ins',
   'settings.browserLinkHint':
-    'Uses your browser’s YouTube and TikTok sign-ins for videos only your account can watch, and with Other sites on in the extension, the sign-in of the site you press Get on. They stay encrypted on this PC; other sites’ are deleted after an hour.',
+    'Uses your browser’s YouTube and TikTok sign-ins for videos only your account can watch, and with Other sites on in the extension, the sign-in of the site you press Get on. They stay encrypted on this PC; other sites’ are deleted after an hour. Sign-ins come with the full extension (Firefox and GitHub), not the Chrome Web Store one.',
   'settings.linkBroken': 'Browsers cannot start the helper',
   'settings.linkBrokenHint':
     'The entry that lets the extension reach this app is missing, or it points somewhere else. A browser update, a cleanup tool or a second copy of the app can do that. Repair writes it back.',
@@ -303,7 +303,7 @@ export const en = {
   'settings.linkOtherSites': 'Other sites',
   'settings.linkOtherFresh': '{site} · signed in',
   'settings.linkTiktokHint':
-    'For age-restricted TikTok posts, sign in to TikTok in the browser, then turn on TikTok session in the extension.',
+    'For age-restricted TikTok posts, sign in to TikTok in the browser, then turn on TikTok session in the full extension.',
   'settings.linkBrowserFallback': 'The browser',
   'settings.linkRepair': 'Repair',
   'settings.linkRepairFailed': 'Could not repair the connection',
@@ -603,7 +603,7 @@ export const en = {
     "YouTube only serves it to an account that holds the channel's membership. The phone can't use that sign-in; the desktop app can download it.",
   'error.tiktokSignIn.title': 'This post needs a TikTok sign-in',
   'error.tiktokSignIn.message':
-    "TikTok shows it only to signed-in viewers. Turn on TikTok session in the browser extension, in the browser where you're signed in to TikTok, then try again.",
+    "TikTok shows it only to signed-in viewers. Turn on TikTok session in the full browser extension, in the browser where you're signed in to TikTok, then try again.",
   'error.tiktokSignIn.messageMobile':
     "TikTok shows it only to signed-in viewers. The phone can't use a TikTok sign-in yet; the desktop app can download it.",
   'error.tiktokSignIn.action': 'Show in Settings',
