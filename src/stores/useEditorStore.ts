@@ -86,6 +86,22 @@ export interface Clip {
   keyframes: number[] | null;
 }
 
+/**
+ * A file whose sound can go under a clip, as the screen shows it and the
+ * preview plays it.
+ *
+ * Kept by path, beside the edits rather than in them: which sound a clip has
+ * is part of its edit and undoes with it, and an undo that brings a sound back
+ * must find it still described -- so a sound, once read, is never forgotten
+ * while the editor is open.
+ */
+export interface Sound {
+  path: string;
+  name: string;
+  durationSec: number | null;
+  previewSrc: string;
+}
+
 /** The part of a clip the user can change, and therefore the part that undoes. */
 interface Edit {
   cuts: Cut[];
@@ -154,6 +170,8 @@ function defaultOptions(probe: MediaProbe, hardware: boolean): ExportOptions {
     audioBitrateKbps: 192,
     toneMapSdr: false,
     hardware,
+    soundPath: null,
+    soundVolume: 1,
   };
 }
 
@@ -176,6 +194,12 @@ interface EditorStoreState {
   opening: boolean;
   openError: AppErrorInfo | null;
 
+  /** Every sound read since the editor opened, by path. See `Sound`. */
+  sounds: Record<string, Sound>;
+  addingSound: boolean;
+  /** Why the last sound chosen did not go in. Said beside the row that asked. */
+  soundError: AppErrorInfo | null;
+
   /** Each open clip's way back, by clip id. A clip with no steps has no entry. */
   history: Record<string, History>;
 
@@ -193,7 +217,15 @@ interface EditorStoreState {
    */
   outputDir: string | null;
 
+  /**
+   * Open a file. One with a picture is a clip; one with only sound, while a
+   * clip is open, is that clip's sound -- what the user meant by choosing it
+   * there. Resolves to the clip it went into, or null.
+   */
   open: (path: string, hardware: boolean) => Promise<string | null>;
+  /** Lay a file's sound under the clip being edited. Resolves to whether it went in. */
+  addSound: (path: string) => Promise<boolean>;
+  removeSound: () => void;
   activate: (id: string) => void;
   closeClip: (id: string) => void;
   closeAll: () => void;
@@ -346,6 +378,35 @@ export const useEditorStore = create<EditorStoreState>((set, get) => {
     set({ ...changed, history: pushed(activeId, current) });
   };
 
+  /**
+   * Lay a sound that has been read under the clip being edited, as one step.
+   *
+   * The file is allowed to the webview here, as a clip's is: the preview plays
+   * it beside the picture, and without this the asset protocol refuses it.
+   */
+  const attach = async (path: string, probe: MediaProbe): Promise<boolean> => {
+    if (!probe.hasAudio) {
+      set({ soundError: ownError(translate('editor.noSound')) });
+      return false;
+    }
+    const clipId = get().activeId;
+    await ipc.allowMediaPreview(path);
+    // Gone to another clip while the file was being read: this sound was
+    // chosen for the one that was on screen, not for whichever is now.
+    if (!clipId || get().activeId !== clipId) return false;
+    const sound: Sound = {
+      path,
+      name: basename(path),
+      durationSec: probe.durationSec,
+      previewSrc: convertFileSrc(path),
+    };
+    set((state) => ({ sounds: { ...state.sounds, [path]: sound }, soundError: null }));
+    // Never a reason to leave a copy -- the mix is encoded whatever the mode,
+    // and that frees the original's level rather than tying it.
+    commit((edit) => ({ ...edit, options: { ...edit.options, soundPath: path } }));
+    return true;
+  };
+
   return {
     pool: [],
     activeId: null,
@@ -353,6 +414,10 @@ export const useEditorStore = create<EditorStoreState>((set, get) => {
 
     opening: false,
     openError: null,
+
+    sounds: {},
+    addingSound: false,
+    soundError: null,
 
     history: {},
 
@@ -377,12 +442,19 @@ export const useEditorStore = create<EditorStoreState>((set, get) => {
       try {
         const probe = await ipc.probeMedia(path);
         // Sound on its own is not something this screen can cut: it would
-        // open as a black stage over an empty filmstrip. The phone's picker
-        // offers audio as well, because the same picker serves conversions,
-        // and a file dropped on the window can be anything -- so the refusal
-        // is made here, once, for every way in.
+        // open as a black stage over an empty filmstrip. With a clip open it
+        // is something to put under it, which is what choosing a song there
+        // means -- by the add button, a drop, or a link. The phone's picker
+        // offers audio as well and a dropped file can be anything, so the
+        // decision is made here, once, for every way in.
         if (!probe.hasVideo) {
-          set({ opening: false, openError: ownError(translate('editor.noVideo')) });
+          const active = get().activeId;
+          if (probe.hasAudio && active) {
+            set({ opening: false });
+            return (await attach(path, probe)) ? active : null;
+          }
+          const why = probe.hasAudio ? 'editor.soundNeedsVideo' : 'editor.noVideo';
+          set({ opening: false, openError: ownError(translate(why)) });
           return null;
         }
         // Some files carry no length at all -- anything muxed to a pipe, which
@@ -444,6 +516,35 @@ export const useEditorStore = create<EditorStoreState>((set, get) => {
       }
     },
 
+    addSound: async (path) => {
+      if (!get().activeId) return false;
+      set({ addingSound: true, soundError: null });
+      try {
+        return await attach(path, await ipc.probeMedia(path));
+      } catch (caught) {
+        // In the editor's own words, as a clip that would not open is.
+        const cause = ipc.toAppError(caught);
+        set({
+          soundError: ownError(translate('editor.soundFailed'), cause.technical ?? cause.message),
+        });
+        return false;
+      } finally {
+        set({ addingSound: false });
+      }
+    },
+
+    // Taking the sound away can bring back the one rule it lifted: a level
+    // the original was given while the sound was there is a re-encode again.
+    removeSound: () => {
+      const probe = selectActiveClip(get())?.probe ?? null;
+      set({ soundError: null });
+      commit((edit) =>
+        edit.options.soundPath == null
+          ? edit
+          : { ...edit, options: withLegalMode({ ...edit.options, soundPath: null }, probe) },
+      );
+    },
+
     activate: (id) => {
       if (get().activeId === id) return;
       // History belongs to the clip it was made on, and stays with it: an undo
@@ -453,7 +554,7 @@ export const useEditorStore = create<EditorStoreState>((set, get) => {
       // so they go.
       settle();
       run = null;
-      set({ activeId: id, submitError: null, timeline: IDLE_TIMELINE });
+      set({ activeId: id, submitError: null, soundError: null, timeline: IDLE_TIMELINE });
     },
 
     closeClip: (id) => {
@@ -491,6 +592,8 @@ export const useEditorStore = create<EditorStoreState>((set, get) => {
         job: IDLE_EXPORT,
         submitError: null,
         openError: null,
+        sounds: {},
+        soundError: null,
         timeline: IDLE_TIMELINE,
       });
     },
@@ -715,6 +818,12 @@ export function selectOptions(state: EditorStoreState): ExportOptions | null {
   return (state.activeId ? state.edits[state.activeId]?.options : undefined) ?? null;
 }
 
+/** The sound under the clip being edited, or null when it has none. */
+export function selectSound(state: EditorStoreState): Sound | null {
+  const path = selectOptions(state)?.soundPath;
+  return path ? (state.sounds[path] ?? null) : null;
+}
+
 /** Seconds that would be written, which is not the span the pieces cover. */
 export function selectKeptLength(state: EditorStoreState): number {
   return keptLength(selectCuts(state));
@@ -764,14 +873,16 @@ export type LosslessBlocker =
  * level within half a percent of the source's is the source's -- a slider
  * parked on 100 must not rule anything out over rounding. Removing the audio is
  * not here: leaving a track out decodes nothing, so a copy does it too, and a
- * level on a track that is not written rules nothing out. The backend's
- * `lossless_is_possible` holds the same rule.
+ * level on a track that is not written rules nothing out. Nor does a level
+ * under an added sound: mixing one in encodes the audio whatever the mode, and
+ * the picture is still copied. The backend's `lossless_is_possible` holds the
+ * same rule.
  */
 export function losslessBlocker(options: ExportOptions, probe: MediaProbe): LosslessBlocker | null {
   if (options.aspect !== 'source') return 'aspect';
   if (options.fps != null) return 'fps';
   if (options.maxHeight != null) return 'resolution';
-  const audible = probe.hasAudio && !options.mute;
+  const audible = probe.hasAudio && !options.mute && options.soundPath == null;
   if (audible && Math.abs(options.volume - 1) > 0.005) return 'volume';
   if (options.toneMapSdr) return 'colour';
   if (probe.container !== options.container) return 'container';

@@ -142,6 +142,40 @@ export function nextKeptPosition(cuts: Cut[], seconds: number): number | null {
   return following ? following.startSec : null;
 }
 
+/**
+ * Where a position in the source falls in the result: the kept seconds ahead
+ * of it. A position in a dropped piece is where the next kept one begins, which
+ * is where playback carries on from.
+ */
+export function outputPosition(cuts: Cut[], seconds: number): number {
+  let total = 0;
+  for (const cut of cuts) {
+    if (seconds <= cut.startSec) return total;
+    if (seconds < cut.endSec) return total + (seconds - cut.startSec);
+    total += cut.endSec - cut.startSec;
+  }
+  return total;
+}
+
+/**
+ * The stretches of the source an added sound plays under.
+ *
+ * The sound belongs to the result, not to the source: it starts with the first
+ * kept frame and runs on through each kept piece in turn, across the joins,
+ * until it runs out. A sound of unknown length is drawn under everything.
+ */
+export function soundSpans(cuts: Cut[], lengthSec: number | null): EditSegment[] {
+  let left = lengthSec ?? Number.POSITIVE_INFINITY;
+  const spans: EditSegment[] = [];
+  for (const cut of cuts) {
+    if (left <= 0) break;
+    const covered = Math.min(cut.endSec - cut.startSec, left);
+    spans.push({ startSec: cut.startSec, endSec: cut.startSec + covered });
+    left -= covered;
+  }
+  return spans;
+}
+
 /** Every edge the playhead or a handle can land on, sorted, without duplicates. */
 export function edgesOf(cuts: Cut[]): number[] {
   const edges = new Set<number>();

@@ -106,6 +106,12 @@ describe('what rules a lossless copy out', () => {
     const silent = probeOf({ hasAudio: false, audioCodec: null, audioBitrateKbps: null });
     expect(losslessBlocker({ ...base, volume: 1.5 }, silent)).toBeNull();
   });
+
+  test('nor does a level under an added sound, which is encoded anyway', async () => {
+    await openLossless();
+    const base = options();
+    expect(losslessBlocker({ ...base, volume: 1.5, soundPath: 'C:/tmp/song.mp3' }, probeOf())).toBeNull();
+  });
 });
 
 describe('the mode follows the settings', () => {
@@ -180,6 +186,8 @@ describe('the mode follows the settings', () => {
       audioBitrateKbps: 192,
       toneMapSdr: false,
       hardware: false,
+      soundPath: null,
+      soundVolume: 1,
     };
     expect(withLegalMode(blocked, probe).mode).toBe('reencode');
     expect(withLegalMode({ ...blocked, fps: null }, probe).mode).toBe('lossless');

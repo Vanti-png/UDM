@@ -973,6 +973,18 @@ pub struct ExportOptions {
     /// Map an HDR source down to Rec. 709 instead of letting it wash out.
     pub tone_map_sdr: bool,
     pub hardware: bool,
+    /// A sound laid under the picture: the first audio track of another file,
+    /// from its beginning, starting with the export's first frame and cut off
+    /// at its last. It plays straight across the joins, because it is the
+    /// export's sound rather than the source's. `mute` drops the source's own
+    /// and leaves this one, which is how a sound replaces the original rather
+    /// than playing over it. `None`, and absent from an older interface, adds
+    /// nothing.
+    #[serde(default)]
+    pub sound_path: Option<String>,
+    /// Linear gain on that sound, on the same scale as `volume`.
+    #[serde(default = "unity_gain")]
+    pub sound_volume: f64,
 }
 
 fn unity_gain() -> f64 {
@@ -997,6 +1009,8 @@ impl Default for ExportOptions {
             volume: unity_gain(),
             tone_map_sdr: false,
             hardware: false,
+            sound_path: None,
+            sound_volume: unity_gain(),
         }
     }
 }
@@ -1012,12 +1026,20 @@ impl ExportOptions {
     /// that is not a number is treated the same way rather than handed to
     /// FFmpeg, which would refuse the whole graph over it.
     pub fn gain(&self) -> Option<f64> {
-        let volume = self.volume;
-        if !volume.is_finite() || (volume - 1.0).abs() <= 0.005 {
-            return None;
-        }
-        Some(volume.clamp(0.0, 2.0))
+        gain_of(self.volume)
     }
+
+    /// The gain the added sound gets, by the same rule as [`Self::gain`].
+    pub fn sound_gain(&self) -> Option<f64> {
+        gain_of(self.sound_volume)
+    }
+}
+
+fn gain_of(volume: f64) -> Option<f64> {
+    if !volume.is_finite() || (volume - 1.0).abs() <= 0.005 {
+        return None;
+    }
+    Some(volume.clamp(0.0, 2.0))
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

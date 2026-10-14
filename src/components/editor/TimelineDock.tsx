@@ -3,6 +3,7 @@ import {
   ChevronFirst,
   ChevronLast,
   Magnet,
+  Music,
   Pause,
   Play,
   Scissors,
@@ -20,7 +21,7 @@ import { IconButton } from '@/components/ui/IconButton';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
-import type { Cut } from '@/lib/editor/segments';
+import { soundSpans, type Cut } from '@/lib/editor/segments';
 import { rulerFor, ticksIn } from '@/lib/editor/ticks';
 import { snap, toFrame, type SnapTarget } from '@/lib/editor/snap';
 import { MAX_PPS, ZOOM_STEP, clampPps, fitPps, scrollToShow, zoomAbout } from '@/lib/editor/zoom';
@@ -57,6 +58,13 @@ const TOUCH = IS_MOBILE;
 /** The strip of frames, and the sound under it. */
 const VIDEO_TRACK_H = TOUCH ? 56 : 68;
 const AUDIO_TRACK_H = TOUCH ? 32 : 40;
+/** An added sound's lane: a name over where it plays, not a picture of it. */
+const SOUND_TRACK_H = TOUCH ? 22 : 24;
+/**
+ * What the dock grows by while a clip has a sound under it -- the lane and the
+ * gap above it -- for a page that gives the dock a height of its own.
+ */
+export const SOUND_LANE_ROOM = SOUND_TRACK_H + 6;
 const RULER_H = TOUCH ? 20 : 24;
 const TOOLBAR_H = 36;
 const SCROLLBAR_H = 10;
@@ -114,6 +122,8 @@ export interface TimelineDockProps {
   durationSec: number;
   fps: number | null;
   hasAudio: boolean;
+  /** The sound laid under the clip, when it has one. */
+  sound?: { name: string; durationSec: number | null } | null;
   cuts: Cut[];
   selectedId: string | null;
   /** Read, and followed, rather than passed in: it moves on every frame of playback. */
@@ -156,6 +166,7 @@ export const TimelineDock = memo(function TimelineDock({
   durationSec,
   fps,
   hasAudio,
+  sound = null,
   cuts,
   selectedId,
   playhead,
@@ -892,6 +903,9 @@ export const TimelineDock = memo(function TimelineDock({
               </span>
             )}
           </div>
+
+          {/* The added sound, under the kept pieces it will play over. */}
+          {sound && <SoundLane sound={sound} cuts={cuts} xOf={xOf} />}
         </div>
 
         {/* The snap guide, over everything, for as long as the mark is held on
@@ -1007,6 +1021,45 @@ function Extent({ left, right }: { left: number; right: number }) {
     />
   );
 }
+
+/**
+ * Where an added sound plays, by name. Each kept piece it reaches gets a bar,
+ * because the sound runs on across the joins; the name goes on the first, which
+ * is where it begins.
+ */
+const SoundLane = memo(function SoundLane({
+  sound,
+  cuts,
+  xOf,
+}: {
+  sound: { name: string; durationSec: number | null };
+  cuts: Cut[];
+  xOf: (seconds: number) => number;
+}) {
+  const spans = soundSpans(cuts, sound.durationSec);
+  return (
+    <div className="relative mt-1.5 overflow-hidden" style={{ height: SOUND_TRACK_H }}>
+      {spans.map((span, index) => {
+        const left = xOf(span.startSec);
+        return (
+          <div
+            key={index}
+            aria-hidden={index > 0 || undefined}
+            className="absolute inset-y-0 flex items-center gap-1.5 overflow-hidden rounded-[6px] bg-accent-soft px-2 text-accent"
+            style={{ left, width: Math.max(0, xOf(span.endSec) - left) }}
+          >
+            {index === 0 && (
+              <>
+                <Music size={12} aria-hidden="true" className="shrink-0" />
+                <span className="truncate text-[11.5px] font-medium">{sound.name}</span>
+              </>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+});
 
 /** The parts of the file that will not be in the result. */
 const Dimming = memo(function Dimming({

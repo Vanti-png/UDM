@@ -1188,7 +1188,8 @@
         // Exactly the length of PREVIEW_CLIP below, so the timeline and the
         // picture above it are describing the same thing. It was 20.4 here for a
         // while, which put the end mark a little past the end of the video.
-        durationSec: 20,
+        // A sound is shorter, so its lane under the timeline ends part way.
+        durationSec: sound ? 14 : 20,
         videoDurationSec: sound ? null : 20,
         width: sound ? null : 1920,
         height: sound ? null : 1080,
@@ -1449,7 +1450,11 @@
     if (cmd === 'plugin:dialog|open') {
       const options = args.options ?? {};
       if (options.directory) return 'C:\\Users\\melik\\Videos\\Kesimler';
-      const picked = ['C:\\Users\\melik\\Videos\\tatil klibi.mp4'];
+      // The editor's sound picker offers audio first.
+      const wantsSound = options.filters?.[0]?.extensions?.includes('mp3');
+      const picked = wantsSound
+        ? ['C:\\Users\\melik\\Music\\Yaz akşamı.mp3']
+        : ['C:\\Users\\melik\\Videos\\tatil klibi.mp4'];
       if (options.multiple) return picked;
       return picked[0];
     }

@@ -46,7 +46,7 @@ vi.mock('@/services/ipc', () => ({
   }),
 }));
 
-const { selectCuts, selectHistory, selectOptions, useEditorStore } = await import(
+const { selectCuts, selectHistory, selectOptions, selectSound, useEditorStore } = await import(
   '@/stores/useEditorStore'
 );
 
@@ -528,6 +528,87 @@ describe('what is drawn belongs to one clip', () => {
   });
 });
 
+function soundProbe(path: string): MediaProbe {
+  return probeOf({
+    path,
+    fileName: path,
+    container: 'mp3',
+    durationSec: 95,
+    width: null,
+    height: null,
+    fps: null,
+    videoDurationSec: null,
+    videoCodec: null,
+    audioCodec: 'mp3',
+    hasVideo: false,
+  });
+}
+
+describe('an added sound', () => {
+  test('a sound chosen with a clip open goes under that clip, as a step that undoes', async () => {
+    const clip = await openClip('C:/tmp/a.mp4');
+    backend.probe = soundProbe('C:/tmp/song.mp3');
+
+    const id = await useEditorStore.getState().open('C:/tmp/song.mp3', false);
+
+    expect(id).toBe(clip);
+    expect(useEditorStore.getState().pool).toHaveLength(1);
+    expect(useEditorStore.getState().openError).toBeNull();
+    expect(edit().options?.soundPath).toBe('C:/tmp/song.mp3');
+    expect(selectSound(useEditorStore.getState())).toMatchObject({
+      name: 'song.mp3',
+      durationSec: 95,
+      previewSrc: 'asset://C:/tmp/song.mp3',
+    });
+    expect(back()).toBe(1);
+
+    useEditorStore.getState().undo();
+    expect(edit().options?.soundPath).toBeNull();
+    expect(selectSound(useEditorStore.getState())).toBeNull();
+
+    // Brought back by the way forward, and still described.
+    useEditorStore.getState().redo();
+    expect(selectSound(useEditorStore.getState())?.name).toBe('song.mp3');
+  });
+
+  test('a file with no sound is said beside the row that asked for it', async () => {
+    await openClip('C:/tmp/a.mp4');
+    backend.probe = probeOf({ path: 'C:/tmp/mute.mp4', hasAudio: false, audioCodec: null });
+
+    const added = await useEditorStore.getState().addSound('C:/tmp/mute.mp4');
+
+    expect(added).toBe(false);
+    expect(edit().options?.soundPath).toBeNull();
+    expect(useEditorStore.getState().soundError?.message).toBe(en['editor.noSound']);
+    expect(back()).toBe(0);
+  });
+
+  test('each clip keeps its own sound', async () => {
+    const first = await openClip('C:/tmp/a.mp4');
+    backend.probe = soundProbe('C:/tmp/song.mp3');
+    await useEditorStore.getState().addSound('C:/tmp/song.mp3');
+    await openClip('C:/tmp/b.mp4');
+
+    expect(selectSound(useEditorStore.getState())).toBeNull();
+
+    useEditorStore.getState().activate(first);
+    expect(selectSound(useEditorStore.getState())?.path).toBe('C:/tmp/song.mp3');
+  });
+
+  test('taking the sound away puts a level it allowed back out of a copy', async () => {
+    await openClip('C:/tmp/a.mp4');
+    backend.probe = soundProbe('C:/tmp/song.mp3');
+    await useEditorStore.getState().addSound('C:/tmp/song.mp3');
+    useEditorStore.getState().setOptions({ volume: 0.4 });
+    expect(edit().options?.mode).toBe('lossless');
+
+    useEditorStore.getState().removeSound();
+
+    expect(edit().options?.soundPath).toBeNull();
+    expect(edit().options?.mode).toBe('reencode');
+  });
+});
+
 describe('opening', () => {
   test('a file whose length cannot be read is refused, and says so', async () => {
     backend.probe = probeOf({ path: 'C:/tmp/nodur.mkv', durationSec: null });
@@ -539,23 +620,23 @@ describe('opening', () => {
     expect(useEditorStore.getState().openError?.message).toBe(en['editor.unknownLength']);
   });
 
-  test('a file with no picture is refused, and says so', async () => {
-    backend.probe = probeOf({
-      path: 'C:/tmp/podcast.mp3',
-      container: 'mp3',
-      width: null,
-      height: null,
-      fps: null,
-      videoDurationSec: null,
-      videoCodec: null,
-      hasVideo: false,
-    });
+  test('a sound with nothing open to put it under is refused, and says so', async () => {
+    backend.probe = soundProbe('C:/tmp/podcast.mp3');
 
     const id = await useEditorStore.getState().open('C:/tmp/podcast.mp3', false);
 
     expect(id).toBeNull();
     expect(useEditorStore.getState().pool).toHaveLength(0);
     expect(useEditorStore.getState().opening).toBe(false);
+    expect(useEditorStore.getState().openError?.message).toBe(en['editor.soundNeedsVideo']);
+  });
+
+  test('a file with neither picture nor sound is refused as having no picture', async () => {
+    backend.probe = { ...soundProbe('C:/tmp/odd.bin'), hasAudio: false, audioCodec: null };
+
+    const id = await useEditorStore.getState().open('C:/tmp/odd.bin', false);
+
+    expect(id).toBeNull();
     expect(useEditorStore.getState().openError?.message).toBe(en['editor.noVideo']);
   });
 

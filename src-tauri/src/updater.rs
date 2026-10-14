@@ -41,6 +41,8 @@ pub struct AppUpdate {
     pub asset_size: u64,
     /// `sha256:<hex>`, when GitHub reports one for the file.
     pub digest: Option<String>,
+    /// When this build's file was uploaded. Named for what the interface
+    /// shows it as.
     pub published_at: Option<String>,
 }
 
@@ -127,6 +129,9 @@ struct ReleaseAsset {
     size: u64,
     browser_download_url: String,
     digest: Option<String>,
+    /// When the file finished uploading. Every update replaces it, so this is
+    /// the date of the build on offer.
+    updated_at: Option<String>,
 }
 
 #[cfg(any(not(target_os = "android"), test))]
@@ -246,7 +251,10 @@ pub async fn check(settings: &Settings) -> AppResult<Option<AppUpdate>> {
         asset_url: asset.browser_download_url,
         asset_size: asset.size,
         digest: asset.digest,
-        published_at: release.published_at,
+        // The release is never published again, only refilled, so its own
+        // date is the day the first build went out, forever. The file's date
+        // is this build's.
+        published_at: asset.updated_at.or(release.published_at),
     }))
 }
 
@@ -587,7 +595,8 @@ mod tests {
                     "size": 57268738,
                     "browser_download_url": "https://github.com/x/y/releases/download/latest/a.apk",
                     "digest": "sha256:abc",
-                    "content_type": "application/vnd.android.package-archive"
+                    "content_type": "application/vnd.android.package-archive",
+                    "updated_at": "2026-10-09T08:55:47Z"
                 }]
             }"#,
         )
@@ -596,6 +605,9 @@ mod tests {
         let asset = &release.assets[0];
         assert_eq!(asset.size, 57268738);
         assert_eq!(asset.digest.as_deref(), Some("sha256:abc"));
+        // The file's date, not the release's: the release keeps the day it was
+        // first published however many builds have replaced its files since.
+        assert_eq!(asset.updated_at.as_deref(), Some("2026-10-09T08:55:47Z"));
     }
 
     #[test]

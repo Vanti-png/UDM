@@ -31,7 +31,7 @@ use tauri::{AppHandle, Emitter};
 use crate::downloader::control::TaskControl;
 use crate::downloader::plan;
 use crate::error::{AppError, AppResult};
-use crate::ffmpeg::{self, ExportPlan, PassSlice, ToneMap};
+use crate::ffmpeg::{self, AddedSound, ExportPlan, PassSlice, ToneMap};
 use crate::model::{
     AspectRatio, EditSegment, ExportMode, ExportOptions, ExportRequest, ExportState, ExportStatus,
     MediaProbe,
@@ -82,6 +82,8 @@ struct Job {
     seeks: Vec<f64>,
     options: ExportOptions,
     probe: MediaProbe,
+    /// The file whose sound goes under the picture, checked to have some.
+    sound: Option<PathBuf>,
     hardware: bool,
 }
 
@@ -100,6 +102,20 @@ impl Job {
     /// would leave a short export of a long film stuck near zero.
     fn kept_sec(&self) -> f64 {
         self.segments.iter().map(EditSegment::length).sum()
+    }
+
+    /// The added sound, as the pass that writes it is handed it.
+    fn added_sound(&self) -> Option<AddedSound<'_>> {
+        self.sound.as_deref().map(|path| AddedSound {
+            path,
+            gain: self.options.sound_gain(),
+            length_sec: self.kept_sec(),
+        })
+    }
+
+    /// Whether the source's own sound goes into the file.
+    fn keeps_original(&self) -> bool {
+        self.probe.has_audio && !self.options.mute
     }
 }
 
@@ -192,6 +208,10 @@ impl ExportManager {
         let probe = converter::probe(&request.input_path).await?;
         let options = checked_options(request.options)?;
         let mut segments = plan_segments(&request.segments, probe.duration_sec)?;
+        let sound = match options.sound_path.as_deref() {
+            Some(path) => Some(checked_sound(path).await?),
+            None => None,
+        };
 
         let mut seeks: Vec<f64> = Vec::new();
         if options.mode == ExportMode::Lossless {
@@ -248,6 +268,7 @@ impl ExportManager {
             hardware: options.hardware && self.settings().hardware_acceleration,
             options,
             probe,
+            sound,
         };
 
         let manager = Arc::clone(self);
@@ -315,13 +336,19 @@ impl ExportManager {
     }
 
     /// One range is one process; several are one cut pass each and a join.
+    ///
+    /// An added sound is always the second shape, a single range included: the
+    /// join is the pass that reads the cut film from zero, which is where the
+    /// sound has to begin. Mixed into the seeking pass instead, it would start
+    /// at the point that was sought to -- and a copied picture starts at the
+    /// keyframe before it.
     async fn run_lossless(
         self: &Arc<Self>,
         job: &Job,
         control: Arc<TaskControl>,
     ) -> AppResult<()> {
         let keep_audio = !job.options.mute;
-        if let [only] = job.segments.as_slice() {
+        if let ([only], None) = (job.segments.as_slice(), &job.sound) {
             let args = ffmpeg::lossless_single_args(
                 &job.input,
                 &job.output,
@@ -383,7 +410,20 @@ impl ExportManager {
             });
         }
         if outcome.is_ok() {
-            let args = ffmpeg::concat_args(&list, &job.output, &job.options.container, keep_audio);
+            let args = match job.added_sound() {
+                Some(sound) => ffmpeg::concat_with_sound_args(
+                    &list,
+                    &job.output,
+                    &job.options.container,
+                    &sound,
+                    job.keeps_original().then(|| job.options.gain()),
+                    ffmpeg::sound_codec(&job.options),
+                    job.options.audio_bitrate_kbps,
+                ),
+                None => {
+                    ffmpeg::concat_args(&list, &job.output, &job.options.container, keep_audio)
+                }
+            };
             outcome = self
                 .pass(
                     &args,
@@ -479,6 +519,7 @@ fn reencode_args(job: &Job, encoder: &str, tone_map: ToneMap) -> AppResult<Vec<S
             square_pixels(width, height, job.probe.pixel_aspect.unwrap_or(1.0))
         }),
         has_audio: job.probe.has_audio,
+        sound: job.added_sound(),
         source_fps: job.probe.fps,
         video_encoder: encoder,
         tone_map,
@@ -614,7 +655,25 @@ fn checked_options(mut options: ExportOptions) -> AppResult<ExportOptions> {
     } else {
         1.0
     };
+    options.sound_volume = if options.sound_volume.is_finite() {
+        options.sound_volume.clamp(0.0, 2.0)
+    } else {
+        1.0
+    };
+    options.sound_path = options.sound_path.filter(|path| !path.trim().is_empty());
     Ok(options)
+}
+
+/// The file whose sound is to go under the picture, once it is known to have
+/// some. The interface only offers files it probed itself, but the one on disk
+/// may since have been replaced, and FFmpeg asked for `[1:a:0]` of a file with
+/// no sound refuses the whole graph in words about stream specifiers.
+async fn checked_sound(path: &str) -> AppResult<PathBuf> {
+    let probe = converter::probe(path).await?;
+    if !probe.has_audio {
+        return Err(AppError::Other(format!("{} has no sound to add", probe.file_name)));
+    }
+    Ok(PathBuf::from(path))
 }
 
 /// What a stream copy cannot do, said before the export rather than after it.
@@ -630,6 +689,11 @@ fn checked_options(mut options: ExportOptions) -> AppResult<ExportOptions> {
 /// the way either: not a volume the slider still holds, which a re-encode would
 /// not apply to a track it is not writing, and not a codec the container could
 /// not have held.
+///
+/// An added sound takes the audio out of the question altogether. Mixing it in
+/// means encoding the sound whatever the mode, so the source's own level can
+/// change in the same pass, and the codec the source's track arrived in is no
+/// longer the one written -- the picture is still copied untouched.
 fn lossless_is_possible(options: &ExportOptions, probe: &MediaProbe) -> AppResult<()> {
     let refusal = |what: &str| {
         Err(AppError::Other(format!(
@@ -646,7 +710,8 @@ fn lossless_is_possible(options: &ExportOptions, probe: &MediaProbe) -> AppResul
     if options.fps.is_some() {
         return refusal("changing the frame rate");
     }
-    let keeps_sound = probe.has_audio && !options.mute;
+    let adds_sound = options.sound_path.is_some();
+    let keeps_sound = probe.has_audio && !options.mute && !adds_sound;
     if keeps_sound && options.gain().is_some() {
         return refusal("changing the volume");
     }
@@ -1323,6 +1388,34 @@ mod tests {
             ..probe_of("mp4", "h264", "aac")
         };
         assert!(lossless_is_possible(&options, &silent).is_ok());
+    }
+
+    #[test]
+    fn an_added_sound_leaves_the_picture_copied_and_the_audio_free() {
+        let base = ExportOptions {
+            mode: ExportMode::Lossless,
+            container: "mp4".into(),
+            sound_path: Some("song.mp3".into()),
+            ..ExportOptions::default()
+        };
+        // The mix is encoded anyway, so the source's level can move in it, and
+        // a track MP4 could not have held is not the one being written.
+        let louder = ExportOptions {
+            volume: 1.5,
+            ..base.clone()
+        };
+        assert!(lossless_is_possible(&louder, &probe_of("mp4", "h264", "aac")).is_ok());
+        assert!(lossless_is_possible(&base, &probe_of("mp4", "h264", "vorbis")).is_ok());
+
+        // The picture is still a copy, and still has to fit.
+        assert!(lossless_is_possible(
+            &ExportOptions {
+                container: "webm".into(),
+                ..base
+            },
+            &probe_of("mp4", "h264", "aac")
+        )
+        .is_err());
     }
 
     #[test]

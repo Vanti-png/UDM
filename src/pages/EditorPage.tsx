@@ -33,7 +33,8 @@ import { OutputInspector } from '@/components/editor/OutputInspector';
 import { PlayheadTime, createPlayhead } from '@/components/editor/playhead';
 import { PreviewStage } from '@/components/editor/PreviewStage';
 import { RecentDownloads } from '@/components/editor/RecentDownloads';
-import { TimelineDock } from '@/components/editor/TimelineDock';
+import { SoundPreview } from '@/components/editor/SoundPreview';
+import { SOUND_LANE_ROOM, TimelineDock } from '@/components/editor/TimelineDock';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { InlineNotice } from '@/components/ui/InlineNotice';
@@ -65,6 +66,7 @@ import {
   selectHistory,
   selectKeptLength,
   selectOptions,
+  selectSound,
   useEditorStore,
 } from '@/stores/useEditorStore';
 import { useToolsStore } from '@/stores/useToolsStore';
@@ -175,6 +177,7 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
   const clip = useEditorStore(selectActiveClip);
   const cuts = useEditorStore(selectCuts);
   const options = useEditorStore(selectOptions);
+  const sound = useEditorStore(selectSound);
   const keptLength = useEditorStore(selectKeptLength);
   const opening = useEditorStore((state) => state.opening);
   const openError = useEditorStore((state) => state.openError);
@@ -874,6 +877,16 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
     <LinkImportModal open={linkOpen} onClose={closeLink} onFetched={openFetched} />
   );
 
+  const soundPreview = clip && sound && (
+    <SoundPreview
+      src={sound.previewSrc}
+      videoRef={videoRef}
+      clipId={clip.id}
+      cuts={cuts}
+      volume={options?.soundVolume ?? 1}
+    />
+  );
+
   const discardQuestion = (
     <Modal
       open={discardOpen}
@@ -1078,6 +1091,7 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
                     onCappedChange={setPreviewCapped}
                     className="min-w-0 flex-1"
                   />
+                  {soundPreview}
                 </div>
 
                 {/* -- the transport ----------------------------------------- */}
@@ -1118,6 +1132,7 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
                     durationSec={duration}
                     fps={fps}
                     hasAudio={clip.probe.hasAudio}
+                    sound={sound}
                     cuts={cuts}
                     selectedId={selected?.id ?? null}
                     playhead={playhead}
@@ -1357,6 +1372,7 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
             onCappedChange={setPreviewCapped}
             className="min-h-0 flex-1"
           />
+          {soundPreview}
 
           <div className="flex h-7 shrink-0 items-center justify-between px-4">
             <span className="tabular text-[12px] text-fg-faint">
@@ -1378,14 +1394,19 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
 
       {/* -- the file, in time ----------------------------------------------- */}
       {/* Exactly as tall as what is in it -- 36 of tools, 24 of ruler, the two
-          tracks and the overview bar. A taller dock would be empty space under
-          the waveform, which reads as something that failed to load. */}
-      <div className="flex h-[196px] shrink-0 flex-col border-t border-[var(--border)]">
+          tracks, an added sound's lane when there is one, and the overview
+          bar. A taller dock would be empty space under the waveform, which
+          reads as something that failed to load. */}
+      <div
+        className="flex shrink-0 flex-col border-t border-[var(--border)]"
+        style={{ height: 196 + (sound ? SOUND_LANE_ROOM : 0) }}
+      >
         <TimelineDock
           clipId={clip.id}
           durationSec={duration}
           fps={fps}
           hasAudio={clip.probe.hasAudio}
+          sound={sound}
           cuts={cuts}
           selectedId={selected?.id ?? null}
           playhead={playhead}

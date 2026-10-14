@@ -730,6 +730,148 @@ pub fn concat_args(list: &Path, output: &Path, container: &str, keep_audio: bool
     args
 }
 
+/// A sound laid under the picture, as a pass that writes it needs it.
+pub struct AddedSound<'a> {
+    pub path: &'a Path,
+    /// `None` leaves it at the file's own level.
+    pub gain: Option<f64>,
+    /// How long the export is. The sound is cut off there, so a song longer
+    /// than the film ends with it.
+    pub length_sec: f64,
+}
+
+/// How long an added sound takes to fade out when the film ends under it, and
+/// the shortest export that gets a fade at all: on a clip of a few seconds a
+/// second of fading is most of the sound.
+const SOUND_FADE_SEC: f64 = 1.0;
+const SOUND_FADE_MIN_SEC: f64 = 4.0;
+
+/// The audio half of a graph with an added sound in it, ending in `[ac]`.
+///
+/// `input` is the sound's place on the command line, and `original` the label
+/// the source's own sound arrives under -- joined, at its own gain -- or `None`
+/// when it is not going in. The sound is cut to the export's length and fades
+/// over its last second instead of stopping mid-note; a sound that ends sooner
+/// is long gone by then and the fade touches nothing.
+///
+/// Mixed with the original, the two are added together rather than averaged:
+/// `amix` divides every input by the number of inputs unless told not to, which
+/// would halve the film's own sound the moment anything was put under it, and
+/// the levels the user set on each would stop meaning what the sliders say.
+/// The original sets the length, so a sound shorter than the film leaves the
+/// film's own sound running to the end.
+fn sound_graph(sound: &AddedSound<'_>, input: usize, original: Option<&str>) -> String {
+    let length = sound.length_sec.max(0.0);
+    let mut chain = vec![
+        format!("atrim=end={length:.3}"),
+        "asetpts=PTS-STARTPTS".to_string(),
+    ];
+    if let Some(gain) = sound.gain {
+        chain.push(format!("volume={gain:.3}"));
+    }
+    if length >= SOUND_FADE_MIN_SEC {
+        chain.push(format!(
+            "afade=t=out:st={:.3}:d={SOUND_FADE_SEC:.3}",
+            length - SOUND_FADE_SEC
+        ));
+    }
+    let chain = chain.join(",");
+    match original {
+        None => format!("[{input}:a:0]{chain}[ac]"),
+        Some(label) => format!(
+            "[{input}:a:0]{chain}[snd];\
+             {label}[snd]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[ac]"
+        ),
+    }
+}
+
+/// How the audio is written when it has to be: the encoder, and a rate for
+/// every codec that takes one.
+fn audio_encode_args(codec: AudioCodec, kbps: Option<u32>) -> Vec<String> {
+    let mut args: Vec<String> = vec!["-c:a".into(), audio_encoder(codec).into()];
+    // FLAC is lossless, so a bitrate is not a thing to ask it for.
+    if codec != AudioCodec::Flac {
+        let kbps = kbps.unwrap_or(192).clamp(32, 512);
+        args.extend(["-b:a".into(), format!("{kbps}k")]);
+    }
+    args
+}
+
+/// The audio codec a copied export writes an added sound in.
+///
+/// A copy shows no audio settings, so nobody chose one: the one in the options
+/// stands when the container can hold it, and otherwise the container's own --
+/// Opus for WebM, AAC for the rest.
+pub fn sound_codec(options: &ExportOptions) -> AudioCodec {
+    let container = options.container.as_str();
+    if audio_fits(container, options.audio_codec) {
+        options.audio_codec
+    } else if container == "webm" {
+        AudioCodec::Opus
+    } else {
+        AudioCodec::Aac
+    }
+}
+
+/// Lay the cut pieces end to end with a sound under them.
+///
+/// The picture is still copied, byte for byte; only the audio is written
+/// afresh, because a mix is new sound and has to be encoded whatever the mode
+/// says. That is also why the source's own level can be changed here, which a
+/// copy otherwise cannot do. `original` is the gain on the source's own sound
+/// when the pieces carry it and it stays -- `Some(None)` for its own level --
+/// and `None` when it is not going in.
+pub fn concat_with_sound_args(
+    list: &Path,
+    output: &Path,
+    container: &str,
+    sound: &AddedSound<'_>,
+    original: Option<Option<f64>>,
+    codec: AudioCodec,
+    kbps: Option<u32>,
+) -> Vec<String> {
+    let mut args = base_args();
+    args.extend([
+        "-f".into(),
+        "concat".into(),
+        // As in `concat_args`: paths this run wrote into its own scratch.
+        "-safe".into(),
+        "0".into(),
+        "-i".into(),
+        list.to_string_lossy().into_owned(),
+        "-i".into(),
+        sound.path.to_string_lossy().into_owned(),
+    ]);
+
+    let mut graph = String::new();
+    let label = match original {
+        None => None,
+        Some(None) => Some("[0:a:0]"),
+        Some(Some(gain)) => {
+            graph.push_str(&format!("[0:a:0]volume={gain:.3}[orig];"));
+            Some("[orig]")
+        }
+    };
+    graph.push_str(&sound_graph(sound, 1, label));
+
+    args.extend([
+        "-filter_complex".into(),
+        graph,
+        "-map".into(),
+        "0:v:0".into(),
+        "-map".into(),
+        "[ac]".into(),
+        "-c:v".into(),
+        "copy".into(),
+    ]);
+    args.extend(audio_encode_args(codec, kbps));
+    if wants_faststart(container) {
+        args.extend(["-movflags".into(), "+faststart".into()]);
+    }
+    args.push(output.to_string_lossy().into_owned());
+    args
+}
+
 /// Everything a re-encode needs that [`ExportOptions`] does not carry.
 pub struct ExportPlan<'a> {
     pub input: &'a Path,
@@ -749,6 +891,8 @@ pub struct ExportPlan<'a> {
     /// this wrong is not a degraded export but a dead one: `[0:a]` on a silent
     /// file exits 127, and so does `concat` with `a=1` and no audio branch.
     pub has_audio: bool,
+    /// A sound to lay under the picture, read as the second input.
+    pub sound: Option<AddedSound<'a>>,
     /// The source's frame rate as the probe read it, which only SVT-AV1 is
     /// told (see [`svt_frame_rate_args`]).
     pub source_fps: Option<f64>,
@@ -770,7 +914,8 @@ pub fn reencode_args(plan: &ExportPlan<'_>) -> AppResult<Vec<String>> {
 
     let options = plan.options;
     let container = options.container.as_str();
-    let audio = (!options.mute && plan.has_audio).then_some(options.audio_codec);
+    let original = !options.mute && plan.has_audio;
+    let audio = (original || plan.sound.is_some()).then_some(options.audio_codec);
     container_accepts(container, options.video_codec, audio)?;
 
     let canvas = canvas_frame(options.aspect, plan.source_frame, options.max_height);
@@ -793,6 +938,11 @@ pub fn reencode_args(plan: &ExportPlan<'_>) -> AppResult<Vec<String>> {
         args.extend(["-ss".into(), seek_value(seek)]);
     }
     args.extend(["-i".into(), plan.input.to_string_lossy().into_owned()]);
+    // After the source's seek, which is the source's alone: the sound always
+    // begins at its own beginning.
+    if let Some(sound) = &plan.sound {
+        args.extend(["-i".into(), sound.path.to_string_lossy().into_owned()]);
+    }
 
     // `-filter_complex_script` was removed from this build, so the graph goes
     // in as one argument. It is a single argv element, never a shell string,
@@ -800,7 +950,7 @@ pub fn reencode_args(plan: &ExportPlan<'_>) -> AppResult<Vec<String>> {
     // read them as the end of an argument.
     args.extend([
         "-filter_complex".into(),
-        reencode_filter(plan, canvas, audio.is_some(), seek),
+        reencode_filter(plan, canvas, original, seek),
     ]);
 
     args.extend(["-map".into(), "[vout]".into()]);
@@ -832,12 +982,7 @@ pub fn reencode_args(plan: &ExportPlan<'_>) -> AppResult<Vec<String>> {
     }
 
     if let Some(codec) = audio {
-        args.extend(["-c:a".into(), audio_encoder(codec).into()]);
-        // FLAC is lossless, so a bitrate is not a thing to ask it for.
-        if codec != AudioCodec::Flac {
-            let kbps = options.audio_bitrate_kbps.unwrap_or(192).clamp(32, 512);
-            args.extend(["-b:a".into(), format!("{kbps}k")]);
-        }
+        args.extend(audio_encode_args(codec, options.audio_bitrate_kbps));
     }
 
     if wants_faststart(container) {
@@ -850,7 +995,8 @@ pub fn reencode_args(plan: &ExportPlan<'_>) -> AppResult<Vec<String>> {
 
 /// `seek` is the input seek the caller put before `-i`, which the graph's times
 /// are relative to: the first frame the decoder hands over is that point, not
-/// the start of the file.
+/// the start of the file. `with_audio` is whether the source's own sound goes
+/// in; an added sound is the plan's, and is mixed in after the join.
 fn reencode_filter(
     plan: &ExportPlan<'_>,
     canvas: Option<(u32, u32)>,
@@ -884,11 +1030,12 @@ fn reencode_filter(
     // The gain goes on once, after the join, so that every range gets the same
     // one and the join itself sees the source's own levels. Whatever the audio
     // passes through, it leaves the graph as `[ac]`, which is the label the
-    // caller maps.
+    // caller maps -- by way of `[aorig]` when an added sound is mixed in after.
     let gain = if with_audio { plan.options.gain() } else { None };
+    let level = if plan.sound.is_some() { "[aorig]" } else { "[ac]" };
     let joined_audio = match (with_audio, gain) {
         (false, _) => "",
-        (true, None) => "[ac]",
+        (true, None) => level,
         (true, Some(_)) => "[acat]",
     };
     graph.push_str(&format!(
@@ -897,7 +1044,11 @@ fn reencode_filter(
         u8::from(with_audio),
     ));
     if let Some(gain) = gain {
-        graph.push_str(&format!("[acat]volume={gain:.3}[ac];"));
+        graph.push_str(&format!("[acat]volume={gain:.3}{level};"));
+    }
+    if let Some(sound) = &plan.sound {
+        graph.push_str(&sound_graph(sound, 1, with_audio.then_some("[aorig]")));
+        graph.push(';');
     }
 
     graph.push_str("[vc]");
@@ -1301,7 +1452,18 @@ fn container_accepts(
     let Some(audio) = audio else {
         return Ok(());
     };
-    let audio_ok = match container {
+    if !audio_fits(container, audio) {
+        return Err(AppError::Other(format!(
+            "a .{container} file cannot hold {} audio",
+            audio_codec_label(audio)
+        )));
+    }
+    Ok(())
+}
+
+/// Whether a container can hold an audio codec this app writes.
+fn audio_fits(container: &str, audio: AudioCodec) -> bool {
+    match container {
         "webm" => matches!(audio, AudioCodec::Opus),
         "mov" => matches!(audio, AudioCodec::Aac),
         "mp4" | "m4v" => matches!(
@@ -1309,14 +1471,7 @@ fn container_accepts(
             AudioCodec::Aac | AudioCodec::Opus | AudioCodec::Mp3
         ),
         _ => true,
-    };
-    if !audio_ok {
-        return Err(AppError::Other(format!(
-            "a .{container} file cannot hold {} audio",
-            audio_codec_label(audio)
-        )));
     }
-    Ok(())
 }
 
 /// Run FFmpeg with the given arguments, reporting progress as it works.
@@ -1699,10 +1854,136 @@ mod tests {
             options,
             source_frame: source,
             has_audio,
+            sound: None,
             source_fps: Some(29.97),
             video_encoder: encoder,
             tone_map: ToneMap::None,
         }
+    }
+
+    fn song() -> AddedSound<'static> {
+        AddedSound {
+            path: Path::new("song.mp3"),
+            gain: None,
+            length_sec: 30.0,
+        }
+    }
+
+    #[test]
+    fn a_sound_under_a_re_encode_is_cut_to_the_export_and_added_to_the_original() {
+        let options = ExportOptions {
+            mode: crate::model::ExportMode::Reencode,
+            volume: 0.5,
+            ..ExportOptions::default()
+        };
+        let segments = [segment(0.0, 10.0), segment(20.0, 40.0)];
+        let mut plan = export_plan(&options, &segments, Some((1920, 1080)), true, "libx264");
+        plan.sound = Some(AddedSound {
+            gain: Some(0.8),
+            ..song()
+        });
+        let args = reencode_args(&plan).unwrap();
+
+        // The sound is the second input, after the source's seek.
+        let inputs: Vec<&str> = args
+            .windows(2)
+            .filter(|pair| pair[0] == "-i")
+            .map(|pair| pair[1].as_str())
+            .collect();
+        assert_eq!(inputs, ["in.mp4", "song.mp3"]);
+
+        let graph = graph_of(&args);
+        assert!(graph.contains("concat=n=2:v=1:a=1[vc][acat];"), "{graph}");
+        assert!(graph.contains("[acat]volume=0.500[aorig];"), "{graph}");
+        assert!(
+            graph.contains(
+                "[1:a:0]atrim=end=30.000,asetpts=PTS-STARTPTS,volume=0.800,\
+                 afade=t=out:st=29.000:d=1.000[snd];\
+                 [aorig][snd]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[ac];"
+            ),
+            "{graph}"
+        );
+        assert_eq!(value_after(&args, "-c:a").as_deref(), Some("aac"));
+    }
+
+    #[test]
+    fn a_sound_alone_is_the_whole_track_when_the_original_is_dropped_or_missing() {
+        let segments = [segment(0.0, 3.0)];
+        for (mute, has_audio) in [(true, true), (false, false)] {
+            let options = ExportOptions {
+                mode: crate::model::ExportMode::Reencode,
+                mute,
+                ..ExportOptions::default()
+            };
+            let mut plan = export_plan(&options, &segments, Some((1280, 720)), has_audio, "libx264");
+            plan.sound = Some(AddedSound {
+                length_sec: 3.0,
+                ..song()
+            });
+            let args = reencode_args(&plan).unwrap();
+            let graph = graph_of(&args);
+            assert!(graph.contains("concat=n=1:v=1:a=0[vc];"), "{graph}");
+            // Too short to fade.
+            assert!(
+                graph.contains("[1:a:0]atrim=end=3.000,asetpts=PTS-STARTPTS[ac];"),
+                "{graph}"
+            );
+            assert!(!graph.contains("amix"), "{graph}");
+            assert!(args.windows(2).any(|pair| pair == ["-map", "[ac]"]));
+            assert!(!args.iter().any(|arg| arg == "-an"));
+        }
+    }
+
+    #[test]
+    fn a_copied_join_with_a_sound_copies_the_picture_and_encodes_the_mix() {
+        let args = concat_with_sound_args(
+            Path::new("job.list.txt"),
+            Path::new("out.mp4"),
+            "mp4",
+            &song(),
+            Some(Some(1.5)),
+            AudioCodec::Aac,
+            Some(192),
+        );
+        let graph = graph_of(&args);
+        assert!(
+            graph.starts_with("[0:a:0]volume=1.500[orig];[1:a:0]atrim=end=30.000"),
+            "{graph}"
+        );
+        assert!(graph.ends_with(
+            "[orig][snd]amix=inputs=2:duration=first:dropout_transition=0:normalize=0[ac]"
+        ));
+        assert!(args.windows(2).any(|pair| pair == ["-map", "0:v:0"]));
+        assert!(args.windows(2).any(|pair| pair == ["-c:v", "copy"]));
+        assert!(args.windows(2).any(|pair| pair == ["-b:a", "192k"]));
+
+        // The original dropped: the sound is the track.
+        let args = concat_with_sound_args(
+            Path::new("job.list.txt"),
+            Path::new("out.mp4"),
+            "mp4",
+            &song(),
+            None,
+            AudioCodec::Aac,
+            None,
+        );
+        assert!(graph_of(&args).starts_with("[1:a:0]atrim=end=30.000"));
+        assert!(!graph_of(&args).contains("amix"));
+    }
+
+    #[test]
+    fn a_copy_writes_the_sound_in_a_codec_its_container_holds() {
+        let in_container = |container: &str, codec: AudioCodec| {
+            sound_codec(&ExportOptions {
+                container: container.into(),
+                audio_codec: codec,
+                ..ExportOptions::default()
+            })
+        };
+        assert_eq!(in_container("mp4", AudioCodec::Aac), AudioCodec::Aac);
+        assert_eq!(in_container("webm", AudioCodec::Aac), AudioCodec::Opus);
+        assert_eq!(in_container("mov", AudioCodec::Mp3), AudioCodec::Aac);
+        assert_eq!(in_container("mkv", AudioCodec::Flac), AudioCodec::Flac);
     }
 
     fn graph_of(args: &[String]) -> String {

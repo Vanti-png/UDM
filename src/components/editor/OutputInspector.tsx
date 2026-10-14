@@ -1,6 +1,6 @@
 import { AnimatePresence, motion, useReducedMotionConfig } from 'motion/react';
 import { open } from '@tauri-apps/plugin-dialog';
-import { ChevronDown, RotateCcw, Sliders } from 'lucide-react';
+import { ChevronDown, Music, RotateCcw, Sliders, X } from 'lucide-react';
 import {
   memo,
   useEffect,
@@ -15,16 +15,19 @@ import { Button } from '@/components/ui/Button';
 import { Dropdown, type DropdownOption } from '@/components/ui/Dropdown';
 import { IconButton } from '@/components/ui/IconButton';
 import { ListGroup, ListGroupLabel } from '@/components/ui/ListGroup';
+import { InlineNotice } from '@/components/ui/InlineNotice';
 import { Segmented } from '@/components/ui/Segmented';
 import { ToggleRow } from '@/components/ui/SettingRow';
 import { Slider } from '@/components/ui/Slider';
+import { Spinner } from '@/components/ui/Spinner';
 import { TextInput } from '@/components/ui/TextInput';
 import { Toggle } from '@/components/ui/Toggle';
 import { Tooltip } from '@/components/ui/Tooltip';
-import { useTranslation, type TranslationKey } from '@/i18n';
+import { errorMessage, useTranslation, type TranslationKey } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { estimatedBytes, formatMbps, parseMbps, sourceVideoKbps } from '@/lib/editor/bitrate';
-import { basename, formatBytes, prettyCodec } from '@/lib/format';
+import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS } from '@/lib/editor/files';
+import { basename, formatBytes, formatDuration, prettyCodec } from '@/lib/format';
 import { COLLAPSE, SIDEWAYS, T } from '@/lib/motion';
 import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
@@ -34,6 +37,7 @@ import {
   selectKeptLength,
   selectLosslessBlocker,
   selectOptions,
+  selectSound,
   useEditorStore,
   type LosslessBlocker,
 } from '@/stores/useEditorStore';
@@ -243,6 +247,15 @@ export const OutputInspector = memo(function OutputInspector({
   const setOptions = useEditorStore((state) => state.setOptions);
   const setAspect = useEditorStore((state) => state.setAspect);
   const setOutputDir = useEditorStore((state) => state.setOutputDir);
+  const sound = useEditorStore(selectSound);
+  const addingSound = useEditorStore((state) => state.addingSound);
+  const soundError = useEditorStore((state) => state.soundError);
+  const addSound = useEditorStore((state) => state.addSound);
+  const removeSound = useEditorStore((state) => state.removeSound);
+  // The phone's picker copies what was chosen before it answers, which for a
+  // long recording is a while; the row says so for all of it.
+  const [pickingSound, setPickingSound] = useState(false);
+  const [soundPickFailed, setSoundPickFailed] = useState(false);
 
   // Each tab opens at its top. The scroller outlives the switch, and landing
   // halfway down the other tab's column is landing somewhere arbitrary.
@@ -303,6 +316,9 @@ export const OutputInspector = memo(function OutputInspector({
 
   const hasAudio = clip.probe.hasAudio;
   const audible = hasAudio && !options.mute;
+  // Whether the file will carry sound at all -- the source's own, or one laid
+  // under it -- which is what the audio codec and rate are for.
+  const writesAudio = audible || options.soundPath != null;
   const legalVideo = VIDEO_BY_CONTAINER[options.container] ?? VIDEO_LADDER;
   const legalAudio = AUDIO_BY_CONTAINER[options.container] ?? AUDIO_LADDER;
   const containerName = CONTAINER_NAMES[options.container] ?? options.container;
@@ -316,6 +332,33 @@ export const OutputInspector = memo(function OutputInspector({
       videoCodec: nearest(VIDEO_LADDER, VIDEO_BY_CONTAINER[container] ?? VIDEO_LADDER, options.videoCodec),
       audioCodec: nearest(AUDIO_LADDER, AUDIO_BY_CONTAINER[container] ?? AUDIO_LADDER, options.audioCodec),
     });
+  };
+
+  // Sound first, because that is what the row asked for; a video's sound is a
+  // second filter away, for the song that only exists as a clip.
+  const pickSound = async () => {
+    setSoundPickFailed(false);
+    setPickingSound(true);
+    let path: string | undefined;
+    try {
+      if (IS_MOBILE) {
+        path = (await ipc.platformPickMediaFiles())[0];
+      } else {
+        const selected = await open({
+          multiple: false,
+          filters: [
+            { name: t('editor.soundFiles'), extensions: AUDIO_EXTENSIONS },
+            { name: t('editor.videoFiles'), extensions: VIDEO_EXTENSIONS },
+          ],
+        });
+        path = typeof selected === 'string' ? selected : undefined;
+      }
+    } catch {
+      setSoundPickFailed(true);
+    } finally {
+      setPickingSound(false);
+    }
+    if (path) await addSound(path);
   };
 
   const pickFolder = async () => {
@@ -387,6 +430,13 @@ export const OutputInspector = memo(function OutputInspector({
   const audioCodecOptions = AUDIO_LADDER.map((codec) => codecOption(codec, legalAudio));
 
   const volumePercent = Math.round(options.volume * 100);
+  const soundPercent = Math.round(options.soundVolume * 100);
+  const soundBusy = pickingSound || addingSound;
+  const shownSoundError = soundPickFailed
+    ? t('editor.soundFailed')
+    : soundError
+      ? errorMessage(soundError)
+      : null;
 
   // The folder the row names: the one chosen, or else the one the backend said
   // an export of this clip goes to instead of beside it. `undefined` while that
@@ -446,32 +496,16 @@ export const OutputInspector = memo(function OutputInspector({
         </Row>
       </ListGroup>
 
-      <ListGroupLabel className="mt-5">{t('editor.audioTrack')}</ListGroupLabel>
+      {/* Named for whose sound it is once there are two. */}
+      <ListGroupLabel className="mt-5">
+        {t(sound ? 'editor.originalSound' : 'editor.audioTrack')}
+      </ListGroupLabel>
       <ListGroup className="mt-1.5">
-        <div
-          // The slider's own label is this row's title, set at the size of
-          // every other title in the rail rather than as a caption.
-          className={cn(
-            'px-4 pb-1 pt-3 [&_label]:font-normal [&_label]:text-fg',
-            IS_MOBILE ? '[&_label]:text-[15px]' : '[&_label]:text-[13.5px]',
-          )}
-          // Back to the source's level in one gesture, the way a mixer's fader
-          // resets: 100 % is the one value worth finding exactly.
-          onDoubleClick={() => {
-            if (audible) setOptions({ volume: 1 });
-          }}
-        >
-          <Slider
-            label={t('editor.volume')}
-            value={volumePercent}
-            min={0}
-            max={200}
-            step={5}
-            disabled={!audible}
-            formatValue={(value) => t('editor.volumeValue', { value })}
-            onChange={(value) => setOptions({ volume: value / 100 })}
-          />
-        </div>
+        <LevelRow
+          percent={volumePercent}
+          disabled={!audible}
+          onChange={(volume) => setOptions({ volume })}
+        />
         <SwitchRow
           title={t('editor.muteAudio')}
           checked={options.mute}
@@ -485,6 +519,69 @@ export const OutputInspector = memo(function OutputInspector({
         previewCapped &&
         audible &&
         volumePercent > 100 && <Footnote>{t('editor.volumePreviewCapped')}</Footnote>
+      )}
+
+      <ListGroupLabel className="mt-5">{t('editor.addedSound')}</ListGroupLabel>
+      <ListGroup className="mt-1.5">
+        {sound ? (
+          <>
+            <div
+              className={cn(
+                'flex items-center gap-3 pl-4',
+                IS_MOBILE ? 'min-h-[56px] py-1.5 pr-1.5' : 'min-h-[52px] py-2 pr-2.5',
+              )}
+            >
+              <Music size={IS_MOBILE ? 18 : 16} aria-hidden="true" className="shrink-0 text-accent" />
+              <div className="min-w-0 flex-1">
+                <p className={cn('truncate text-fg', IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]')}>
+                  {sound.name}
+                </p>
+                {sound.durationSec != null && (
+                  <p className={cn('tabular text-fg-muted', NOTE_TEXT)}>
+                    {formatDuration(sound.durationSec)}
+                  </p>
+                )}
+              </div>
+              <IconButton
+                size="sm"
+                icon={<X size={IS_MOBILE ? 18 : 15} />}
+                label={t('editor.removeSound')}
+                onClick={removeSound}
+              />
+            </div>
+            <LevelRow
+              percent={soundPercent}
+              onChange={(soundVolume) => setOptions({ soundVolume })}
+            />
+          </>
+        ) : (
+          <button
+            type="button"
+            data-keep-focus
+            disabled={soundBusy}
+            onClick={() => void pickSound()}
+            className={cn(
+              'flex w-full items-center gap-3 pl-4 pr-3 text-left text-accent hover:bg-surface-hover',
+              'disabled:pointer-events-none',
+              IS_MOBILE ? 'min-h-[52px] text-[15px] active:bg-surface-active' : 'min-h-11 text-[13.5px]',
+            )}
+          >
+            {soundBusy ? (
+              <Spinner size={IS_MOBILE ? 18 : 16} />
+            ) : (
+              <Music size={IS_MOBILE ? 18 : 16} aria-hidden="true" className="shrink-0" />
+            )}
+            {t('editor.addSound')}
+          </button>
+        )}
+      </ListGroup>
+      {shownSoundError ? (
+        <InlineNotice tone="error" className="mt-1.5 px-4">
+          {shownSoundError}
+        </InlineNotice>
+      ) : (
+        // The preview plays the sound at its own level at most.
+        sound && soundPercent > 100 && <Footnote>{t('editor.volumePreviewCapped')}</Footnote>
       )}
     </>
   );
@@ -574,7 +671,7 @@ export const OutputInspector = memo(function OutputInspector({
                           // edit of the last one's.
                           key={clip.id}
                           kbps={options.videoBitrateKbps}
-                          audioKbps={audible ? (options.audioBitrateKbps ?? 0) : 0}
+                          audioKbps={writesAudio ? (options.audioBitrateKbps ?? 0) : 0}
                           keptSec={keptSec}
                           onCommit={(videoBitrateKbps) => setOptions({ videoBitrateKbps })}
                         />
@@ -624,7 +721,7 @@ export const OutputInspector = memo(function OutputInspector({
                     onChange={(audioCodec) => setOptions({ audioCodec })}
                     // There is no codec to choose for a track that is being
                     // dropped, or that was never there.
-                    disabled={!audible}
+                    disabled={!writesAudio}
                   />
                 }
               />
@@ -638,7 +735,7 @@ export const OutputInspector = memo(function OutputInspector({
                       label: `${kbps} kbps`,
                     }))}
                     onChange={(value) => setOptions({ audioBitrateKbps: Number(value) })}
-                    disabled={!audible}
+                    disabled={!writesAudio}
                   />
                 }
               />
@@ -902,6 +999,47 @@ function SwitchRow({
         )}
       </div>
       <Toggle checked={checked} onChange={onChange} disabled={disabled} label={title} />
+    </div>
+  );
+}
+
+/**
+ * A level, as a slider whose label is the row's title -- set at the size of
+ * every other title in the rail rather than as a caption. Back to 100 % in one
+ * double press, the way a mixer's fader resets: it is the one value worth
+ * finding exactly.
+ */
+function LevelRow({
+  percent,
+  disabled = false,
+  onChange,
+}: {
+  percent: number;
+  disabled?: boolean;
+  /** Linear gain: 1 is the file's own level. */
+  onChange: (gain: number) => void;
+}) {
+  const { t } = useTranslation();
+  return (
+    <div
+      className={cn(
+        'px-4 pb-1 pt-3 [&_label]:font-normal [&_label]:text-fg',
+        IS_MOBILE ? '[&_label]:text-[15px]' : '[&_label]:text-[13.5px]',
+      )}
+      onDoubleClick={() => {
+        if (!disabled) onChange(1);
+      }}
+    >
+      <Slider
+        label={t('editor.volume')}
+        value={percent}
+        min={0}
+        max={200}
+        step={5}
+        disabled={disabled}
+        formatValue={(value) => t('editor.volumeValue', { value })}
+        onChange={(value) => onChange(value / 100)}
+      />
     </div>
   );
 }

@@ -440,6 +440,13 @@ export interface ExportOptions {
   /** Map an HDR source down to Rec. 709 instead of letting it wash out. */
   toneMapSdr: boolean;
   hardware: boolean;
+  /**
+   * A file whose sound goes under the picture, from the export's first frame
+   * to its last, across the joins. `mute` drops the source's own and keeps this.
+   */
+  soundPath: string | null;
+  /** Linear gain on that sound, on the same scale as `volume`. */
+  soundVolume: number;
 }
 
 export interface ExportRequest {
