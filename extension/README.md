@@ -106,12 +106,26 @@ already implies.
 There are two builds of the same files (`edition.js`). The **full build** is
 this folder as it is: it lists YouTube and has the three session switches. The
 **store build** is what the Chrome Web Store accepts after it refused 1.0.5 for
-working on YouTube: `scripts/extension-edition.mjs` flips `STORE` in
-`edition.js` (YouTube goes into `UNLISTED_SITES`, every session path is
-skipped), drops the `cookies` and `alarms` permissions, cuts the session markup
-fenced by `<!-- full -->` out of `popup.html` and `welcome.html`, and leaves
-the session messages out of both locales. `scripts/extension/edition.test.mjs`
-holds the store build to all of that, imported for real.
+working on YouTube, made by `scripts/extension-edition.mjs`:
+
+- Whatever only the full build runs -- the sessions, the switches, and the code
+  that serves YouTube and Spotify -- is fenced where it is written and cut out:
+  `// <full>` to `// </full>` in scripts, `/* <full> */` to `/* </full> */` in
+  `popup.css`, `<!-- full -->` to `<!-- /full -->` in the pages. `sessions.js`
+  is left out whole. The store package does not carry that code switched off;
+  it does not carry it. A fence is whole lines, does not nest, and a file that
+  should have one and has lost it fails the pack.
+- What only the store build does asks `STORE`, which the script writes `true`
+  into in its copy of `edition.js`: YouTube's and Spotify's hosts go into
+  `UNLISTED_SITES`, and a profile an earlier store copy connected is let go.
+- The manifest drops `cookies` and `alarms`, and both locales drop the session
+  messages.
+
+New code for the full build alone goes inside a fence; new code for both goes
+outside one and must not name YouTube or Spotify. `scripts/extension/edition.test.mjs`
+holds the store build to all of that: its files are cut for real, `media.js` and
+`background.js` are imported from a scratch copy, and the service worker is run
+against a `chrome` with only the store's permissions.
 
 `node scripts/pack-extension.mjs` writes `extension-upload.zip` at the
 repository root: the store build, for the Chrome Web Store, and the only zip
@@ -120,7 +134,8 @@ Chrome, published beside the app for loading unpacked. Both remove the `key`
 from the manifest -- Google's guidance is
 to strip it -- and leaves out `key.pem` (which must never leave the machine that
 publishes), `make-icons.mjs`, `.gitignore`, these notes, `PRIVACY.md`,
-`STORE-LISTING.md` and any test file. Everything else ships, `media.js` and
+`PRIVACY-CHROME.md`, `STORE-LISTING.md` and any test file; the store build
+also leaves out `sessions.js`. Everything else ships, `media.js` and
 `fonts/` included. It prints what it packed, so a file that should not ship is
 visible in the output rather than in the listing.
 
@@ -167,12 +182,13 @@ Two things to know before every upload:
 - **The permissions grew in 1.0.3.** Chrome disables an installed extension
   whose update asks for new permissions until the user accepts them, so 1.0.2
   users see it switched off with a prompt.
-- **YouTube is a policy risk.** The Chrome Web Store has refused and removed
-  extensions that download from YouTube. The popup offers YouTube pages because
-  the user chose that knowing the risk; if review objects, YouTube's hosts go
-  into `UNLISTED_SITES` in `media.js`. Taking them out of `PAGE_SITES` is not
-  enough: the page fallback would still offer YouTube's player as a "Page" row.
+- **YouTube is a policy risk.** The Chrome Web Store refused 1.0.5 for it
+  ("Blue Zinc"), and refuses and removes extensions that download from YouTube.
+  Only the store build goes there, and it lists nothing on YouTube or Spotify.
+  Never upload `extension-full.zip` to the Chrome Web Store.
 
-`STORE-LISTING.md` holds every field the dashboard asks for, and `PRIVACY.md`
-is the policy the listing links to. Both have to describe exactly the
-permissions `manifest.json` asks for.
+The section above lists the permissions of the full build; the store build has
+the same less `cookies` and `alarms`. `STORE-LISTING.md` holds every field the
+dashboard asks for. `PRIVACY-CHROME.md` is the policy the Chrome listing links
+to, and `PRIVACY.md` the full build's, for addons.mozilla.org. Each has to
+describe exactly the permissions its build asks for.

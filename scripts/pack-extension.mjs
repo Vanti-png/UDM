@@ -77,6 +77,7 @@ const EXCLUDED = new Set([
   'make-icons.mjs',
   'README.md',
   'PRIVACY.md',
+  'PRIVACY-CHROME.md',
   'STORE-LISTING.md',
   '.gitignore',
 ]);
@@ -106,14 +107,18 @@ function contentsOf(file) {
 const DOS_TIME = 0;
 const DOS_DATE = 0x2821; // 2000-01-01
 
-const files = collect(source).sort();
+// The store build leaves some files out altogether, which forStore answers
+// with null.
+const files = collect(source)
+  .sort()
+  .map((file) => [file, contentsOf(file)])
+  .filter(([, contents]) => contents !== null);
 const locals = [];
 const central = [];
 let offset = 0;
 
-for (const file of files) {
+for (const [file, raw] of files) {
   const name = relative(source, file).split(sep).join('/');
-  const raw = contentsOf(file);
   const body = deflateRawSync(raw, { level: 9 });
   const sum = crc32(raw);
   const named = Buffer.from(name, 'utf8');

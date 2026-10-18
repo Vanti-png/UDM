@@ -249,7 +249,7 @@ const COPY = {
 if (existsSync(work)) rmSync(work, { recursive: true, force: true });
 mkdirSync(work, { recursive: true });
 
-for (const file of ['popup.html', 'popup.css', 'theme.css', 'popup.js', 'i18n.js', 'media.js', 'sessions.js', 'edition.js']) {
+for (const file of ['popup.html', 'popup.css', 'theme.css', 'popup.js', 'i18n.js', 'media.js', 'edition.js']) {
   writeFileSync(join(work, file), forStore(file, readFileSync(join(extension, file))));
 }
 cpSync(join(extension, 'fonts'), join(work, 'fonts'), { recursive: true });

@@ -1,7 +1,11 @@
-// The popup: what this tab is playing, a button to hand each one to the app,
-// and the session switches -- YouTube's always, TikTok's on TikTok's own pages
-// and anywhere while it is on, and the other sites' one on every other site's
-// pages and anywhere while it is on.
+// The popup: what this tab is playing, and a button to hand each one to the
+// app.
+// <full>
+//
+// And the session switches -- YouTube's on YouTube's own pages, TikTok's on
+// TikTok's, each anywhere while it is on, and the other sites' one always.
+// The store build has none of them (extension/edition.js).
+// </full>
 //
 // It holds no state worth keeping and talks to no one but the service worker,
 // which owns the native messaging channel -- so the popup closing halfway
@@ -12,9 +16,10 @@
 // into the DOM as text through textContent, and images load only from http
 // and https addresses; nothing here assigns HTML.
 
-import { STORE } from './edition.js';
 import { displayHost, formatDuration, formatEstimate, isHttpUrl } from './media.js';
+// <full>
 import { onTikTok, onYouTube } from './sessions.js';
+// </full>
 
 const t = (key) => chrome.i18n.getMessage(key);
 const el = (id) => document.getElementById(id);
@@ -70,12 +75,14 @@ const NOTICES = {
 
 let problem = null;
 
+// <full>
 // Whether this popup opened over one of YouTube's or TikTok's pages. Each
 // site's switch is offered there and only there, whatever state it is in: a
 // switch that is on keeps working everywhere, and the site is where to go to
 // turn it off. The other sites' switch is always in view.
 let onYouTubeTab = false;
 let onTikTokTab = false;
+// </full>
 
 function showProblem(next) {
   problem = next;
@@ -286,14 +293,16 @@ function apply(item, answer) {
     item.meta.textContent = t('kindProtected');
     return;
   }
+  // <full>
   // A post the site shows only to a signed-in viewer has no details to give a
   // probe, which never lends a session. İndir stays: whether it gets the post
   // is what this line says. The store build, which lends no session, leaves
   // the row as the page described it.
-  if (answer?.signIn && !STORE) {
+  if (answer?.signIn) {
     item.meta.textContent = t(answer.withSession ? 'rowWithSession' : 'rowSignIn');
     return;
   }
+  // </full>
   const preview = answer?.preview;
   if (!preview) {
     item.meta.textContent = firstMeta(row.meta);
@@ -347,6 +356,7 @@ function renderList(reply) {
   if (items.length > 0) void describe(items);
 }
 
+// <full>
 // YouTube's switch is on when this profile holds the binding and the user has
 // not turned it off; the line under the title says what that means right now.
 function renderLink(reply) {
@@ -448,12 +458,11 @@ function renderOther(reply) {
 // Every answer carries every switch's facts, and any press can move the
 // others -- a claim empties every jar -- so all are drawn from each one.
 function renderSessions(reply) {
-  // The store build has no switches; its popup has no rows to draw them in.
-  if (STORE) return;
   renderLink(reply);
   renderTiktok(reply);
   renderOther(reply);
 }
+// </full>
 
 // The worker's answer, or null when there was none to be had.
 async function ask(action, fields = {}) {
@@ -467,12 +476,15 @@ async function ask(action, fields = {}) {
 async function checkApp() {
   const reply = await ask('status');
   showProblem(problemOf(reply?.result));
+  // <full>
   renderSessions(reply);
+  // </full>
 }
 
+// <full>
 const SWITCHES = { youtube: 'linkSwitch', tiktok: 'tiktokSwitch', other: 'otherSwitch' };
 
-for (const [site, id] of STORE ? [] : Object.entries(SWITCHES)) {
+for (const [site, id] of Object.entries(SWITCHES)) {
   el(id).addEventListener('click', async () => {
     const toggle = el(id);
     const turningOn = toggle.getAttribute('aria-checked') !== 'true';
@@ -492,6 +504,7 @@ for (const [site, id] of STORE ? [] : Object.entries(SWITCHES)) {
     }
   });
 }
+// </full>
 
 el('noticeAction').textContent = t('btnRetry');
 el('noticeAction').addEventListener('click', () => checkApp());
@@ -506,13 +519,13 @@ async function start() {
   const host = displayHost(tab?.url);
   el('host').textContent = host;
   el('host').hidden = host === '';
+  // <full>
   // Shown before the app answers, so the card does not grow under the pointer.
-  if (!STORE) {
-    onYouTubeTab = onYouTube(tab?.url);
-    el('youtubeRow').hidden = !onYouTubeTab;
-    onTikTokTab = onTikTok(tab?.url);
-    el('tiktokRow').hidden = !onTikTokTab;
-  }
+  onYouTubeTab = onYouTube(tab?.url);
+  el('youtubeRow').hidden = !onYouTubeTab;
+  onTikTokTab = onTikTok(tab?.url);
+  el('tiktokRow').hidden = !onTikTokTab;
+  // </full>
 
   void checkApp();
   const reply = Number.isInteger(tab?.id) ? await ask('scan', { tabId: tab.id }) : null;

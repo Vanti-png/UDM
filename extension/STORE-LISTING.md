@@ -3,11 +3,12 @@
 Everything the dashboard asks for. Paste each block into the field it names.
 
 **Package:** `extension-upload.zip`, from `node scripts/pack-extension.mjs`. That is the **store
-build** (see `extension/edition.js`): it lists nothing on YouTube, has no session switches and
-does not ask for `cookies` or `alarms`. The script also strips the development `key` from the
-manifest, as Google's guidance says, and leaves out `key.pem`, the icon generator, the notes and
-any test file. Bump `version` in `extension/manifest.json` before every upload; Chrome refuses a
-package whose version has not increased. This one is **1.0.6**.
+build** (see `extension/edition.js`): it lists nothing on YouTube or Spotify, has no session
+switches, carries none of their code and does not ask for `cookies` or `alarms`. The script also
+strips the development `key` from the manifest, as Google's guidance says, and leaves out
+`key.pem`, `sessions.js`, the icon generator, the notes and any test file. Bump `version` in
+`extension/manifest.json` before every upload; Chrome refuses a package whose version has not
+increased. This one is **1.0.7** (1.0.6 was built but never uploaded).
 
 **Images:** `store-assets/`, from `node scripts/build-store-assets.mjs` (rerun it whenever the
 popup or the mark changes). They are photographs of the store build's real popup, rendered with
@@ -22,17 +23,29 @@ kept in the appendix for a reviewer exchange that happens in English.
 **Why there is a store build.** 1.0.5 was refused under "Blue Zinc": facilitating unauthorised
 access to or downloading of copyrighted content. It listed YouTube pages, lent the YouTube
 session for members-only videos, and its screenshots showed a "YouTube session" switch. Review
-counts a repeat refusal against the developer account, so 1.0.6 changes all three rather than
-appealing:
+counts a repeat refusal against the developer account, so the store build changes all of that
+rather than appealing:
 
-- **No YouTube.** `UNLISTED_SITES` in `extension/media.js` holds YouTube's hosts in the store
-  build: no watch page, short link or embedded YouTube player is listed, and the popup says the
-  site is not available. The words "YouTube" and "session" appear nowhere in its listing, its
-  locales or its screenshots.
-- **No sessions.** No switches, no `cookies` permission, no `alarms` permission. A profile that
-  1.0.4 had connected is released on the first popup after the update, so the app lets go of the
-  session it held.
+- **No YouTube, no Spotify.** `UNLISTED_SITES` in `extension/media.js` holds their hosts in the
+  store build: no watch page, short link, track or embedded player of theirs is listed, and the
+  popup says the site is not available. (The app finds Spotify songs on YouTube, so Spotify is
+  YouTube by another road.) Outside that one list, neither name appears anywhere in the package,
+  its listing, its locales or its screenshots.
+- **No sessions, not even switched off.** The code only the full build runs -- the sessions, the
+  switches, what serves YouTube and Spotify -- is fenced in its file (`// <full>` ...
+  `// </full>`) and cut out of the store copy, and `sessions.js` is left out. 1.0.6 had all of it
+  in the package behind a flag; a reviewer reading `background.js` would have met "lends the app
+  this profile's YouTube and TikTok sessions" on its fifth line. No switches, no `cookies`
+  permission, no `alarms` permission. A profile an earlier store copy connected is released on
+  the first popup after the update, so the app lets go of the session it held.
+- **A privacy policy of its own.** `extension/PRIVACY-CHROME.md` describes the store copy alone;
+  `extension/PRIVACY.md`, which describes the full build's YouTube and TikTok sessions, is for
+  Firefox.
 - **New permissions: none; dropped: two.** Chrome updates it without switching it off.
+
+`scripts/extension/edition.test.mjs` holds all of this: it fails if the store copy names YouTube
+or Spotify outside the list, carries a fence, `sessions.js` or a `chrome.cookies` call, or if its
+service worker does anything but list, describe and hand over.
 
 The full build — YouTube and the three session switches — goes to addons.mozilla.org (section 5)
 and is published beside the app as `extension-full.zip` for loading unpacked. Never upload that
@@ -61,14 +74,16 @@ Universal Downloader Connector is the browser half of Universal Downloader, a fr
 
 Play a video on a site and click the extension's icon. The popup lists what the page is playing — streams, video files, audio — each with a Get button. Press it and Universal Downloader comes to the front with the video open, so you can pick the quality before it downloads. The extension never downloads anything itself.
 
-On Vimeo, X, Instagram, TikTok, Dailymotion and the other sites the app knows, the popup offers the page itself, so the app gets the right title and every quality.
+On sites the app knows, the popup offers the page itself, so the app gets the right title and every quality.
+
+Use it only for videos you own or have permission to download.
 
 WHAT IT DOES NOT DO
 
 - It has no server, no analytics and no account. Nothing it sees goes to the developer or to any third party.
 - Nothing leaves your computer. The only recipient is the Universal Downloader application, which you installed. It says what each video would download as before you press anything, and downloads one only when you choose to in the app.
 - It reads no cookies and no passwords.
-- It does not get around DRM. Protected videos are marked "Protected" and have no button, and services such as Netflix are listed as protected.
+- It does not get around DRM. Protected videos are marked "Protected" and have no button.
 
 HOW IT WORKS
 
@@ -109,14 +124,16 @@ Universal Downloader Connector, ücretsiz bir masaüstü indirme uygulaması ola
 
 Bir sitede bir video oynatın ve eklentinin simgesine tıklayın. Açılır pencere, sayfanın oynattıklarını — akışları, video dosyalarını, sesleri — her birinin yanında bir İndir düğmesiyle listeler. Bastığınızda Universal Downloader video açık olarak öne gelir; indirmeden önce kaliteyi seçersiniz. Eklentinin kendisi hiçbir şey indirmez.
 
-Vimeo, X, Instagram, TikTok, Dailymotion ve uygulamanın tanıdığı diğer sitelerde açılır pencere sayfanın kendisini sunar; böylece uygulama doğru başlığı ve her kaliteyi alır.
+Uygulamanın tanıdığı sitelerde açılır pencere sayfanın kendisini sunar; böylece uygulama doğru başlığı ve her kaliteyi alır.
+
+Yalnızca size ait olan ya da indirme izniniz olan videolar için kullanın.
 
 YAPMADIKLARI
 
 - Sunucusu, analitiği ve hesabı yoktur. Gördüğü hiçbir şey geliştiriciye veya üçüncü bir tarafa gitmez.
 - Hiçbir şey bilgisayarınızdan çıkmaz. Tek alıcı, sizin kurduğunuz Universal Downloader uygulamasıdır. Uygulama her videonun nasıl ineceğini siz bir şeye basmadan söyler, ama yalnızca siz uygulamada indirmeyi seçtiğinizde indirir.
 - Çerez ya da parola okumaz.
-- DRM'yi aşmaz. Korumalı videolar "Korumalı" olarak işaretlenir ve düğmeleri olmaz; Netflix gibi servisler korumalı olarak gösterilir.
+- DRM'yi aşmaz. Korumalı videolar "Korumalı" olarak işaretlenir ve düğmeleri olmaz.
 
 NASIL ÇALIŞIR
 
@@ -213,12 +230,32 @@ Sekmelerin oynattığı medyanın adresleri, eklentinin kendi açılır penceres
 **Gizlilik politikası URL'si**
 
 ```
-https://github.com/unsalable/downloader/blob/main/extension/PRIVACY.md
+https://github.com/unsalable/downloader/blob/main/extension/PRIVACY-CHROME.md
 ```
 
-`extension/PRIVACY.md` bunun için yazıldı, iki dili de taşıyor ve mağaza sürümünün çerez
-okumadığını ayrıca söylüyor. **Göndermeden önce içine bir iletişim adresi koyun** — her iki
-bölümde de yerini gösteren bir yorum satırı var ve mağaza bu adresi kullanıcılara gösterir.
+`extension/PRIVACY-CHROME.md` yalnızca mağaza sürümünü anlatır (oturum yok, çerez yok), iki dili
+de taşır ve iletişim için GitHub Issues adresini verir. 1.0.5'te bu alanda `PRIVACY.md` vardı;
+o dosya tam sürümün YouTube ve TikTok oturumlarını anlatır, mağazaya gösterilmez. URL'nin
+çalışması için dosyanın `main` dalına itilmiş olması gerekir.
+
+---
+
+## 3b. Test talimatları — Erişim › Test talimatları
+
+İnceleyici için. İngilizce, çünkü inceleme ekibi panonun dilinden bağımsızdır. Kullanıcı adı ve
+parola alanları boş kalır: hiçbir hesap gerekmez.
+
+```
+No account or sign-in is needed to test this extension.
+
+1. Install Universal Downloader, the free, open-source Windows application this extension works with: https://github.com/unsalable/downloader/releases/tag/latest (UniversalDownloader_x64-setup.exe). Open the app once; it registers com.universaldownloader.bridge, the native messaging host the extension talks to.
+2. Open a page that plays a video, for example https://hls-js.netlify.app/demo/, and let it play.
+3. Click the extension's toolbar icon. The popup lists the video with the quality, format and size the app would download. Press Get: the app comes to the front with the video open, and nothing is downloaded until the user chooses to download it there.
+
+Without the app, the popup still lists the video and says the app needs to be installed.
+
+What it does not do: it lists nothing on YouTube or Spotify, nor from their players embedded on other sites (the popup says it is not available there). It has no cookies permission and reads no cookies. DRM-protected videos are marked "Protected" and have no button. It sends nothing over the network; its only channel is the native messaging host above, on the same computer.
+```
 
 ---
 
@@ -243,9 +280,10 @@ durdurur.
 **full build**, with YouTube and the three session switches, in the same version as Chrome's;
 only the manifest is changed for Firefox (see `extension/README.md`).
 
-**Listing.** Sections 1 and 2 fit AMO's fields, with two changes for the full build: name
-YouTube among the sites ("On YouTube, Vimeo, X, …" / "YouTube, Vimeo, X, …"), and replace the
-"It reads no cookies" line with this paragraph:
+**Listing.** Sections 1 and 2 fit AMO's fields, with two changes for the full build: the sites
+line may name them ("On YouTube, Vimeo, X, Instagram, TikTok, Dailymotion and the other sites the
+app knows, …" / "YouTube, Vimeo, X, Instagram, TikTok, Dailymotion ve uygulamanın tanıdığı diğer
+sitelerde …"), and the "It reads no cookies" line is replaced with this paragraph:
 
 ```
 For members-only YouTube videos you already pay for, turn on "YouTube session" in the popup, which it shows on YouTube; for age-restricted TikTok posts your own account can see, "TikTok session", which it shows on TikTok; for posts on any other site that only your account can see, "Other sites", which lends the sign-in of the site you press Get on, for that download. Each lends only to the app on this computer, and is off until you turn it on.
@@ -269,10 +307,12 @@ nothing is read until the user turns a switch on. The declaration lives in `forF
 The extension has no server and sends nothing over the network. It talks only to com.universaldownloader.bridge, a native messaging host installed by the Universal Downloader desktop application on the same computer (free, open source: https://github.com/unsalable/downloader/releases/tag/latest). No site account is needed to test it: play a video on any site, click the toolbar icon, press Get. Three switches in the popup, "YouTube session", "TikTok session" and "Other sites", are off until the user turns them on. The first two each let the extension read that one site's cookies (youtube.com or tiktok.com) and pass them to that application, so it can download members-only YouTube videos the user pays for and age-restricted TikTok posts the user's own account can see. "Other sites" reads the cookies of one site only when the user presses Get on that site's page -- the page's registrable domain, never YouTube's or TikTok's -- and the application keeps them, encrypted, for at most an hour. Turning a switch off tells the application to delete what it holds. No source file is minified or generated.
 ```
 
-**Version notes**
+**Version notes.** 1.0.7 changes nothing in the Firefox package's behaviour; if
+addons.mozilla.org already has 1.0.6, say so in a line ("No change in what it does."). If it does
+not, use these:
 
 ```
-1.0.6: Get opens the video in the app, where the quality is chosen before it downloads. "TikTok session" lends the browser's TikTok sign-in for age-restricted posts, and "Other sites" lends the sign-in of the site Get is pressed on, for that download. YouTube's and TikTok's switches show on their own sites. Each sends only to the Universal Downloader application on this computer.
+1.0.7: Get opens the video in the app, where the quality is chosen before it downloads. "TikTok session" lends the browser's TikTok sign-in for age-restricted posts, and "Other sites" lends the sign-in of the site Get is pressed on, for that download. YouTube's and TikTok's switches show on their own sites. Each sends only to the Universal Downloader application on this computer.
 ```
 
 ---

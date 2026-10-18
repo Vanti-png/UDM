@@ -1,5 +1,5 @@
-/* The popup: a heading, the list, the session switches. Everything the app's
-   grouped lists do, at the size of a toolbar popup. */
+/* The popup. Everything the app's grouped lists do, at the size of a
+   toolbar popup. */
 
 body {
   width: 340px;
@@ -356,6 +356,8 @@ h1 {
   white-space: normal;
 }
 
+/* <full> */
+/* The switches of the full build; the store build has none. */
 .setting {
   display: flex;
   align-items: center;
@@ -411,3 +413,4 @@ h1 {
 .switch[aria-checked="true"] .knob {
   transform: translateX(16px);
 }
+/* </full> */

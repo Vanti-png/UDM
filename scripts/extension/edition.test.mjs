@@ -4,9 +4,10 @@
 //   node --test scripts/extension/
 //
 // They run the real transforms over the real files, and import the store
-// build's own media.js from a scratch copy, so a store package that would
-// still list YouTube, still ask for cookies or still show a switch fails here
-// rather than in review -- where a second refusal counts against the account.
+// build's own scripts from a scratch copy, so a store package that would
+// still list YouTube, still carry the sessions' code or still show a switch
+// fails here rather than in review -- where a second refusal counts against
+// the account.
 
 import assert from 'node:assert/strict';
 import { mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs';
@@ -14,9 +15,10 @@ import { tmpdir } from 'node:os';
 import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 
-import { STORE_DROPPED_PERMISSIONS, forStore, sessionMessage } from '../extension-edition.mjs';
+import { STORE_DROPPED_PERMISSIONS, STORE_LEFT_OUT, forStore, sessionMessage } from '../extension-edition.mjs';
 
-const { describe, test } = process.env.VITEST ? await import('vitest') : await import('node:test');
+const { describe, test, after } = process.env.VITEST ? await import('vitest') : await import('node:test');
+const afterAll = process.env.VITEST ? (await import('vitest')).afterAll : after;
 
 const repo = join(dirname(fileURLToPath(import.meta.url)), '..', '..');
 const source = join(repo, 'extension');
@@ -28,15 +30,101 @@ function files(dir) {
   });
 }
 
-/** The store build's copy of every file, by its path inside extension/. */
+/** The store build's copy of every file it keeps, by its path inside extension/. */
 function storeBuild() {
   return new Map(
-    files(source).map((file) => {
-      const name = relative(source, file).split(sep).join('/');
-      return [name, forStore(name, readFileSync(file)).toString('utf8')];
-    }),
+    files(source)
+      .map((file) => {
+        const name = relative(source, file).split(sep).join('/');
+        return [name, forStore(name, readFileSync(file))];
+      })
+      .filter(([, contents]) => contents !== null)
+      .map(([name, contents]) => [name, contents.toString('utf8')]),
   );
 }
+
+/** What the package ships as text: its scripts, pages, styles and messages. */
+const TEXT = /\.(?:js|html|css|json)$/;
+
+// A stand-in for the `chrome` a service worker sees, with what the manifest
+// grants and nothing more: a script that reaches for an API the store build
+// has no permission for throws, as it would in Chrome. `answer` plays the
+// app's helper.
+function fakeChrome({ sessions, answer }) {
+  const listeners = {};
+  const event = (name) => ({ addListener: (listener) => (listeners[name] ??= []).push(listener) });
+  const area = (map) => ({
+    async get(keys) {
+      const wanted = Array.isArray(keys) ? keys : [keys];
+      return Object.fromEntries(wanted.filter((key) => map.has(key)).map((key) => [key, map.get(key)]));
+    },
+    async set(items) {
+      for (const [key, value] of Object.entries(items)) map.set(key, value);
+    },
+    async remove(keys) {
+      for (const key of [].concat(keys)) map.delete(key);
+    },
+  });
+  const local = new Map();
+  const sent = [];
+  const chrome = {
+    runtime: {
+      id: 'test',
+      getManifest: () => ({ version: '0.0.0' }),
+      getURL: (path) => `chrome-extension://test/${path}`,
+      sendNativeMessage(host, request, callback) {
+        sent.push(request);
+        queueMicrotask(() => callback(answer(request)));
+      },
+      onInstalled: event('onInstalled'),
+      onStartup: event('onStartup'),
+      onMessage: event('onMessage'),
+    },
+    storage: { local: area(local), session: area(new Map()) },
+    webRequest: { onHeadersReceived: event('onHeadersReceived') },
+    tabs: {
+      onUpdated: event('onUpdated'),
+      onRemoved: event('onRemoved'),
+      onReplaced: event('onReplaced'),
+      create: async () => {},
+      get: async () => ({}),
+    },
+    scripting: { executeScript: async () => [] },
+    action: { setBadgeBackgroundColor: async () => {}, setBadgeTextColor: async () => {}, setBadgeText: async () => {} },
+  };
+  if (sessions) {
+    chrome.alarms = { create: () => {}, onAlarm: event('onAlarm') };
+    chrome.cookies = { getAll: async () => [], onChanged: event('onChanged') };
+  }
+  return { chrome, listeners, local, sent };
+}
+
+/** A message from the extension's own popup: the answer, or `unanswered`. */
+function ask(fake, message) {
+  globalThis.chrome = fake.chrome;
+  return new Promise((resolve) => {
+    const answering = fake.listeners.onMessage[0](message, { id: 'test' }, resolve);
+    if (!answering) resolve('unanswered');
+  });
+}
+
+const settle = () => new Promise((resolve) => setTimeout(resolve, 20));
+
+const scratches = [];
+afterAll(() => {
+  for (const dir of scratches) rmSync(dir, { recursive: true, force: true });
+});
+
+/** The store build's files written side by side, as in the package. */
+function unpacked(build) {
+  const scratch = mkdtempSync(join(tmpdir(), 'ud-store-'));
+  scratches.push(scratch);
+  writeFileSync(join(scratch, 'package.json'), '{ "type": "module" }\n');
+  for (const [name, contents] of build) if (!name.includes('/') && name.endsWith('.js')) writeFileSync(join(scratch, name), contents);
+  return scratch;
+}
+
+const PAYLOAD = { url: 'https://vimeo.com/76979871', kind: 'page', title: 'Concert', pageUrl: 'https://vimeo.com/76979871' };
 
 describe('the Chrome Web Store build', () => {
   const build = storeBuild();
@@ -55,15 +143,38 @@ describe('the Chrome Web Store build', () => {
     }
   });
 
+  test("carries no session code at all, not even switched off", () => {
+    for (const name of STORE_LEFT_OUT) assert.ok(!build.has(name), name);
+    for (const [name, text] of build) {
+      if (!TEXT.test(name)) continue;
+      assert.doesNotMatch(text, /sessions\.js|chrome\.cookies|chrome\.alarms/, name);
+      // Every fence was cut, opening and closing alike.
+      assert.doesNotMatch(text, /<!-- \/?full -->|\/\/ <\/?full>|\/\* <\/?full> \*\//, name);
+    }
+    const background = build.get('background.js');
+    for (const gone of ['readJar', 'pushSite', 'lendFor', 'lendOther', 'connect,', 'forget,']) {
+      assert.ok(!background.includes(gone), gone);
+    }
+  });
+
+  test('names YouTube and Spotify only in the list that keeps them out', () => {
+    for (const [name, text] of build) {
+      if (!TEXT.test(name)) continue;
+      const rest = text.replace(/^export const UNLISTED_SITES = .*$/m, '');
+      assert.doesNotMatch(rest, /youtube|youtu\.be|ytimg|spotify/i, name);
+    }
+    assert.match(build.get('media.js'), /^export const UNLISTED_SITES = STORE \? \[.*'youtube\.com'.*'spotify\.com'.*\]/m);
+  });
+
   test('shows no switch, and no word about sessions, in the popup or the welcome page', () => {
     for (const page of ['popup.html', 'welcome.html']) {
       const html = build.get(page);
-      assert.doesNotMatch(html, /<!-- \/?full -->/, page);
       assert.doesNotMatch(html, /Switch"|sessionsTitle|welcomeSession|youtubeRow|tiktokRow|otherRow/, page);
     }
     // The fence takes only the sessions: the list and the welcome's steps stay.
     assert.match(build.get('popup.html'), /id="list"/);
     assert.match(build.get('welcome.html'), /step3Title/);
+    assert.doesNotMatch(build.get('popup.css'), /\.switch|\.setting/);
   });
 
   test("keeps no session's message in either language", () => {
@@ -77,50 +188,90 @@ describe('the Chrome Web Store build', () => {
   });
 
   test('every message the store popup and welcome page name is still there', () => {
-    const messages = JSON.parse(build.get('_locales/en/messages.json'));
-    for (const page of ['popup.html', 'welcome.html']) {
-      for (const [, key] of build.get(page).matchAll(/data-i18n="([^"]+)"/g)) {
-        assert.ok(Object.hasOwn(messages, key), `${page}: ${key}`);
+    for (const locale of ['en', 'tr']) {
+      const messages = JSON.parse(build.get(`_locales/${locale}/messages.json`));
+      for (const page of ['popup.html', 'welcome.html']) {
+        for (const [, key] of build.get(page).matchAll(/data-i18n="([^"]+)"/g)) {
+          assert.ok(Object.hasOwn(messages, key), `${locale} ${page}: ${key}`);
+        }
+      }
+      for (const [, key] of build.get('popup.js').matchAll(/\bt\('([^']+)'\)/g)) {
+        assert.ok(Object.hasOwn(messages, key), `${locale} popup.js: ${key}`);
       }
     }
   });
 
-  test('lists nothing on YouTube, nor from its players embedded elsewhere', async () => {
-    // The store build's media.js and edition.js, side by side as in the
-    // package, imported for real.
-    const scratch = mkdtempSync(join(tmpdir(), 'ud-store-'));
-    try {
-      for (const name of ['media.js', 'edition.js']) writeFileSync(join(scratch, name), build.get(name));
-      const media = await import(pathToFileURL(join(scratch, 'media.js')).href);
-      const watch = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
-      const player = { src: 'blob:https://www.youtube.com/abc', duration: 212, drm: false };
-      const frame = (href, frameId, videos = []) =>
-        media.normaliseFrame({ isTop: frameId === 0, href, videos, audios: [] }, frameId);
+  test('lists nothing on YouTube or Spotify, nor from their players embedded elsewhere', async () => {
+    const media = await import(pathToFileURL(join(unpacked(build), 'media.js')).href);
+    const watch = 'https://www.youtube.com/watch?v=dQw4w9WgXcQ';
+    const player = { src: 'blob:https://www.youtube.com/abc', duration: 212, drm: false };
+    const frame = (href, frameId, videos = []) =>
+      media.normaliseFrame({ isTop: frameId === 0, href, videos, audios: [] }, frameId);
 
-      assert.ok(media.unlisted(watch));
-      assert.ok(media.unlisted('https://youtu.be/dQw4w9WgXcQ'));
-      assert.ok(media.unlisted('https://music.youtube.com/watch?v=1'));
-      assert.ok(media.unlisted('https://www.youtube-nocookie.com/embed/1'));
-      assert.ok(!media.unlisted('https://vimeo.com/1'));
+    assert.ok(media.unlisted(watch));
+    assert.ok(media.unlisted('https://youtu.be/dQw4w9WgXcQ'));
+    assert.ok(media.unlisted('https://music.youtube.com/watch?v=1'));
+    assert.ok(media.unlisted('https://www.youtube-nocookie.com/embed/1'));
+    assert.ok(media.unlisted('https://open.spotify.com/track/4uLU6hMCjMI75M1A2tKUQC'));
+    assert.ok(!media.unlisted('https://vimeo.com/1'));
+    assert.ok(!media.PAGE_SITES.some(([, site]) => /youtube|spotify/i.test(site)));
 
-      assert.deepEqual(media.rows({ url: watch, sawMedia: true, items: [] }, [frame(watch, 0, [player])]), []);
-      const page = 'https://dizi.example/izle/5';
-      const embed = frame('https://www.youtube.com/embed/dQw4w9WgXcQ', 6, [player]);
-      const fetched = {
-        id: 'i1',
-        url: 'https://manifest.googlevideo.com/api/manifest/hls_playlist/x/index.m3u8',
-        kind: 'hls',
-        frameId: 6,
-        initiator: 'https://www.youtube.com',
-        headers: {},
-      };
-      assert.deepEqual(media.rows({ url: page, title: 'Bölüm 5', sawMedia: true, items: [fetched] }, [frame(page, 0), embed]), []);
-      // Another site's own video is listed as before.
-      const vimeo = 'https://vimeo.com/76979871';
-      assert.equal(media.rows({ url: vimeo, sawMedia: true, items: [] }, [frame(vimeo, 0, [player])]).length, 1);
-    } finally {
-      rmSync(scratch, { recursive: true, force: true });
-    }
+    assert.deepEqual(media.rows({ url: watch, sawMedia: true, items: [] }, [frame(watch, 0, [player])]), []);
+    const page = 'https://dizi.example/izle/5';
+    const embed = frame('https://www.youtube.com/embed/dQw4w9WgXcQ', 6, [player]);
+    const fetched = {
+      id: 'i1',
+      url: 'https://manifest.googlevideo.com/api/manifest/hls_playlist/x/index.m3u8',
+      kind: 'hls',
+      frameId: 6,
+      initiator: 'https://www.youtube.com',
+      headers: {},
+    };
+    assert.deepEqual(media.rows({ url: page, title: 'Bölüm 5', sawMedia: true, items: [fetched] }, [frame(page, 0), embed]), []);
+    // Another site's own video is listed as before.
+    const vimeo = 'https://vimeo.com/76979871';
+    assert.equal(media.rows({ url: vimeo, sawMedia: true, items: [] }, [frame(vimeo, 0, [player])]).length, 1);
+  });
+
+  test('its service worker runs on the store permissions alone, and lends nothing', async () => {
+    // A helper that says this profile still holds a binding an earlier copy
+    // made, as one updated from a version with switches would.
+    const fake = fakeChrome({
+      sessions: false,
+      answer: (request) => ({ ok: true, status: { bound: request.type === 'status', enabled: true, canDownload: true } }),
+    });
+    globalThis.chrome = fake.chrome;
+    await import(pathToFileURL(join(unpacked(build), 'background.js')).href);
+
+    assert.equal(fake.listeners.onMessage.length, 1);
+    assert.equal(fake.listeners.onHeadersReceived.length, 1);
+    assert.equal(fake.listeners.onStartup, undefined);
+
+    // The popup's check lets go of the old binding and answers with the app's state.
+    const checked = await ask(fake, { action: 'status' });
+    assert.deepEqual(fake.sent.map((request) => request.type), ['status', 'forget']);
+    assert.equal(checked.result.ok, true);
+    assert.equal(checked.result.status.bound, false);
+
+    // İndir hands the row over, and nothing goes with it.
+    fake.sent.length = 0;
+    const sent = await ask(fake, { action: 'download', payload: PAYLOAD });
+    assert.equal(sent.result.ok, true);
+    assert.deepEqual(fake.sent.map((request) => request.type), ['download']);
+    assert.equal(fake.sent[0].url, PAYLOAD.url);
+
+    // A switch press is not something this build answers.
+    assert.equal(await ask(fake, { action: 'connect', site: 'tiktok' }), 'unanswered');
+    assert.equal(await ask(fake, { action: 'forget' }), 'unanswered');
+
+    // An update from a version with switches clears what they kept.
+    fake.sent.length = 0;
+    fake.local.set('link', 'bound');
+    fake.local.set('tiktokOn', true);
+    fake.listeners.onInstalled[0]({ reason: 'update' });
+    await settle();
+    assert.deepEqual(fake.sent.map((request) => request.type), ['forget']);
+    assert.ok(!fake.local.has('link') && !fake.local.has('tiktokOn'));
   });
 });
 
@@ -130,5 +281,22 @@ describe('the full build', () => {
     assert.ok(manifest.permissions.includes('cookies'));
     const popup = readFileSync(join(source, 'popup.html'), 'utf8');
     assert.match(popup, /<!-- full -->[\s\S]*linkSwitch[\s\S]*<!-- \/full -->/);
+  });
+
+  test('its service worker still lends: the sessions are wired and the switches answered', async () => {
+    const fake = fakeChrome({
+      sessions: true,
+      answer: () => ({ ok: true, status: { bound: false, enabled: true, canDownload: true, sites: ['youtube', 'tiktok', 'other'] } }),
+    });
+    globalThis.chrome = fake.chrome;
+    await import(pathToFileURL(join(source, 'background.js')).href);
+
+    assert.equal(fake.listeners.onChanged.length, 1);
+    assert.equal(fake.listeners.onAlarm.length, 1);
+    assert.equal(fake.listeners.onStartup.length, 1);
+
+    const checked = await ask(fake, { action: 'status' });
+    assert.equal(typeof checked.linkOff, 'boolean');
+    assert.notEqual(await ask(fake, { action: 'forget', site: 'tiktok' }), 'unanswered');
   });
 });

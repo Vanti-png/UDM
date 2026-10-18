@@ -94,11 +94,13 @@ const AD_HOSTS = [
 // Sites the app reads by their page address rather than by a file: a link to
 // the page gets the right title, every quality and the audio that belongs with
 // the picture, where the files the player fetched would get a nameless slice.
-// The more specific host comes first so YouTube Music is not called YouTube.
 export const PAGE_SITES = [
+  // <full>
+  // The more specific host comes first so YouTube Music is not called YouTube.
   ['music.youtube.com', 'YouTube Music'],
   ['youtube.com', 'YouTube'],
   ['youtu.be', 'YouTube'],
+  // </full>
   ['facebook.com', 'Facebook'],
   ['fb.watch', 'Facebook'],
   ['instagram.com', 'Instagram'],
@@ -117,17 +119,18 @@ export const PAGE_SITES = [
   ['rumble.com', 'Rumble'],
   ['pinterest.com', 'Pinterest'],
   ['linkedin.com', 'LinkedIn'],
+  // <full>
   ['open.spotify.com', 'Spotify'],
+  // </full>
 ];
 
 // Sites the popup lists nothing for, not even a stream one of their players
-// fetched. Empty in the full build. The Chrome Web Store refused a downloader
-// that works on YouTube, so its build lists YouTube here -- the watch pages,
-// the short links and the embeds other sites carry -- and that is the whole of
-// how YouTube goes. Taking it out of PAGE_SITES alone would not do it, because
-// the page fallback in `rows` offers any page with a <video> on it, and
-// YouTube's is one.
-export const UNLISTED_SITES = STORE ? ['youtube.com', 'youtu.be', 'youtube-nocookie.com'] : [];
+// fetched: their pages, their short links and the players other sites embed
+// from them. Empty in the full build. The Chrome Web Store build names the
+// sites whose terms do not allow downloading, and the popup says it is not
+// available there. Leaving a site out of PAGE_SITES alone would not do it,
+// because the page fallback in `rows` offers any page with a <video> on it.
+export const UNLISTED_SITES = STORE ? ['youtube.com', 'youtu.be', 'youtube-nocookie.com', 'spotify.com'] : [];
 
 // A mirror of PROTECTED in src-tauri/src/providers/detect.rs, kept in the same
 // order so the two can be compared line by line. The app refuses these by name;
@@ -244,8 +247,8 @@ function fileOf(url) {
 /**
  * Whether a request is media that should never become a row of its own: a
  * slice of something bigger, or an advert. It still tells the worker that the
- * tab is playing something, which is what shows the page row on YouTube, where
- * every byte of the video arrives as one of these.
+ * tab is playing something, which is what shows the page row on a site whose
+ * player fetches every byte of the video as one of these.
  */
 export function isNoise(raw) {
   const url = parseHttp(raw);
@@ -305,8 +308,8 @@ export function classify({ url, contentType = '', type = '' } = {}) {
   const parsed = parseHttp(url);
   if (!parsed) return null;
 
-  // YouTube's player fetches its media as an opaque byte stream with a type of
-  // its own, so this one host has to be recognised before the type is read.
+  // Google's video servers answer with an opaque byte stream of a type of
+  // their own, so this one host has to be recognised before the type is read.
   const host = parsed.hostname.toLowerCase();
   if (onHost(host, 'googlevideo.com') && parsed.pathname.includes('videoplayback')) return 'noise';
 
@@ -576,6 +579,7 @@ export function unlisted(raw) {
   return UNLISTED_SITES.some((suffix) => onHost(host, suffix));
 }
 
+// <full>
 // YouTube does not update its og: tags when it moves from one video to the
 // next without a page load, so on the page people use most the tags usually
 // describe the first video of the visit. The thumbnail can be named from the
@@ -589,6 +593,7 @@ function youtubeThumbnail(url) {
   }
   return id && /^[\w-]{6,20}$/.test(id) ? `https://i.ytimg.com/vi/${id}/mqdefault.jpg` : null;
 }
+// </full>
 
 /**
  * A title fit for the wire: control characters gone, whitespace folded, a
@@ -606,7 +611,7 @@ export function cleanTitle(value) {
   return chars.length > TITLE_LIMIT ? chars.slice(0, TITLE_LIMIT).join('').trim() : text;
 }
 
-// "Song - YouTube", "Clip | Facebook", and Vimeo's own "Concert on Vimeo".
+// "Clip | Facebook", and Vimeo's own "Concert on Vimeo".
 function stripSiteName(title, site) {
   if (!site) return title;
   const escaped = site.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -727,10 +732,12 @@ function isVideoPage(url, site) {
   const host = url.hostname.toLowerCase();
   const path = url.pathname;
   switch (site) {
+    // <full>
     case 'YouTube':
     case 'YouTube Music':
       if (onHost(host, 'youtu.be')) return path.length > 1;
       return path === '/watch' || /^\/(shorts|live|embed)\/[\w-]/.test(path);
+    // </full>
     case 'X':
       return /\/status\/\d/.test(path);
     case 'Instagram':
@@ -828,9 +835,9 @@ export function rows(state, reported = [], { userAgent = '' } = {}) {
   // The og: tags are believed only when they can be shown to describe this
   // address: og:url names it, or the site is not one of the known ones. The
   // known ones are single-page apps, and they leave the first page's tags in
-  // place as the user moves on -- a YouTube visit that began on the front page
-  // carries "YouTube" and the YouTube logo to every video after it, with no
-  // og:url to give it away. The document's title is kept current by all of them.
+  // place as the user moves on -- a visit that began on the front page carries
+  // the site's name and logo to every video after it, with no og:url to give
+  // it away. The document's title is kept current by all of them.
   const trustOg = top?.ogUrl ? ogFresh(top, pageUrl) : !site;
   const rawTitle = (trustOg && top?.ogTitle) || top?.title || state?.title || '';
   const pageTitle = cleanTitle(stripSiteName(cleanTitle(rawTitle), site)) || displayHost(pageUrl);
@@ -966,8 +973,11 @@ export function rows(state, reported = [], { userAgent = '' } = {}) {
   }));
 
   if (pageRow) {
+    let thumbnail = ogImage || posterIn(top?.frameId ?? 0) || '';
+    // <full>
     // YouTube's address names its own still, which no stale tag can get wrong.
-    const thumbnail = (page ? youtubeThumbnail(page) : null) || ogImage || posterIn(top?.frameId ?? 0) || '';
+    thumbnail = (page ? youtubeThumbnail(page) : null) || thumbnail;
+    // </full>
     const payload = toPayload({ url: pageUrl, kind: 'page', title: pageTitle, pageUrl, userAgent: agent, thumbnail });
     if (payload) {
       const locked = pageRow.label === 'protected';
