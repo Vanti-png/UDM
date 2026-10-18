@@ -391,24 +391,16 @@ async fn downloads_a_spotify_song_as_that_song() {
     std::fs::remove_dir_all(&output).unwrap();
 }
 
-/// Anime searched for on the channels that license it, and a dubbed episode
-/// downloaded in its original language.
+/// An official episode with a dub, downloaded in its original language and
+/// filed as an episode. My Dress-Up Darling, episode 1, on Crunchyroll's own
+/// channel (2026-10-01).
 #[tokio::test]
-#[ignore = "searches YouTube"]
-async fn finds_an_official_episode_and_keeps_its_japanese_track() {
+#[ignore = "contacts YouTube through the engine"]
+async fn an_official_episode_keeps_its_japanese_track() {
     let settings = settings();
     ensure_engine(&settings).await;
 
-    let episodes = providers::anime::search("dress up darling", &settings)
-        .await
-        .expect("the channels should answer");
-    for episode in &episodes {
-        eprintln!("{} | {} | {:?}", episode.channel, episode.title, episode.duration_sec);
-    }
-    assert!(!episodes.is_empty(), "no episodes found");
-    assert!(episodes.iter().all(|episode| episode.duration_sec.is_some_and(|s| s >= 600.0)));
-
-    let metadata = providers::analyze(&episodes[0].url, &settings)
+    let metadata = providers::analyze("https://www.youtube.com/watch?v=L76gVFxtfi8", &settings)
         .await
         .expect("the episode should be readable");
     let plan = plan::build(

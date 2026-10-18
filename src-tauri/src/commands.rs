@@ -334,15 +334,6 @@ pub async fn analyze_url(
     Ok(metadata)
 }
 
-/// Whole episodes of a series on the channels that license it.
-#[tauri::command]
-pub async fn search_anime(
-    state: State<'_, AppState>,
-    query: String,
-) -> AppResult<Vec<providers::anime::AnimeEpisode>> {
-    providers::anime::search(&query, &state.settings()).await
-}
-
 #[tauri::command]
 pub async fn get_thumbnail(state: State<'_, AppState>, url: String) -> AppResult<String> {
     cache::thumbnail_data_url(&url, &state.settings()).await

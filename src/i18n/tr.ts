@@ -17,8 +17,6 @@ export const tr: Record<TranslationKey, string> = {
   'hero.subtitle': 'Hemen her siteden video, ses ve görsel.',
 
   'input.placeholder': 'Bir video, görsel veya medya bağlantısı yapıştır…',
-  'input.placeholderSearch': 'Bağlantı yapıştır ya da anime ara…',
-  'input.search': 'Ara',
   'input.paste': 'Yapıştır',
   'input.clear': 'Temizle',
   'input.analyze': 'Analiz et',
@@ -76,11 +74,6 @@ export const tr: Record<TranslationKey, string> = {
   'action.downloadVideos': '{n} videoyu indir',
   'action.downloadItem': 'Öğeyi indir',
   'action.downloadItems': '{n} öğeyi indir',
-
-  'anime.title': 'Resmî kanallarda',
-  'anime.searching': 'Aranıyor…',
-  'anime.empty':
-    'Lisanslı kanallarda tam bölüm bulunamadı. Serinin İngilizce adıyla dene.',
 
   'tracks.title': 'Şarkılar',
   'tracks.selectAll': 'Tümünü seç',

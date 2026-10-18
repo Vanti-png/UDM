@@ -2,7 +2,6 @@ import { invoke } from '@tauri-apps/api/core';
 import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 
 import type {
-  AnimeEpisode,
   AppErrorInfo,
   AppUpdate,
   BridgeStatus,
@@ -139,7 +138,6 @@ export const summarizePlan = (metadata: MediaMetadata, request: DownloadRequest)
 export const listDownloads = () => invoke<DownloadTask[]>('list_downloads');
 export const enqueueDownload = (request: DownloadRequest) =>
   invoke<DownloadTask>('enqueue_download', { request });
-export const searchAnime = (query: string) => invoke<AnimeEpisode[]>('search_anime', { query });
 
 /** Every item of a gallery, or only those at `entries` (1-based) when given. */
 export const enqueueGallery = (request: DownloadRequest, entries?: number[]) =>

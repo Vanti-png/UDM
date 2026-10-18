@@ -525,13 +525,6 @@
     return plan(find('bytevc1_1080p_1511769-1'), sound);
   };
 
-  const ANIME_RESULTS = [
-    ['Yıldız Kıyısı Episode 1 SUB/DUB | İlk Işık', 'Crunchyroll', 1431],
-    ['Yıldız Kıyısı Episode 2 SUB/DUB | Sessiz Liman', 'Crunchyroll', 1430],
-    ['Yıldız Kıyısı Episode 3 SUB/DUB | Rüzgârın Yönü', 'Crunchyroll', 1432],
-    ["Yıldız Kıyısı: Season 1 Complete (12 Episodes) | MULTI-SUB", "It's Anime powered by REMOW", 16992],
-  ];
-
   const spotifyAlbum = (url) => ({
     ...metadataFor(url),
     platform: 'spotify',
@@ -1009,17 +1002,6 @@
       if (isPhotoPost(url)) return photoPost(url);
       if (isCarousel(url)) return carousel(url);
       return metadataFor(url);
-    },
-    search_anime: async ({ query }) => {
-      await wait(700);
-      if (query.includes('yok')) return [];
-      return ANIME_RESULTS.map(([title, channel, durationSec], index) => ({
-        url: `https://www.youtube.com/watch?v=anime${index + 1}`,
-        title,
-        channel,
-        durationSec,
-        thumbnailUrl: `thumb:${20 + index}`,
-      }));
     },
     get_thumbnail: ({ url }) => {
       if (!url.startsWith('thumb:')) throw new Error('no thumbnail');

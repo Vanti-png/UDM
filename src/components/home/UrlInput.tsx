@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { ClipboardPaste, CornerDownLeft, Search, X } from 'lucide-react';
+import { ClipboardPaste, CornerDownLeft, X } from 'lucide-react';
 import { forwardRef, useEffect, useId, useImperativeHandle, useRef, useState } from 'react';
 
 import { Spinner } from '@/components/ui/Spinner';
@@ -15,8 +15,6 @@ interface UrlInputProps {
   onClear: () => void;
   onPaste: () => void;
   analyzing: boolean;
-  /** Words rather than an address: searched for instead of refused. */
-  onSearch?: (query: string) => void;
 }
 
 export interface UrlInputHandle {
@@ -25,7 +23,7 @@ export interface UrlInputHandle {
 }
 
 export const UrlInput = forwardRef<UrlInputHandle, UrlInputProps>(function UrlInput(
-  { value, onChange, onSubmit, onClear, onPaste, analyzing, onSearch },
+  { value, onChange, onSubmit, onClear, onPaste, analyzing },
   ref,
 ) {
   const { t } = useTranslation();
@@ -45,17 +43,13 @@ export const UrlInput = forwardRef<UrlInputHandle, UrlInputProps>(function UrlIn
     if (!value) setTouched(false);
   }, [value]);
 
-  const address = isProbablyUrl(value);
-  // Words are a search where one is offered, and a mistake where not.
-  const searching = onSearch != null && value.trim().length > 0 && !address;
-  const invalid = touched && value.trim().length > 0 && !address && !searching;
+  const invalid = touched && value.trim().length > 0 && !isProbablyUrl(value);
   const hint = invalid ? t('input.invalid') : undefined;
 
   const submit = () => {
     const normalized = normalizeUrl(value);
     if (!normalized) {
-      if (searching) onSearch?.(value.trim());
-      else setTouched(true);
+      setTouched(true);
       return;
     }
     onSubmit(normalized);
@@ -83,15 +77,14 @@ export const UrlInput = forwardRef<UrlInputHandle, UrlInputProps>(function UrlIn
           <input
             ref={inputRef}
             type="text"
-            // Words as well as addresses, so the keyboard keeps its space bar.
-            inputMode={onSearch ? 'text' : 'url'}
+            inputMode="url"
             spellCheck={false}
             autoComplete="off"
             autoCorrect="off"
             autoCapitalize="off"
             value={value}
-            placeholder={t(onSearch ? 'input.placeholderSearch' : 'input.placeholder')}
-            aria-label={t(onSearch ? 'input.placeholderSearch' : 'input.placeholder')}
+            placeholder={t('input.placeholder')}
+            aria-label={t('input.placeholder')}
             aria-invalid={invalid || undefined}
             aria-describedby={hint ? hintId : undefined}
             onChange={(event) => onChange(event.target.value)}
@@ -163,14 +156,8 @@ export const UrlInput = forwardRef<UrlInputHandle, UrlInputProps>(function UrlIn
                 'disabled:pointer-events-none disabled:opacity-60',
               )}
             >
-              {analyzing ? (
-                <Spinner size={14} />
-              ) : searching ? (
-                <Search size={14} />
-              ) : (
-                <CornerDownLeft size={14} />
-              )}
-              {searching ? t('input.search') : t('input.analyze')}
+              {analyzing ? <Spinner size={14} /> : <CornerDownLeft size={14} />}
+              {t('input.analyze')}
             </button>
           )}
         </div>

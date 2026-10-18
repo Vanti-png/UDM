@@ -1,9 +1,8 @@
 //! Comparing titles written by different people.
 //!
-//! A song's name on Spotify and the title of its upload, or an anime's name
-//! as typed and as its episodes are titled, agree in their words and little
-//! else: case, accents and punctuation all differ. Both sides are reduced to
-//! plain words first.
+//! A song's name on Spotify and the title of its upload agree in their words
+//! and little else: case, accents and punctuation all differ. Both sides are
+//! reduced to plain words first.
 
 /// Lowercase, accents folded, punctuation turned into spaces, so that
 /// "Şımarık" and "Simarik" and "ADÈLA" and "Adela" compare equal.

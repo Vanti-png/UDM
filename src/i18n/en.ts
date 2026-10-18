@@ -20,8 +20,6 @@ export const en = {
   'hero.subtitle': 'Video, audio and images from almost any site.',
 
   'input.placeholder': 'Paste a video, image or media link…',
-  'input.placeholderSearch': 'Paste a link or search for an anime…',
-  'input.search': 'Search',
   'input.paste': 'Paste',
   'input.clear': 'Clear',
   'input.analyze': 'Analyze',
@@ -80,11 +78,6 @@ export const en = {
   'action.downloadVideos': 'Download {n} videos',
   'action.downloadItem': 'Download item',
   'action.downloadItems': 'Download {n} items',
-
-  'anime.title': 'On official channels',
-  'anime.searching': 'Searching…',
-  'anime.empty':
-    'No full episodes on the channels that license anime. Try the series’ English name.',
 
   'tracks.title': 'Songs',
   'tracks.selectAll': 'Select all',

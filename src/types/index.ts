@@ -202,15 +202,6 @@ export interface Handoff {
  */
 export type HandoffKind = 'page' | 'stream' | 'video' | 'audio';
 
-/** A whole episode on a channel that licenses the series. */
-export interface AnimeEpisode {
-  url: string;
-  title: string;
-  channel: string;
-  durationSec: number | null;
-  thumbnailUrl: string | null;
-}
-
 export type DownloadStatus =
   | 'queued'
   | 'preparing'
