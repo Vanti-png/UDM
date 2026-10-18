@@ -768,13 +768,18 @@ pub async fn platform_open_app_settings(app: AppHandle) -> AppResult<()> {
     }
 }
 
+/// `images` widens the picker to photos as well, which the converter takes and
+/// the editor does not.
 #[tauri::command]
-pub async fn platform_pick_media_files(app: AppHandle) -> AppResult<Vec<String>> {
+pub async fn platform_pick_media_files(
+    app: AppHandle,
+    images: Option<bool>,
+) -> AppResult<Vec<String>> {
     #[cfg(target_os = "android")]
-    return crate::android::pick_media_files(app).await;
+    return crate::android::pick_media_files(app, images.unwrap_or(false)).await;
     #[cfg(not(target_os = "android"))]
     {
-        let _ = app;
+        let _ = (app, images);
         android_only()
     }
 }

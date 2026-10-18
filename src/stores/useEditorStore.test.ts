@@ -67,6 +67,7 @@ function probeOf(patch: Partial<MediaProbe> = {}): MediaProbe {
     audioBitrateKbps: 192,
     hasVideo: true,
     hasAudio: true,
+    still: false,
     ...patch,
   };
 }

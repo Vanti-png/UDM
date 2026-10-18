@@ -301,8 +301,9 @@
             outputDir: null,
             quality: 'balanced',
             maxHeight: null,
+            maxSide: null,
+            fps: null,
             audioBitrateKbps: null,
-            allowStreamCopy: true,
           },
         },
         {
@@ -326,8 +327,9 @@
             outputDir: null,
             quality: 'high',
             maxHeight: null,
+            maxSide: null,
+            fps: null,
             audioBitrateKbps: 192,
-            allowStreamCopy: true,
           },
         },
       ];
@@ -774,6 +776,8 @@
 
   /** Paths that sound like sound, which the probe reports without a picture. */
   const AUDIO_ONLY = /\.(mp3|m4a|aac|opus|ogg|flac|wav)$/i;
+  /** A file named like a photo is a photo: one frame, no length, no sound. */
+  const PHOTO = /\.(jpe?g|png|webp|heic|heif|avif|bmp|tiff?)$/i;
 
   /** What the phone's file picker returns (see platform_pick_media_files). */
   const picker = {
@@ -1148,18 +1152,43 @@
     reorder_download: () => null,
     set_download_order: () => null,
 
-    convert_formats: () => [
-      { id: 'mp4', kind: 'video' },
-      { id: 'mkv', kind: 'video' },
-      { id: 'webm', kind: 'video' },
-      { id: 'mp3', kind: 'audio' },
-      { id: 'm4a', kind: 'audio' },
-      { id: 'wav', kind: 'audio' },
-    ],
+    // The real catalogue, in the backend's order (converter.rs).
+    convert_formats: () => {
+      const fixed = ['wav', 'flac', 'aiff', 'alac', 'amr', 'png', 'bmp', 'tiff', 'ico', 'tga'];
+      const lists = {
+        video: ['mp4', 'mov', 'mkv', 'webm', 'avi', 'wmv', 'flv', 'mpg', 'm4v', '3gp', 'ts', 'ogv'],
+        audio: ['mp3', 'wav', 'm4a', 'flac', 'aac', 'ogg', 'opus', 'wma', 'aiff', 'alac', 'ac3', 'amr'],
+        gif: ['gif'],
+        image: ['jpg', 'png', 'webp', 'avif', 'bmp', 'tiff', 'ico', 'tga', 'jp2'],
+      };
+      return Object.entries(lists).flatMap(([kind, ids]) =>
+        ids.map((id) => ({ id, kind, tunable: !fixed.includes(id) })),
+      );
+    },
     probe_media: ({ path }) => {
       // A file named like sound is sound: no picture, which is what the editor
       // has to turn away (the phone's picker offers audio as well).
       const sound = AUDIO_ONLY.test(path);
+      if (PHOTO.test(path)) {
+        return {
+          path,
+          fileName: path.split(/[\\/]/).pop(),
+          container: path.split('.').pop().toLowerCase(),
+          sizeBytes: 3_400_000,
+          durationSec: null,
+          videoDurationSec: null,
+          width: 4032,
+          height: 3024,
+          fps: null,
+          pixelAspect: null,
+          videoCodec: 'mjpeg',
+          audioCodec: null,
+          audioBitrateKbps: null,
+          hasVideo: true,
+          hasAudio: false,
+          still: true,
+        };
+      }
       return {
         path,
         fileName: path.split(/[\\/]/).pop(),
@@ -1181,6 +1210,7 @@
         audioBitrateKbps: 192,
         hasVideo: !sound,
         hasAudio: true,
+        still: false,
       };
     },
     list_conversions: () => conversions,

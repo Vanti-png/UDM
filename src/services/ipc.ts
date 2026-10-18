@@ -262,7 +262,9 @@ export const openLogDir = () => invoke<void>('open_log_dir');
 
 /** The app's page in the system settings, where its network access is allowed. */
 export const platformOpenAppSettings = () => invoke<void>('platform_open_app_settings');
-export const platformPickMediaFiles = () => invoke<string[]>('platform_pick_media_files');
+/** `images` adds photos to the picker, which the converter takes and the editor does not. */
+export const platformPickMediaFiles = (images = false) =>
+  invoke<string[]>('platform_pick_media_files', { images });
 export const platformSetSystemBars = (dark: boolean) =>
   invoke<void>('platform_set_system_bars', { dark });
 /** Holds the screen upright, or lets it turn again; a tablet is never held. */

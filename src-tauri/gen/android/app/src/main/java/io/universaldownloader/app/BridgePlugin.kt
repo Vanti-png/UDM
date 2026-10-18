@@ -58,6 +58,11 @@ class PortraitLockArgs {
     var locked: Boolean = false
 }
 
+@InvokeArg
+class PickArgs {
+    var images: Boolean = false
+}
+
 /**
  * The Android half of `src-tauri/src/android.rs`: everything the Rust core
  * needs that only the OS can answer or do.
@@ -424,10 +429,12 @@ class BridgePlugin(private val activity: Activity) : Plugin(activity) {
 
     @Command
     fun pickMediaFiles(invoke: Invoke) {
+        val args = invoke.parseArgs(PickArgs::class.java)
+        val types = if (args.images) arrayOf("video/*", "audio/*", "image/*") else arrayOf("video/*", "audio/*")
         val intent = Intent(Intent.ACTION_OPEN_DOCUMENT)
             .addCategory(Intent.CATEGORY_OPENABLE)
             .setType("*/*")
-            .putExtra(Intent.EXTRA_MIME_TYPES, arrayOf("video/*", "audio/*"))
+            .putExtra(Intent.EXTRA_MIME_TYPES, types)
             .putExtra(Intent.EXTRA_ALLOW_MULTIPLE, true)
         startActivityForResult(invoke, intent, "mediaFilesPicked")
     }

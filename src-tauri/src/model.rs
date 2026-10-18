@@ -704,12 +704,15 @@ pub struct ProgressEvent {
 
 // -- conversion ------------------------------------------------------------
 
-/// Whether a conversion target produces a video file or an audio-only one.
+/// What a conversion target produces: a film, a sound, an animated GIF or a
+/// single picture.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ConvertKind {
     Video,
     Audio,
+    Gif,
+    Image,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -736,6 +739,9 @@ impl ConvertStatus {
 pub struct ConvertFormatInfo {
     pub id: String,
     pub kind: ConvertKind,
+    /// Whether a quality or a bitrate can be chosen for it. A lossless format,
+    /// or one with a single rate, has nothing to choose, and nothing is offered.
+    pub tunable: bool,
 }
 
 /// What a local file actually contains, read before anything is offered for it.
@@ -765,12 +771,19 @@ pub struct MediaProbe {
     pub audio_bitrate_kbps: Option<f64>,
     pub has_video: bool,
     pub has_audio: bool,
+    /// A single picture rather than a film: a photo, or a GIF of one frame.
+    #[serde(default)]
+    pub still: bool,
 }
 
-/// How hard FFmpeg should work when a re-encode cannot be avoided.
+/// What a conversion may do to the picture.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ConvertQuality {
+    /// Leave it as it is: repackage whenever the target can hold the source,
+    /// and encode losslessly, or as near to it as the format goes, when it
+    /// cannot.
+    Original,
     High,
     #[default]
     Balanced,
@@ -784,13 +797,18 @@ pub struct ConvertOptions {
     /// Where the result is written. `None` means "beside the source file".
     pub output_dir: Option<String>,
     pub quality: ConvertQuality,
-    /// Downscale cap in pixels of height. `None` keeps the source resolution.
+    /// Downscale cap for a video, in pixels of height. `None` keeps the source
+    /// resolution.
     pub max_height: Option<u32>,
+    /// Downscale cap for a GIF or a picture, in pixels of its longer side.
+    /// `None` keeps the source size.
+    #[serde(default)]
+    pub max_side: Option<u32>,
+    /// Frame rate for a video or a GIF. `None` keeps the source's.
+    #[serde(default)]
+    pub fps: Option<f64>,
     /// Audio bitrate in kbps. `None` derives one from the source.
     pub audio_bitrate_kbps: Option<u32>,
-    /// Repackage rather than re-encode when the target container already
-    /// accepts the source streams.
-    pub allow_stream_copy: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

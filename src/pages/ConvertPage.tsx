@@ -1,7 +1,7 @@
 import { AnimatePresence, motion } from 'motion/react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
-import { CircleAlert, FileAudio, FilePlus2, FileVideo, Repeat, X } from 'lucide-react';
+import { CircleAlert, FileAudio, FileImage, FilePlus2, FileVideo, Repeat, X } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ConvertCard } from '@/components/convert/ConvertCard';
@@ -12,7 +12,7 @@ import { InlineNotice } from '@/components/ui/InlineNotice';
 import { ListGroup, ListGroupLabel, ROW_LINE } from '@/components/ui/ListGroup';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Segmented } from '@/components/ui/Segmented';
-import { SettingRow, ToggleRow } from '@/components/ui/SettingRow';
+import { SettingRow } from '@/components/ui/SettingRow';
 import { Spinner } from '@/components/ui/Spinner';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useTranslation } from '@/i18n';
@@ -21,27 +21,58 @@ import { cn } from '@/lib/cn';
 import { COLLAPSE, LIST_ITEM } from '@/lib/motion';
 import {
   AUDIO_BITRATES,
+  CONVERT_KINDS,
+  DEFAULT_CHOICES,
+  GIF_RATES,
+  GIF_SIDES,
+  ICON_SIDES,
+  IMAGE_SIDES,
   INPUT_EXTENSIONS,
   RESOLUTION_CAPS,
-  acceptsBitrate,
+  VIDEO_RATES,
   formatResolution,
   formatsOfKind,
-  kindOf,
+  isTunable,
+  kindForFiles,
+  qualitiesFor,
+  type KindChoice,
 } from '@/lib/convertOptions';
 import { formatBytes, formatDuration, prettyCodec, truncateMiddle } from '@/lib/format';
 import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import { selectFinishedJobs, useConvertStore, type StagedFile } from '@/stores/useConvertStore';
 import { useToolsStore } from '@/stores/useToolsStore';
-import type { ConvertFormatInfo, ConvertQuality, Settings } from '@/types';
+import type {
+  ConvertFormatInfo,
+  ConvertKind,
+  ConvertQuality,
+  MediaProbe,
+  Settings,
+} from '@/types';
 
-const DEFAULT_TARGET = 'mp4';
+const KIND_LABELS: Record<ConvertKind, TranslationKey> = {
+  video: 'convert.kind.video',
+  audio: 'convert.kind.audio',
+  gif: 'convert.kind.gif',
+  image: 'convert.kind.image',
+};
+
+const QUALITY_LABELS: Record<ConvertQuality, TranslationKey> = {
+  original: 'convert.qualityOriginal',
+  high: 'convert.qualityHigh',
+  balanced: 'convert.qualityBalanced',
+  small: 'convert.qualitySmall',
+};
+
+/** What an icon is made at until another size is chosen. */
+const DEFAULT_ICON_SIDE = 256;
 
 /** Where a row's text starts: its padding, the 44px tile, the gap. */
 const TEXT_INSET = 72;
 
-/** A phone stacks the control under its label, where it takes the full width. */
-const CONTROL_WIDTH = IS_MOBILE ? 'w-full' : 'w-[220px]';
+/** A phone stacks the control under its label, where it takes the full width.
+ *  On a desktop it is wide enough for four quality segments in either language. */
+const CONTROL_WIDTH = IS_MOBILE ? 'w-full' : 'w-[280px]';
 
 const DROP_TRANSITION = 'transition-[background-color,box-shadow] duration-150 ease-out-quint';
 
@@ -69,11 +100,12 @@ export function ConvertPage({ settings }: { settings: Settings }) {
   const installTool = useToolsStore((state) => state.install);
 
   const [catalogue, setCatalogue] = useState<ConvertFormatInfo[]>([]);
-  const [target, setTarget] = useState(DEFAULT_TARGET);
-  const [quality, setQuality] = useState<ConvertQuality>('balanced');
-  const [maxHeight, setMaxHeight] = useState<number | null>(null);
+  const [kind, setKind] = useState<ConvertKind>('video');
+  // Each kind keeps its own choices, so a trip to GIF and back finds the
+  // video settings where they were left.
+  const [choices, setChoices] = useState(DEFAULT_CHOICES);
+  const [iconSide, setIconSide] = useState(DEFAULT_ICON_SIDE);
   const [bitrate, setBitrate] = useState<number | null>(null);
-  const [allowStreamCopy, setAllowStreamCopy] = useState(true);
   const [outputDir, setOutputDir] = useState<string | null>(null);
   const [dragging, setDragging] = useState(false);
 
@@ -117,21 +149,40 @@ export function ConvertPage({ settings }: { settings: Settings }) {
     };
   }, [addFiles]);
 
-  const targetKind = kindOf(catalogue, target) ?? 'video';
+  // Photos can only become photos and a sound only a sound, so once the files
+  // have been read the switch moves to the one kind they allow. It happens
+  // when the list changes, which leaves a choice made afterwards alone.
+  useEffect(() => {
+    if (files.some((file) => file.probing)) return;
+    const probes = files
+      .map((file) => file.probe)
+      .filter((probe): probe is MediaProbe => probe != null);
+    const only = kindForFiles(probes);
+    if (only) setKind(only);
+  }, [files]);
+
+  const choice = choices[kind];
+  const target = choice.target;
+  const tunable = isTunable(catalogue, target);
+  const qualities = qualitiesFor(kind);
   const ready = files.filter((file) => file.error === null && !file.probing);
   const ffmpegReady = ffmpeg?.available ?? false;
 
-  const formatOptions = useMemo<DropdownOption<string>[]>(() => {
-    const build = (id: string): DropdownOption<string> => ({
-      value: id,
-      label: id.toUpperCase(),
-      description: t(`convert.formatHint.${id}` as TranslationKey),
-    });
-    return [
-      ...formatsOfKind(catalogue, 'video').map(build),
-      ...formatsOfKind(catalogue, 'audio').map(build),
-    ];
-  }, [catalogue, t]);
+  const choose = useCallback(
+    (patch: Partial<KindChoice>) =>
+      setChoices((current) => ({ ...current, [kind]: { ...current[kind], ...patch } })),
+    [kind],
+  );
+
+  const formatOptions = useMemo<DropdownOption<string>[]>(
+    () =>
+      formatsOfKind(catalogue, kind).map((id) => ({
+        value: id,
+        label: id.toUpperCase(),
+        description: t(`convert.formatHint.${id}` as TranslationKey),
+      })),
+    [catalogue, kind, t],
+  );
 
   // Both notices under the file section talk about the staged list, so they go
   // when that list changes -- rather than sitting under a control the user can
@@ -147,7 +198,7 @@ export function ConvertPage({ settings }: { settings: Settings }) {
       // The Android picker returns content URIs that FFmpeg cannot open; the
       // platform side copies the choices somewhere it can and returns those.
       if (IS_MOBILE) {
-        const picked = await ipc.platformPickMediaFiles();
+        const picked = await ipc.platformPickMediaFiles(true);
         if (picked.length > 0) void addFiles(picked);
         return;
       }
@@ -173,18 +224,20 @@ export function ConvertPage({ settings }: { settings: Settings }) {
 
   const startConversion = useCallback(async () => {
     setSubmitError(null);
+    const pictured = kind === 'gif' || kind === 'image';
     const result = await submit({
       targetFormat: target,
       outputDir,
-      quality,
-      maxHeight: targetKind === 'video' ? maxHeight : null,
-      audioBitrateKbps: acceptsBitrate(target) ? bitrate : null,
-      allowStreamCopy,
+      quality: choice.quality,
+      maxHeight: kind === 'video' ? choice.size : null,
+      maxSide: target === 'ico' ? iconSide : pictured ? choice.size : null,
+      fps: kind === 'video' || kind === 'gif' ? choice.fps : null,
+      audioBitrateKbps: kind === 'audio' && tunable ? bitrate : null,
     });
     // Success needs no announcement: the files leave this list and turn up as
     // rows in the one below.
     if (result.error) setSubmitError(result.error);
-  }, [allowStreamCopy, bitrate, maxHeight, outputDir, quality, submit, target, targetKind]);
+  }, [bitrate, choice, iconSide, kind, outputDir, submit, target, tunable]);
 
   const installFfmpeg = useCallback(async () => {
     setInstallError(null);
@@ -302,42 +355,70 @@ export function ConvertPage({ settings }: { settings: Settings }) {
       {/* -- what to convert them into ------------------------------------- */}
 
       <section className="mt-6">
+        <Segmented
+          className="mb-3"
+          value={kind}
+          onChange={setKind}
+          options={CONVERT_KINDS.map((value) => ({ value, label: t(KIND_LABELS[value]) }))}
+        />
         <ListGroup>
-          <SettingRow
-            title={t('convert.target')}
-            stacked={IS_MOBILE}
-            control={
-              <Dropdown
-                className={CONTROL_WIDTH}
-                value={target}
-                options={formatOptions}
-                onChange={setTarget}
-                menuWidth={300}
-                align="end"
-              />
-            }
-          />
-
-          {targetKind === 'video' ? (
+          {/* A GIF is one format, so there is nothing to pick. */}
+          {kind !== 'gif' && (
             <SettingRow
-              title={t('convert.resolution')}
+              title={t('convert.target')}
               stacked={IS_MOBILE}
               control={
                 <Dropdown
                   className={CONTROL_WIDTH}
-                  value={maxHeight == null ? 'source' : String(maxHeight)}
-                  options={[
-                    { value: 'source', label: t('convert.resolutionSource') },
-                    ...RESOLUTION_CAPS.map((height) => ({
-                      value: String(height),
-                      label: `${height}p`,
-                    })),
-                  ]}
-                  onChange={(value) => setMaxHeight(value === 'source' ? null : Number(value))}
+                  value={target}
+                  options={formatOptions}
+                  onChange={(value) => choose({ target: value })}
+                  menuWidth={300}
+                  align="end"
                 />
               }
             />
-          ) : (
+          )}
+
+          {kind !== 'audio' && (
+            <SettingRow
+              title={t(kind === 'video' ? 'convert.resolution' : 'convert.size')}
+              stacked={IS_MOBILE}
+              control={
+                <SizeControl
+                  kind={kind}
+                  target={target}
+                  choice={choice}
+                  iconSide={iconSide}
+                  onChoose={choose}
+                  onIconSide={setIconSide}
+                />
+              }
+            />
+          )}
+
+          {(kind === 'video' || kind === 'gif') && (
+            <SettingRow
+              title={t('convert.fps')}
+              stacked={IS_MOBILE}
+              control={
+                <Dropdown
+                  className={CONTROL_WIDTH}
+                  value={choice.fps == null ? 'source' : String(choice.fps)}
+                  options={[
+                    { value: 'source', label: t('convert.fpsSource') },
+                    ...(kind === 'gif' ? GIF_RATES : VIDEO_RATES).map((rate) => ({
+                      value: String(rate),
+                      label: `${rate} fps`,
+                    })),
+                  ]}
+                  onChange={(value) => choose({ fps: value === 'source' ? null : Number(value) })}
+                />
+              }
+            />
+          )}
+
+          {kind === 'audio' && (
             <SettingRow
               title={t('convert.bitrate')}
               stacked={IS_MOBILE}
@@ -345,7 +426,7 @@ export function ConvertPage({ settings }: { settings: Settings }) {
                 <Dropdown
                   className={CONTROL_WIDTH}
                   value={bitrate == null ? 'auto' : String(bitrate)}
-                  disabled={!acceptsBitrate(target)}
+                  disabled={!tunable}
                   options={[
                     {
                       value: 'auto',
@@ -363,33 +444,22 @@ export function ConvertPage({ settings }: { settings: Settings }) {
             />
           )}
 
-          {targetKind === 'video' && (
+          {/* A lossless picture format has no quality to choose. */}
+          {qualities.length > 0 && tunable && (
             <SettingRow
               title={t('convert.quality')}
-              description={t('convert.qualityHint')}
               stacked={IS_MOBILE}
               control={
                 <Segmented
                   className={CONTROL_WIDTH}
                   size="sm"
-                  value={quality}
-                  onChange={setQuality}
-                  options={[
-                    { value: 'high', label: t('convert.qualityHigh') },
-                    { value: 'balanced', label: t('convert.qualityBalanced') },
-                    { value: 'small', label: t('convert.qualitySmall') },
-                  ]}
+                  value={qualities.includes(choice.quality) ? choice.quality : 'balanced'}
+                  onChange={(value) => choose({ quality: value })}
+                  options={qualities.map((value) => ({ value, label: t(QUALITY_LABELS[value]) }))}
                 />
               }
             />
           )}
-
-          <ToggleRow
-            title={t('convert.repackage')}
-            description={t('convert.repackageHint')}
-            checked={allowStreamCopy}
-            onChange={setAllowStreamCopy}
-          />
 
           {!IS_MOBILE && (
             <SettingRow
@@ -452,11 +522,59 @@ export function ConvertPage({ settings }: { settings: Settings }) {
   );
 }
 
+/** Video is capped by height, as resolutions are named; a GIF or a picture by
+ *  its longer side, so a tall phone clip and a wide one come out the same size. */
+function SizeControl({
+  kind,
+  target,
+  choice,
+  iconSide,
+  onChoose,
+  onIconSide,
+}: {
+  kind: ConvertKind;
+  target: string;
+  choice: KindChoice;
+  iconSide: number;
+  onChoose: (patch: Partial<KindChoice>) => void;
+  onIconSide: (side: number) => void;
+}) {
+  const { t } = useTranslation();
+
+  // An icon has a ceiling of its own and no "original" to keep.
+  if (target === 'ico') {
+    return (
+      <Dropdown
+        className={CONTROL_WIDTH}
+        value={String(iconSide)}
+        options={ICON_SIDES.map((side) => ({ value: String(side), label: `${side} px` }))}
+        onChange={(value) => onIconSide(Number(value))}
+      />
+    );
+  }
+
+  const sizes =
+    kind === 'video'
+      ? RESOLUTION_CAPS.map((height) => ({ value: String(height), label: `${height}p` }))
+      : (kind === 'gif' ? GIF_SIDES : IMAGE_SIDES).map((side) => ({
+          value: String(side),
+          label: `${side} px`,
+        }));
+  return (
+    <Dropdown
+      className={CONTROL_WIDTH}
+      value={choice.size == null ? 'source' : String(choice.size)}
+      options={[{ value: 'source', label: t('convert.resolutionSource') }, ...sizes]}
+      onChange={(value) => onChoose({ size: value === 'source' ? null : Number(value) })}
+    />
+  );
+}
+
 /** One file waiting to be converted, with what the probe found in it. */
 function StagedRow({ file, onRemove }: { file: StagedFile; onRemove: () => void }) {
   const { t } = useTranslation();
   const probe = file.probe;
-  const Icon = probe != null && !probe.hasVideo ? FileAudio : FileVideo;
+  const Icon = probe?.still ? FileImage : probe != null && !probe.hasVideo ? FileAudio : FileVideo;
 
   const details: string[] = [];
   if (probe) {

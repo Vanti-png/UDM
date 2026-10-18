@@ -50,7 +50,7 @@ const OPENABLE: &[&str] = &[
     "aif", "amr", "ac3", "eac3", "mp2",
     // pictures
     "jpg", "jpeg", "jfif", "png", "webp", "gif", "avif", "bmp", "tif", "tiff", "heic", "heif",
-    "jxl",
+    "jxl", "ico", "tga", "jp2",
 ];
 
 /// What ShellExecuteEx reports when the user closed "How do you want to open
@@ -351,9 +351,14 @@ mod tests {
             .iter()
             .chain(AUDIO_EXTENSIONS)
             .chain(IMAGE_EXTENSIONS)
-            .chain(crate::converter::VIDEO_FORMATS.iter())
-            .chain(crate::converter::AUDIO_FORMATS.iter())
-            .chain(crate::export::CONTAINERS.iter());
+            .chain(crate::export::CONTAINERS.iter())
+            .copied()
+            .map(str::to_string)
+            .chain(
+                crate::converter::catalogue()
+                    .into_iter()
+                    .map(|format| crate::converter::extension_for(&format.id).to_string()),
+            );
         for ext in written {
             assert!(openable(Path::new(&format!("x.{ext}"))).is_ok(), "{ext}");
         }

@@ -291,8 +291,8 @@ export type HistoryRange = 'day' | 'week' | 'all';
 
 // -- conversion ------------------------------------------------------------
 
-/** Whether a target format produces a video file or an audio-only one. */
-export type ConvertKind = 'video' | 'audio';
+/** What a target format produces: a film, a sound, an animated GIF or a picture. */
+export type ConvertKind = 'video' | 'audio' | 'gif' | 'image';
 
 export type ConvertStatus = 'queued' | 'running' | 'completed' | 'failed' | 'canceled';
 
@@ -300,6 +300,9 @@ export type ConvertStatus = 'queued' | 'running' | 'completed' | 'failed' | 'can
 export interface ConvertFormatInfo {
   id: string;
   kind: ConvertKind;
+  /** Whether a quality or a bitrate can be chosen for it; lossless and
+   *  single-rate formats have nothing to choose. */
+  tunable: boolean;
 }
 
 /** What a local file actually contains, read before anything is offered for it. */
@@ -329,21 +332,29 @@ export interface MediaProbe {
   audioBitrateKbps: number | null;
   hasVideo: boolean;
   hasAudio: boolean;
+  /** A single picture rather than a film: a photo, or a GIF of one frame. */
+  still: boolean;
 }
 
-/** How hard FFmpeg should work when a re-encode cannot be avoided. */
-export type ConvertQuality = 'high' | 'balanced' | 'small';
+/**
+ * What a conversion may do to the picture. `original` repackages whenever the
+ * target can hold the source, and is lossless or as near as the format goes
+ * when it cannot.
+ */
+export type ConvertQuality = 'original' | 'high' | 'balanced' | 'small';
 
 export interface ConvertOptions {
   targetFormat: string;
   /** Null means "beside the source file". */
   outputDir: string | null;
   quality: ConvertQuality;
-  /** Downscale cap in pixels of height. Null keeps the source resolution. */
+  /** Downscale cap for a video, in pixels of height. Null keeps the source resolution. */
   maxHeight: number | null;
+  /** Downscale cap for a GIF or a picture, in pixels of its longer side. */
+  maxSide: number | null;
+  /** Frame rate for a video or a GIF. Null keeps the source's. */
+  fps: number | null;
   audioBitrateKbps: number | null;
-  /** Repackage instead of re-encoding when the container allows it. */
-  allowStreamCopy: boolean;
 }
 
 export interface ConvertRequest {

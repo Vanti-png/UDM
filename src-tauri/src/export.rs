@@ -1159,6 +1159,7 @@ mod tests {
             audio_bitrate_kbps: Some(192.0),
             has_video: true,
             has_audio: true,
+            still: false,
         }
     }
 

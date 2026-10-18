@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { FileAudio, FileVideo, FolderOpen, RotateCw, X } from 'lucide-react';
+import { FileAudio, FileImage, FileVideo, FolderOpen, RotateCw, X } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import { IconButton } from '@/components/ui/IconButton';
@@ -53,7 +53,7 @@ export const ConvertCard = memo(function ConvertCard({
   // DownloadCard.
   const file = useFileActions(outputPath);
   const formats = describeFormats(job);
-  const Icon = job.kind === 'audio' ? FileAudio : FileVideo;
+  const Icon = job.kind === 'audio' ? FileAudio : job.kind === 'video' ? FileVideo : FileImage;
 
   const errorTitle = job.error
     ? t(`error.${job.error.code}.title` as TranslationKey) === `error.${job.error.code}.title`

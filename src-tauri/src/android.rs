@@ -564,10 +564,17 @@ pub async fn network_status(app: AppHandle) -> AppResult<NetworkStatus> {
 /// The picker hands back content URIs, which neither FFmpeg nor `std::fs` can
 /// open, so the Kotlin side copies each choice into the cache and returns
 /// those paths instead.
-pub async fn pick_media_files(app: AppHandle) -> AppResult<Vec<String>> {
-    blocking(app, |bridge| bridge.call::<PickedFiles>("pickMediaFiles", ()))
-        .await
-        .map(|picked| picked.paths)
+pub async fn pick_media_files(app: AppHandle, images: bool) -> AppResult<Vec<String>> {
+    blocking(app, move |bridge| {
+        bridge.call::<PickedFiles>("pickMediaFiles", PickArgs { images })
+    })
+    .await
+    .map(|picked| picked.paths)
+}
+
+#[derive(Serialize)]
+struct PickArgs {
+    images: bool,
 }
 
 #[derive(Serialize)]
