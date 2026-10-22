@@ -220,23 +220,27 @@
     ? []
     : tasks
         .filter((entry) => entry.status === 'completed' || entry.status === 'failed')
-        .map((entry, index) => ({
-          id: index + 1,
-          url: entry.url,
-          title: entry.title,
-          platform: entry.platform,
-          thumbnailUrl: entry.thumbnailUrl,
-          filePath: entry.outputPath ?? `${settings.downloadDir}\\missing.mp4`,
-          fileExists: entry.status === 'completed' && index !== 2,
+        .map((entry, index) => {
           // What the row's format label says it is, so the editor's list of
-          // recent videos has a picture and a song to pass over.
-          container: /JPG/.test(entry.formatLabel) ? 'jpg' : /MP3/.test(entry.formatLabel) ? 'mp3' : 'mp4',
-          qualityLabel: '1080p',
-          fileSize: 24_000_000 + index * 9_100_000,
-          createdAt: entry.createdAt,
-          status: entry.status,
-          request: entry.request,
-        }))
+          // recent videos has a picture and a song to pass over, and the
+          // converter's list a picture and a song to offer as what they are.
+          const container = /JPG/.test(entry.formatLabel) ? 'jpg' : /MP3/.test(entry.formatLabel) ? 'mp3' : 'mp4';
+          return {
+            id: index + 1,
+            url: entry.url,
+            title: entry.title,
+            platform: entry.platform,
+            thumbnailUrl: entry.thumbnailUrl,
+            filePath: (entry.outputPath ?? `${settings.downloadDir}\\missing.mp4`).replace(/\.mp4$/, `.${container}`),
+            fileExists: entry.status === 'completed' && index !== 2,
+            container,
+            qualityLabel: '1080p',
+            fileSize: 24_000_000 + index * 9_100_000,
+            createdAt: entry.createdAt,
+            status: entry.status,
+            request: entry.request,
+          };
+        })
         // Older downloads the queue has since let go of, which only the history
         // still knows about. The last is from before the week, so each of
         // clearing's ranges holds a different number: 4 in the last 24 hours

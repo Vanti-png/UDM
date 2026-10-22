@@ -1,14 +1,15 @@
+import { Check } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { ListGroup, ListGroupLabel, ROW_LINE } from '@/components/ui/ListGroup';
 import { PlatformBadge } from '@/components/ui/PlatformBadge';
 import { Spinner } from '@/components/ui/Spinner';
 import { useThumbnail } from '@/hooks/useThumbnail';
-import { useTranslation } from '@/i18n';
+import { useTranslation, type TranslationKey } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { VIDEO_EXTENSIONS } from '@/lib/editor/files';
 import { formatBytes, formatDate, formatDay } from '@/lib/format';
 import { IS_MOBILE } from '@/lib/platform';
+import { recentDownloads } from '@/lib/recentDownloads';
 import * as ipc from '@/services/ipc';
 import { useQueueStore } from '@/stores/useQueueStore';
 import type { HistoryEntry } from '@/types';
@@ -17,65 +18,50 @@ import type { HistoryEntry } from '@/types';
 const SHOWN = 6;
 
 /**
- * How far back the history is read to find them. Sound, pictures and files
- * that have since gone are passed over, so more is read than is shown -- and
- * an album or a photo post can leave dozens of rows at once.
+ * How far back the history is read to find them. Files a screen cannot take,
+ * and files that have since gone, are passed over, so more is read than is
+ * shown -- and an album or a photo post can leave dozens of rows at once.
  */
 const SCANNED = 200;
 
 /** Where a row's text starts: its padding, the 72px thumbnail, the gap. */
 const TEXT_INSET = IS_MOBILE ? 96 : 104;
 
-const EDITABLE = new Set(VIDEO_EXTENSIONS);
-
-/**
- * Only a finished video that is still where it was saved. The editor turns a
- * file with no picture away, and a row that leads to that refusal is not worth
- * showing.
- *
- * The container decides, with one exception: sound kept in its source's own
- * container can be a WebM with no picture in it. A request for pictures is no
- * such tell -- a carousel that opens on a photo asks for pictures for all of
- * its items, and its videos still arrive as MP4.
- */
-function isEditable(entry: HistoryEntry): boolean {
-  return (
-    entry.status === 'completed' &&
-    entry.fileExists &&
-    entry.request?.mode !== 'audio' &&
-    EDITABLE.has(entry.container.toLowerCase())
-  );
+interface RecentDownloadsProps {
+  /** Which finished downloads this screen can take. */
+  accepts: (entry: HistoryEntry) => boolean;
+  /**
+   * What pressing a row does. A promise holds every row still until it
+   * settles, with a spinner on the one pressed; one that resolves to null
+   * means the file would not open -- most likely gone since the list was
+   * read -- and the list is read again.
+   */
+  onPress: (path: string) => Promise<unknown> | void;
+  /** What a row is called to a screen reader; its `{title}` is filled in. */
+  rowLabel: TranslationKey;
+  /**
+   * The files already chosen, when a row is a choice rather than an action:
+   * each row is then a checkbox, ticked while its file is in here.
+   */
+  picked?: ReadonlySet<string>;
+  disabled?: boolean;
+  className?: string;
 }
 
 /**
- * The newest of each file. Downloading a link again after its file was
- * deleted writes to the same path and adds a second record of it.
- */
-function newestEach(entries: HistoryEntry[]): HistoryEntry[] {
-  const seen = new Set<string>();
-  return entries.filter((entry) => {
-    if (seen.has(entry.filePath)) return false;
-    seen.add(entry.filePath);
-    return true;
-  });
-}
-
-/**
- * The last videos downloaded, under the empty editor. A video that has just
- * landed is most often the one about to be cut, and pressing it here is quicker
+ * The last downloads a screen can work on. A file that has just landed is most
+ * often the one about to be cut or converted, and pressing it here is quicker
  * than finding it again through the file picker. When there are none, nothing
  * is shown: the card above already says what to do.
  */
 export function RecentDownloads({
-  onOpen,
+  accepts,
+  onPress,
+  rowLabel,
+  picked,
   disabled = false,
   className,
-}: {
-  /** Resolves to null when the file would not open. */
-  onOpen: (path: string) => Promise<unknown>;
-  disabled?: boolean;
-  className?: string;
-}) {
+}: RecentDownloadsProps) {
   const { t } = useTranslation();
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [pending, setPending] = useState<string | null>(null);
@@ -95,21 +81,23 @@ export function RecentDownloads({
     ipc
       .listHistory(undefined, SCANNED, 0)
       .then((rows) => {
-        if (live) setEntries(newestEach(rows.filter(isEditable)).slice(0, SHOWN));
+        if (live) setEntries(recentDownloads(rows, accepts, SHOWN));
       })
       // Nothing to offer is what an unreadable history looks like here, too.
       .catch(() => undefined);
     return () => {
       live = false;
     };
-  }, [finished, stale]);
+  }, [accepts, finished, stale]);
 
   if (entries.length === 0) return null;
 
-  const open = async (path: string) => {
+  const press = async (path: string) => {
+    const result = onPress(path);
+    if (!(result instanceof Promise)) return;
     setPending(path);
     try {
-      if ((await onOpen(path)) == null) setStale((count) => count + 1);
+      if ((await result) == null) setStale((count) => count + 1);
     } finally {
       setPending(null);
     }
@@ -117,15 +105,17 @@ export function RecentDownloads({
 
   return (
     <section className={className}>
-      <ListGroupLabel className="mb-2">{t('editor.recent')}</ListGroupLabel>
+      <ListGroupLabel className="mb-2">{t('history.recent')}</ListGroupLabel>
       <ListGroup inset={TEXT_INSET}>
         {entries.map((entry) => (
           <RecentRow
             key={entry.id}
             entry={entry}
+            label={t(rowLabel, { title: entry.title })}
+            checked={picked?.has(entry.filePath)}
             pending={pending === entry.filePath}
             disabled={disabled || pending != null}
-            onOpen={open}
+            onPress={press}
           />
         ))}
       </ListGroup>
@@ -135,24 +125,32 @@ export function RecentDownloads({
 
 function RecentRow({
   entry,
+  label,
+  checked,
   pending,
   disabled,
-  onOpen,
+  onPress,
 }: {
   entry: HistoryEntry;
+  label: string;
+  /** Undefined when the row is an action rather than a choice. */
+  checked: boolean | undefined;
   pending: boolean;
   disabled: boolean;
-  onOpen: (path: string) => void;
+  onPress: (path: string) => void;
 }) {
-  const { t, language } = useTranslation();
+  const { language } = useTranslation();
   const { src } = useThumbnail(entry.thumbnailUrl);
+  const choice = checked !== undefined;
 
   return (
     <button
       type="button"
+      role={choice ? 'checkbox' : undefined}
+      aria-checked={checked}
       disabled={disabled}
-      onClick={() => onOpen(entry.filePath)}
-      aria-label={t('editor.openRecent', { title: entry.title })}
+      onClick={() => onPress(entry.filePath)}
+      aria-label={label}
       aria-busy={pending || undefined}
       className={cn(
         'flex w-full items-center py-2.5 text-left',
@@ -186,11 +184,24 @@ function RecentRow({
             {IS_MOBILE ? formatDay(entry.createdAt, language) : formatDate(entry.createdAt, language)}
           </span>
           <span>{entry.qualityLabel}</span>
+          <span>{entry.container.toUpperCase()}</span>
           {entry.fileSize != null && <span>{formatBytes(entry.fileSize)}</span>}
         </span>
       </span>
 
       {pending && <Spinner size={16} className="text-fg-muted" />}
+
+      {choice && (
+        <span
+          aria-hidden="true"
+          className={cn(
+            'flex size-[22px] shrink-0 items-center justify-center rounded-full transition-colors duration-150',
+            checked ? 'bg-accent text-accent-fg' : 'border-[1.5px] border-fg-faint',
+          )}
+        >
+          {checked && <Check size={13} strokeWidth={3} />}
+        </span>
+      )}
     </button>
   );
 }

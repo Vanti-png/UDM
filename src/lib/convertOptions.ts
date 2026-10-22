@@ -6,7 +6,14 @@
  * list on screen cannot offer a target the backend would refuse.
  */
 
-import type { ConvertFormatInfo, ConvertKind, ConvertQuality, MediaProbe } from '@/types';
+import { fileExtension } from '@/lib/format';
+import type {
+  ConvertFormatInfo,
+  ConvertKind,
+  ConvertQuality,
+  HistoryEntry,
+  MediaProbe,
+} from '@/types';
 
 /** The kinds of target, in the order the switch above the options shows them. */
 export const CONVERT_KINDS: ConvertKind[] = ['video', 'audio', 'gif', 'image'];
@@ -127,6 +134,17 @@ export const INPUT_EXTENSIONS = [
   'jp2',
   'jxl',
 ] as const;
+
+const INPUTS = new Set<string>(INPUT_EXTENSIONS);
+
+/**
+ * A download the converter can read. The file's own extension decides, the
+ * same test the picker applies -- a video, its sound kept on its own, a photo
+ * from a carousel.
+ */
+export function isConvertibleDownload(entry: HistoryEntry): boolean {
+  return INPUTS.has(fileExtension(entry.filePath));
+}
 
 /** "1920x1080" when both sides are known, otherwise whichever one is. */
 export function formatResolution(

@@ -5,6 +5,7 @@ import { CircleAlert, FileAudio, FileImage, FilePlus2, FileVideo, Repeat, X } fr
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { ConvertCard } from '@/components/convert/ConvertCard';
+import { RecentDownloads } from '@/components/history/RecentDownloads';
 import { Button } from '@/components/ui/Button';
 import { Dropdown, type DropdownOption } from '@/components/ui/Dropdown';
 import { IconButton } from '@/components/ui/IconButton';
@@ -32,6 +33,7 @@ import {
   VIDEO_RATES,
   formatResolution,
   formatsOfKind,
+  isConvertibleDownload,
   isTunable,
   kindForFiles,
   qualitiesFor,
@@ -166,6 +168,7 @@ export function ConvertPage({ settings }: { settings: Settings }) {
   const tunable = isTunable(catalogue, target);
   const qualities = qualitiesFor(kind);
   const ready = files.filter((file) => file.error === null && !file.probing);
+  const staged = useMemo(() => new Set(files.map((file) => file.path)), [files]);
   const ffmpegReady = ffmpeg?.available ?? false;
 
   const choose = useCallback(
@@ -191,6 +194,18 @@ export function ConvertPage({ settings }: { settings: Settings }) {
     setPickError(null);
     setSubmitError(null);
   }, []);
+
+  // A recent download is ticked into the list and out again. From the list as
+  // it stands rather than the one this render saw, so two quick presses on the
+  // same row both count.
+  const toggleRecent = useCallback(
+    (path: string) => {
+      forgetFileNotices();
+      if (useConvertStore.getState().files.some((file) => file.path === path)) removeFile(path);
+      else void addFiles([path]);
+    },
+    [addFiles, forgetFileNotices, removeFile],
+  );
 
   const pickFiles = useCallback(async () => {
     setPickError(null);
@@ -514,6 +529,20 @@ export function ConvertPage({ settings }: { settings: Settings }) {
           </InlineNotice>
         )}
       </section>
+
+      {/* -- or one just downloaded ---------------------------------------- */}
+
+      {/* Under the button, so the form keeps its place and Convert is just
+          above the rows ticked. Held still while a submission is out: success
+          empties the staged list, and would take a file ticked meanwhile. */}
+      <RecentDownloads
+        accepts={isConvertibleDownload}
+        onPress={toggleRecent}
+        rowLabel="convert.pickRecent"
+        picked={staged}
+        disabled={submitting}
+        className="mt-8"
+      />
 
       {/* -- what is running ------------------------------------------------ */}
 
