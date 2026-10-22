@@ -25,8 +25,7 @@ header {
   min-width: 0;
 }
 
-/* The page picker's button: the app's small icon button, quiet until the
-   pointer is on it. */
+/* The page picker's button, as the app's small IconButton. */
 .pick {
   flex: none;
   display: grid;

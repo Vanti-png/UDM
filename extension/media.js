@@ -1012,9 +1012,8 @@ export function rows(state, reported = [], { userAgent = '' } = {}) {
   return list.slice(0, MAX_ROWS);
 }
 
-// What the page picker (extension/picker.js) reports about the element the
-// user clicked. Like a frame's report it was written in the page, so it is
-// checked for type and size here rather than trusted.
+// The page picker's report of the clicked element (picker.js): written in the
+// page, so checked like a frame's report.
 const PICK_TAGS = new Set(['video', 'audio', 'image']);
 const PICK_LINKS = 40;
 
@@ -1061,8 +1060,8 @@ const POST_SITES = new Set([
   'Reddit',
 ]);
 
-// A post's own address. X hangs its photo and video viewers and its
-// statistics off the status, and they are all the same post.
+// X hangs its photo and video viewers and its statistics off the status: all
+// the same post.
 function postAddress(url, site) {
   const status = site === 'X' ? /^.*?\/status\/\d+/.exec(url.pathname) : null;
   if (status) return `${url.origin}${status[0]}`;
@@ -1071,11 +1070,9 @@ function postAddress(url, site) {
   return copy.href;
 }
 
-// The post of a site the app reads by address that the picked element is
-// part of: a tweet, a reel or a pin in a feed, which the feed's own address
-// does not name. The links around the element are believed only on the
-// site the element is shown by, where they are that site's own markup; a
-// blog's article links to anything.
+// A feed's address does not name the post an element is part of; a link
+// around it does. Those links are believed only on the element's own site,
+// where they are its markup: a blog's article links to anything.
 function postOf(pick) {
   const own = siteOf(pick.href);
   const candidates = [

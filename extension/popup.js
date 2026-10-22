@@ -444,9 +444,8 @@ for (const [site, id] of Object.entries(SWITCHES)) {
 el('noticeAction').textContent = t('btnRetry');
 el('noticeAction').addEventListener('click', () => checkApp());
 
-// The page picker. The popup closes as the page takes over, which it would do
-// anyway the moment the pointer went to the page; until the picker is
-// running there, it stays, so a page that will not take one can say so.
+// The popup closes only once the picker runs, so a page that refuses one can
+// say so here.
 el('pick').setAttribute('aria-label', t('btnPick'));
 
 function offerPick(tab) {

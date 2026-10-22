@@ -786,9 +786,7 @@ async function scan(message) {
   return { ok: true, url, protectedService: null, rows: list };
 }
 
-// What the popup's list and the picker's card are made from: every frame's
-// report, and the record of what the tab fetched, with the manifests it named
-// read.
+// Shared by the popup's list and the picker's card.
 async function readPage(tabId, url, title) {
   // The record counts for this page only if it is this page's: the popup can
   // open before the worker has heard that the tab moved on.
@@ -1166,13 +1164,10 @@ async function probeAnswer(fields) {
   return probing.get(key);
 }
 
-// The page picker (picker.js). The popup's "Pick from page" puts it into
-// every frame of the tab, and from then until its card is closed the tab
-// holds one pick in session storage: the token its picker names it by and,
-// once an element has been clicked, what that element stands for -- the
-// payload the card's İndir sends. The payload is worked out here from what
-// the frames report and never taken from the page, which can describe an
-// element but not choose what reaches the app.
+// The page picker (picker.js). While a tab has a pick, session storage holds
+// its token and, once an element is clicked, the payload the card's İndir
+// sends -- worked out here from the frames' reports, never taken from the
+// page.
 const t = (key) => chrome.i18n.getMessage(key);
 let pickWrites = Promise.resolve();
 
@@ -1186,8 +1181,8 @@ async function readPick(tabId) {
   }
 }
 
-// Every change waits for the one before it: the card's probe and its İndir
-// can both be answered at once, and each writes what it learnt.
+// One change at a time: the card's probe and its İndir can be answered at
+// once, and both write.
 function changePick(tabId, change) {
   const key = `${PICK_PREFIX}${tabId}`;
   pickWrites = pickWrites
@@ -1200,7 +1195,7 @@ function changePick(tabId, change) {
   return pickWrites;
 }
 
-// Each frame's picker, answering whether the word reached it.
+// True when a picker in that frame heard it.
 async function tellFrames(tabId, message, frameId) {
   try {
     const options = Number.isInteger(frameId) ? { frameId } : undefined;
@@ -1254,9 +1249,8 @@ function cardOf(status, row) {
   return { title: row.title, thumbnail: row.thumbnail, meta, canGet: status === 'ready', probe: status === 'ready' };
 }
 
-// A click in one of the tab's frames. The other frames stop picking at once;
-// the top one draws the card, or the frame clicked in when the top frame has
-// no picker to draw it.
+// The card goes to the top frame, where an iframe cannot clip it; to the
+// clicked frame only when the top one has no picker.
 async function picked(message, { tabId, frameId, held }) {
   if (held.status) return { ok: false };
   const choice = normalisePick(message.pick, frameId);
@@ -1280,8 +1274,7 @@ async function picked(message, { tabId, frameId, held }) {
   return { ok: true };
 }
 
-// What the app would make of the pick, as the popup asks it of a row, and
-// the title and still it gives kept for İndir as the popup keeps them.
+// As the popup's `apply`: the app's title and still also go with İndir.
 async function pickProbe(_message, { tabId, held }) {
   if (held.status !== 'ready' || !held.payload) return {};
   const answer = await probe({ payload: held.payload });
@@ -1308,8 +1301,6 @@ async function pickProbe(_message, { tabId, held }) {
   };
 }
 
-// İndir on the card: what was kept for the pick, through the same door as the
-// popup's.
 async function pickGet(_message, { tabId, held }) {
   if (held.status !== 'ready' || !held.payload) return { sent: false, notice: t('pickUnavailable') };
   // Sent stays sent, as in the popup.
@@ -1457,11 +1448,10 @@ chrome.cookies.onChanged.addListener((change) => {
 // </full>
 
 // Only this extension's own pages may ask for anything, and only by name. A
-// page in a tab never can. The one script this extension puts into a page,
-// the picker, may ask the four things PAGE_ACTIONS names, and only with the
-// token of the pick the popup started on that tab -- which it learns from
-// this worker, and the page cannot read; anything else from a tab, and any
-// message from anywhere else, is not answered at all.
+// page in a tab never can. The picker, the one script this extension puts
+// into a page, may ask PAGE_ACTIONS, and only with its tab's pick token,
+// which the page cannot read. Anything else from a tab, or from anywhere
+// else, goes unanswered.
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
   if (sender.id !== chrome.runtime.id) return false;
   const action = message?.action;

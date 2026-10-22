@@ -1,10 +1,8 @@
-// The words a row is described in: the popup's list says them, and so does
-// the card the page picker draws.
+// The words a row is described in, shared by the popup's list and the page
+// picker's card (worded in the service worker), so the two say a row alike.
 //
-// Pure, like media.js: `t` is chrome.i18n.getMessage where the extension runs
-// and a stand-in under Node (scripts/extension/describe.test.mjs), so the
-// popup and the service worker -- which words the card for the page -- say a
-// row the same way without either keeping a copy.
+// Pure, like media.js: `t` is chrome.i18n.getMessage, or a stand-in under
+// Node (scripts/extension/describe.test.mjs).
 
 import { formatDuration, formatEstimate } from './media.js';
 

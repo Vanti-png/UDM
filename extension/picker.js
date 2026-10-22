@@ -1,25 +1,13 @@
-// The page picker: the one script this extension puts into a page, and only
-// once the popup's "Pick from page" has been pressed on that tab.
+// The page picker, put into every frame of a tab when the popup's "Pick from
+// the page" is pressed (background.js, `pick`).
 //
-// The service worker injects it into every frame of the tab and starts it
-// with the pick's token (background.js, `pick`). Each frame then outlines the
-// video, sound or picture under the pointer in its own document, as an
-// eyedropper does a colour, and a click reports that one element to the
-// worker. The worker works out what it stands for (media.js, `pickedRow`) and
-// has the top frame draw a card for it: its picture, its title, what the app
-// would download, and İndir.
+// It only ever names the pick by its token: the worker keeps what İndir
+// sends, so nothing the page does here can choose what reaches the app.
 //
-// The worker keeps what İndir sends. This script only ever names the pick by
-// its token, so nothing the page does to it can choose what reaches the app;
-// it can only describe an element, which the worker checks as it checks every
-// frame's report.
-//
-// It is a plain script rather than a module, because that is all
-// `scripting.executeScript` injects, and it keeps everything it draws in a
-// closed shadow root: the page's styles do not reach it and the page's
-// scripts cannot read it. Everything a page supplied goes into it as text
-// through textContent, and pictures load only from http and https addresses,
-// as in the popup.
+// A plain script, since that is all `scripting.executeScript` injects. It
+// draws in a closed shadow root, out of reach of the page's styles and
+// scripts; what the page supplied goes in through textContent, and pictures
+// load only from http and https addresses, as in the popup.
 
 (() => {
   if (globalThis.udPicker) return;
@@ -27,14 +15,12 @@
   const t = (key) => chrome.i18n.getMessage(key);
   const isTop = window === window.top;
 
-  // Smaller than this on either side is an icon, a spacer or a tracking
-  // pixel, never the thing anyone came to pick.
+  // Smaller on either side: an icon, a spacer, a tracking pixel.
   const MIN_SIDE = 40;
-  // How far down the stack under the pointer to look for media: far enough to
-  // get under the clear layers sites lay over their pictures and players.
+  // Deep enough to get under the clear layers sites lay over pictures and players.
   const STACK_DEPTH = 12;
-  // The links reported around an element, and how far up to look for them.
-  // The worker keeps forty; an X post's own link can be twenty levels up.
+  // No more links than the worker keeps (media.js, PICK_LINKS); levels enough
+  // to climb out of a feed's nesting to the post.
   const LINKS_MAX = 40;
   const LINK_LEVELS = 25;
   const MIN_SENDING_MS = 300;
@@ -101,10 +87,8 @@
       transition-duration: 60ms;
       transition-timing-function: var(--ease-out);
     }
-    /* Laid over the element under the pointer, so the press is the picker's
-       even where the element would take it first: the buttons and the
-       timeline of a native player answer a press before any listener of the
-       page's -- or of this script's -- hears of it. */
+    /* Over the hovered element, so the click is the picker's: a native
+       player's controls take a press before any listener hears it. */
     .catch {
       position: fixed;
       pointer-events: auto;
@@ -347,8 +331,7 @@
     }
   `;
 
-  // The crosshair over the whole page while picking, and no text selected by
-  // a click that was only meant to pick.
+  // A click meant to pick must not select text.
   const PAGE_CSS = '* { cursor: crosshair !important; user-select: none !important; }';
 
   const SVG = 'http://www.w3.org/2000/svg';
@@ -387,7 +370,6 @@
     return element;
   }
 
-  // The shadow root everything is drawn in, made the first time it is needed.
   function layer() {
     if (host?.isConnected) return parts;
     host = document.createElement('ud-picker');
@@ -400,8 +382,7 @@
       sheet.replaceSync(CSS);
       shadow.adoptedStyleSheets = [sheet];
     } catch {
-      // A content script that may not adopt a sheet of its own making, as
-      // Firefox's can refuse, says it the older way.
+      // Firefox can refuse a content script's constructed sheet.
       shadow.append(node('style', '', CSS));
     }
     const root = node('div', 'layer');
@@ -431,8 +412,7 @@
         pageSheet = null;
       }
     } catch {
-      // A page without constructable sheets keeps its own cursor; picking
-      // still works.
+      // Only the cursor is lost; picking still works.
     }
   }
 
@@ -442,8 +422,7 @@
     return parent && parent.nodeType === Node.DOCUMENT_FRAGMENT_NODE && parent.host ? parent.host : null;
   }
 
-  // Everything under a point, topmost first, inside open shadow roots too:
-  // a player's video is often in one.
+  // Into open shadow roots too: a player's video is often inside one.
   function stackAt(root, x, y, depth = 0, out = []) {
     for (const element of root.elementsFromPoint(x, y)) {
       if (out.length >= STACK_DEPTH) break;
@@ -518,8 +497,6 @@
     catcher.hidden = !picking || held !== null;
     tag.hidden = false;
     tag.textContent = [t(KIND_WORDS[found.kind]), sizeOf(found)].filter(Boolean).join(' · ');
-    // Above the outline where there is room for it, inside it where there is
-    // not, as at the top of a page.
     const above = rect.top - 23;
     tag.style.left = `${Math.max(4, Math.min(rect.left, innerWidth - 284))}px`;
     tag.style.top = `${above >= 4 ? above : Math.max(4, rect.top + 4)}px`;
@@ -556,9 +533,7 @@
     return out;
   }
 
-  // The address an element's picture is best had from: the widest candidate
-  // its srcset, or its <picture>'s sources, offer -- the one on screen is
-  // often a thumbnail of it.
+  // The widest candidate on offer: the one on screen is often a thumbnail.
   function largest(img) {
     const candidates = [];
     const read = (srcset) => {
@@ -592,7 +567,6 @@
 
   const isWeb = (value) => typeof value === 'string' && /^https?:/i.test(value);
 
-  // The link the element sits in.
   function linkOf(element) {
     for (let at = element; at; at = parentOf(at)) {
       if (at.localName === 'a' && isWeb(at.href)) return at.href;
@@ -600,8 +574,7 @@
     return '';
   }
 
-  // The links around it, the nearest first: each ancestor's in turn, up to
-  // the post it is part of when the page marks one.
+  // Nearest first: the worker takes the first that is a post (media.js, `postOf`).
   function linksAround(element) {
     const out = [];
     let at = parentOf(element);
@@ -616,8 +589,7 @@
     return out;
   }
 
-  // What the worker is told about the element. It checks every field again
-  // (media.js, `normalisePick`); this only gathers them.
+  // Checked again by the worker (media.js, `normalisePick`); this only gathers.
   function report(found) {
     const { element, kind } = found;
     const out = { tag: kind, href: location.href, link: linkOf(element), links: linksAround(element) };
@@ -640,8 +612,7 @@
     try {
       return await chrome.runtime.sendMessage({ ...message, token });
     } catch {
-      // The extension was reloaded or removed under the page: nothing is
-      // listening any more.
+      // The extension was reloaded or removed under the page.
       return null;
     }
   }
@@ -651,8 +622,7 @@
     schedule();
   }
 
-  // What scrolls under the element the catch layer covers, which would have
-  // had the wheel had the layer not been there.
+  // The catch layer takes the wheel from the page; this is what should have had it.
   function scrollerOf(element) {
     for (let at = parentOf(element); at; at = parentOf(at)) {
       const { overflowY, overflowX } = getComputedStyle(at);
@@ -672,8 +642,7 @@
     scrollerOf(found.element).scrollBy({ left: event.deltaX * unit, top: event.deltaY * unit });
   }
 
-  // The pointer gone into a frame of its own, or out of the window: that
-  // frame outlines what is under it there.
+  // Into a frame, whose own picker takes over, or out of the window.
   function onOut(event) {
     const into = event.relatedTarget;
     if (!into || into.localName === 'iframe' || into.localName === 'frame') {
@@ -682,9 +651,8 @@
     }
   }
 
-  // Every press while picking is the picker's: the page's link does not
-  // open, its player does not start. Touches are left alone, so a finger can
-  // still scroll; the click a tap ends in is the picker's all the same.
+  // So the page's link does not open nor its player start. Touches are left
+  // alone so a finger can still scroll; a tap's click is caught all the same.
   function swallow(event) {
     if (!picking) return;
     event.preventDefault();
@@ -733,7 +701,6 @@
     schedule();
   }
 
-  // Everything gone: the outline, the card, every listener.
   function end() {
     stopPicking();
     follow(false);
@@ -754,7 +721,7 @@
     try {
       await chrome.runtime.sendMessage({ action: 'pickEnd', token: ending });
     } catch {
-      // Nothing left to tell.
+      // No worker to tell: the extension was reloaded or removed.
     }
   }
 
@@ -762,8 +729,8 @@
     held = found;
     stopPicking();
     const reply = await send({ action: 'picked', pick: report(found) });
-    // A pick the worker no longer knows -- the tab moved on, the browser
-    // restarted the worker's storage -- has nothing to show.
+    // The worker no longer holds this pick: another started on this tab, or it
+    // already ended.
     if (!reply?.ok) end();
   }
 
@@ -809,9 +776,6 @@
     notice.hidden = false;
   }
 
-  // The card for the pick, drawn in the top frame whichever frame it was
-  // made in, from what the worker said about it. Only its words come from
-  // the worker; İndir sends what the worker kept.
   async function showCard(card) {
     const { root } = layer();
     parts.card?.remove();
@@ -884,12 +848,13 @@
     return true;
   }
 
-  // The worker's word, answered so it can tell a frame that heard it from one
-  // with no picker in it.
+  // Answered so the worker can tell a frame with a picker from one without
+  // (background.js, `tellFrames`).
   chrome.runtime.onMessage.addListener((message, sender, respond) => {
     if (sender.id !== chrome.runtime.id || !message || !token || message.token !== token) return false;
     respond(true);
-    // Another frame's click: this one stops picking, and holds nothing.
+    // Sent to every frame once one is clicked; the one holding the pick, or
+    // the card, stays.
     if (message.udPick === 'stop') {
       stopPicking();
       if (!held && !parts?.card) {
