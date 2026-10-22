@@ -33,6 +33,10 @@ pub enum Reading {
     WithVideos(MixedPost),
     /// Not a photo post, or not one read here: the engine's.
     Elsewhere,
+    /// A post the platform will not show a signed-out visitor. Still the
+    /// engine's, which may have a session to read it with; when it finds
+    /// nothing, this is why.
+    Hidden,
 }
 
 impl Reading {

@@ -159,10 +159,12 @@ pub async fn analyze_with_source(
     // post answered here never costs a process launch. Anything they do not
     // recognise as a photo post, or fail to read, is the engine's to try.
     let mut mixed = None;
+    let mut hidden = false;
     match photos::analyze(url, info.platform, settings).await {
         Ok(photos::Reading::Photos(metadata)) => return Ok(*metadata),
         Ok(photos::Reading::WithVideos(post)) => mixed = Some(post),
         Ok(photos::Reading::Elsewhere) => {}
+        Ok(photos::Reading::Hidden) => hidden = true,
         Err(err) => log_warn!("providers", "photo reader failed for {}: {err}", info.host),
     }
 
@@ -177,6 +179,9 @@ pub async fn analyze_with_source(
                 Ok(metadata) => return photos::complete(metadata, mixed, settings).await,
                 Err(AppError::Unsupported(detail)) => {
                     log_debug!("providers", "engine does not know {}: {detail}", info.host);
+                    if hidden {
+                        return Err(hidden_post(&detail));
+                    }
                     engine_error = Some(AppError::Unsupported(detail));
                 }
                 Err(err) => return Err(err),
@@ -185,6 +190,12 @@ pub async fn analyze_with_source(
     } else if info.platform != PlatformId::Generic {
         // A known platform with no engine installed has no other route.
         return Err(AppError::EngineMissing);
+    }
+
+    if !page_reader_may_answer(info.platform, url) {
+        return Err(engine_error.unwrap_or_else(|| {
+            AppError::Unsupported("there is nothing to download in this post".into())
+        }));
     }
 
     let generic = GenericProvider;
@@ -205,6 +216,26 @@ pub async fn analyze_with_source(
     Err(engine_error.unwrap_or_else(|| {
         AppError::Unsupported(format!("no provider could read {}", info.host))
     }))
+}
+
+/// What the engine finding nothing in a post means when the platform hides
+/// that post from a signed-out visitor: not that it is empty, but that it takes
+/// a session to see. A session the browser lent has already been tried by then.
+fn hidden_post(engine_said: &str) -> AppError {
+    AppError::Forbidden {
+        status: 403,
+        detail: format!("this post is shown only to signed-in viewers ({engine_said})"),
+    }
+}
+
+/// Whether the generic page reader may answer for `url` once the engine has
+/// found nothing in it.
+///
+/// Not for an X post: the photo reader and the engine cover its media, and the
+/// page around it describes the account, so all this reader would find is the
+/// avatar -- offered as if it were the post.
+fn page_reader_may_answer(platform: PlatformId, url: &str) -> bool {
+    !(platform == PlatformId::Twitter && photos::twitter::is_post(url))
 }
 
 // -- recent analyses -----------------------------------------------------------
@@ -816,5 +847,22 @@ mod tests {
             ..Settings::default()
         };
         assert!(recent_analysis(url, &proxied).is_none());
+    }
+
+    #[test]
+    fn an_x_post_is_never_answered_with_the_page_around_it() {
+        assert!(!page_reader_may_answer(PlatformId::Twitter, "https://x.com/a/status/2113215536641265734"));
+        assert!(!page_reader_may_answer(PlatformId::Twitter, "https://x.com/a/status/1/video/1"));
+        // An account's own page is about the account, avatar and all.
+        assert!(page_reader_may_answer(PlatformId::Twitter, "https://x.com/a"));
+        assert!(page_reader_may_answer(PlatformId::Generic, "https://example.test/status/1"));
+    }
+
+    #[test]
+    fn a_hidden_post_with_nothing_found_asks_for_a_session() {
+        let err = hidden_post("No video could be found in this tweet");
+        assert_eq!(err.code(), "forbidden");
+        let AppError::Forbidden { detail, .. } = err else { unreachable!() };
+        assert!(detail.contains("signed-in viewers"), "{detail}");
     }
 }
