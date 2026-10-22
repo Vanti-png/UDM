@@ -28,7 +28,7 @@ const URL_LIMIT = 8192;
 const TITLE_LIMIT = 300;
 const AGENT_LIMIT = 512;
 
-export const PAYLOAD_KINDS = new Set(['page', 'stream', 'video', 'audio']);
+export const PAYLOAD_KINDS = new Set(['page', 'stream', 'video', 'audio', 'image']);
 export const PAYLOAD_FIELDS = [
   'url',
   'kind',
@@ -812,6 +812,24 @@ function compareRows(a, b) {
   return (b.size ?? 0) - (a.size ?? 0) || (b.height ?? 0) - (a.height ?? 0);
 }
 
+// The page's name and picture, as the rows describe it.
+//
+// The og: tags are believed only when they can be shown to describe this
+// address: og:url names it, or the site is not one of the known ones. The
+// known ones are single-page apps, and they leave the first page's tags in
+// place as the user moves on -- a visit that began on the front page carries
+// the site's name and logo to every video after it, with no og:url to give
+// it away. The document's title is kept current by all of them.
+function pageFacts(state, top, site) {
+  const pageUrl = typeof state?.url === 'string' ? state.url : '';
+  const trustOg = top?.ogUrl ? ogFresh(top, pageUrl) : !site;
+  const rawTitle = (trustOg && top?.ogTitle) || top?.title || state?.title || '';
+  return {
+    pageTitle: cleanTitle(stripSiteName(cleanTitle(rawTitle), site)) || displayHost(pageUrl),
+    ogImage: trustOg && isHttpUrl(top?.ogImage) ? top.ogImage : '',
+  };
+}
+
 /**
  * The popup's list for one tab.
  *
@@ -831,17 +849,7 @@ export function rows(state, reported = [], { userAgent = '' } = {}) {
   const site = siteOf(pageUrl);
   const top = frames.find((frame) => frame.isTop) ?? null;
   const items = Array.isArray(state?.items) ? state.items : [];
-
-  // The og: tags are believed only when they can be shown to describe this
-  // address: og:url names it, or the site is not one of the known ones. The
-  // known ones are single-page apps, and they leave the first page's tags in
-  // place as the user moves on -- a visit that began on the front page carries
-  // the site's name and logo to every video after it, with no og:url to give
-  // it away. The document's title is kept current by all of them.
-  const trustOg = top?.ogUrl ? ogFresh(top, pageUrl) : !site;
-  const rawTitle = (trustOg && top?.ogTitle) || top?.title || state?.title || '';
-  const pageTitle = cleanTitle(stripSiteName(cleanTitle(rawTitle), site)) || displayHost(pageUrl);
-  const ogImage = trustOg && isHttpUrl(top?.ogImage) ? top.ogImage : '';
+  const { pageTitle, ogImage } = pageFacts(state, top, site);
   const agent = typeof userAgent === 'string' ? userAgent : '';
 
   const drmFrames = new Set(
@@ -1002,6 +1010,233 @@ export function rows(state, reported = [], { userAgent = '' } = {}) {
   }
 
   return list.slice(0, MAX_ROWS);
+}
+
+// What the page picker (extension/picker.js) reports about the element the
+// user clicked. Like a frame's report it was written in the page, so it is
+// checked for type and size here rather than trusted.
+const PICK_TAGS = new Set(['video', 'audio', 'image']);
+const PICK_LINKS = 40;
+
+const IMAGE_EXTS = new Set(['jpg', 'jpeg', 'png', 'webp', 'gif', 'avif', 'bmp']);
+
+/**
+ * `link` is the link the element sits in, `links` the links around it, the
+ * nearest first: each ancestor's, up to the post or card it is part of.
+ */
+export function normalisePick(raw, frameId) {
+  if (!raw || typeof raw !== 'object' || !PICK_TAGS.has(raw.tag)) return null;
+  const web = (value) => (isHttpUrl(value) ? str(value) : '');
+  return {
+    frameId: Number.isInteger(frameId) && frameId >= 0 ? frameId : 0,
+    tag: raw.tag,
+    href: str(raw.href),
+    // A `blob:` or `data:` source is something the page made for itself,
+    // which no download can ask for; it is the same as having none.
+    src: web(raw.src),
+    poster: web(raw.poster),
+    width: num(raw.width),
+    height: num(raw.height),
+    duration: num(raw.duration),
+    drm: raw.drm === true,
+    link: web(raw.link),
+    links: Array.isArray(raw.links) ? raw.links.slice(0, PICK_LINKS).map(web).filter(Boolean) : [],
+  };
+}
+
+// The sites whose posts have an address of their own shape -- a status, a
+// reel, a thread -- so that a link of that shape around the element is the
+// post it belongs to. On the rest any path is a video page (`isVideoPage`),
+// and only the link the element itself sits in is believed.
+const POST_SITES = new Set([
+  // <full>
+  'YouTube',
+  'YouTube Music',
+  // </full>
+  'X',
+  'Instagram',
+  'TikTok',
+  'Facebook',
+  'Threads',
+  'Reddit',
+]);
+
+// A post's own address. X hangs its photo and video viewers and its
+// statistics off the status, and they are all the same post.
+function postAddress(url, site) {
+  const status = site === 'X' ? /^.*?\/status\/\d+/.exec(url.pathname) : null;
+  if (status) return `${url.origin}${status[0]}`;
+  const copy = new URL(url.href);
+  copy.hash = '';
+  return copy.href;
+}
+
+// The post of a site the app reads by address that the picked element is
+// part of: a tweet, a reel or a pin in a feed, which the feed's own address
+// does not name. The links around the element are believed only on the
+// site the element is shown by, where they are that site's own markup; a
+// blog's article links to anything.
+function postOf(pick) {
+  const own = siteOf(pick.href);
+  const candidates = [
+    ...(pick.link ? [{ raw: pick.link, near: true }] : []),
+    ...pick.links.map((raw) => ({ raw, near: false })),
+  ];
+  for (const { raw, near } of candidates) {
+    const url = parseHttp(raw);
+    const site = siteOf(raw);
+    if (!url || !site || protectedService(raw) || unlisted(raw) || !isVideoPage(url, site)) continue;
+    if (!near && (site !== own || !POST_SITES.has(site))) continue;
+    return { url: postAddress(url, site), site };
+  }
+  return null;
+}
+
+/**
+ * What the page picker's click stands for, as one row for the card it draws.
+ *
+ * In order: the post the element belongs to, on a site the app reads by
+ * address; the page itself, where that is a known site's video page, as the
+ * popup lists it; the file the element plays; the stream its player fetched,
+ * when the frame has no other player it could be; the page, elsewhere, as the
+ * popup's last resort; and a picture's own file.
+ *
+ * `status` is what the card offers: 'ready' has İndir, 'protected' says the
+ * video is, 'unlisted' that this build lists nothing on the site, and
+ * 'unavailable' that nothing here can be handed over -- a picture the page
+ * drew for itself, or a player in a feed that nothing ties to a post.
+ */
+export function pickedRow(state, reported = [], pick = null, { userAgent = '' } = {}) {
+  const pageUrl = typeof state?.url === 'string' ? state.url : '';
+  const frames = Array.isArray(reported) ? reported : [];
+  const items = Array.isArray(state?.items) ? state.items : [];
+  const page = parseHttp(pageUrl);
+  const site = siteOf(pageUrl);
+  const top = frames.find((frame) => frame.isTop) ?? null;
+  const { pageTitle, ogImage } = pageFacts(state, top, site);
+  const agent = typeof userAgent === 'string' ? userAgent : '';
+  const picture = pick?.tag === 'image' ? pick.src : (pick?.poster ?? '');
+
+  const entry = (status, fields = {}) => ({
+    status,
+    row: {
+      key: 'pick',
+      kind: fields.kind ?? null,
+      url: fields.url ?? '',
+      title: fields.title ?? pageTitle,
+      thumbnail: fields.thumbnail ?? picture,
+      protected: status === 'protected',
+      height: fields.height || null,
+      size: fields.size ?? null,
+      durationSec: fields.durationSec || null,
+      meta: fields.meta ?? { label: fields.kind ?? 'page', parts: metaParts(fields) },
+      payload: status === 'ready' ? fields.payload : null,
+    },
+  });
+  const offer = ({ locked = false, referer, origin, ...fields }) => {
+    const title = fields.title ?? pageTitle;
+    const thumbnail = fields.thumbnail ?? picture;
+    const payload = toPayload({ url: fields.url, kind: fields.kind, title, pageUrl, referer, origin, userAgent: agent, thumbnail });
+    if (!payload) return entry('unavailable');
+    return entry(locked ? 'protected' : 'ready', { ...fields, title, thumbnail, payload });
+  };
+
+  if (!pick) return entry('unavailable');
+  if (protectedService(pageUrl)) return entry('protected');
+  if (unlisted(pageUrl) || unlisted(pick.href)) return entry('unlisted');
+
+  const post = postOf(pick);
+  if (post) {
+    const here = samePage(post.url, pageUrl);
+    return offer({
+      kind: 'page',
+      url: post.url,
+      thumbnail: picture || (here ? ogImage : ''),
+      meta: { label: 'site', site: post.site, parts: [] },
+    });
+  }
+
+  const playing = pick.tag !== 'image';
+  if (playing && site && page && isVideoPage(page, site)) {
+    let thumbnail = picture || ogImage;
+    // <full>
+    thumbnail = youtubeThumbnail(page) || thumbnail;
+    // </full>
+    return offer({ kind: 'page', url: pageUrl, thumbnail, meta: { label: 'site', site, parts: [] } });
+  }
+
+  if (playing && pick.src) {
+    const found = classify({ url: pick.src, type: 'media' });
+    if (found && found !== 'segment' && found !== 'noise') {
+      const url = dedupeKey(pick.src);
+      const fetched = items.find((item) => item.url === url) ?? null;
+      return offer({
+        kind: STREAM_KINDS.has(found) ? 'stream' : pick.tag,
+        url,
+        thumbnail: picture || ogImage,
+        referer: refererFor(fetched?.initiator || originOf(pick.href), pageUrl),
+        origin: fetched ? originFor(fetched.initiator, fetched.isXhr) : undefined,
+        height: fetched?.info?.height ?? pick.height,
+        size: typeof fetched?.size === 'number' ? fetched.size : null,
+        durationSec: fetched?.info?.durationSec ?? pick.duration,
+        locked: pick.drm || Boolean(fetched?.info?.protected),
+      });
+    }
+  }
+
+  const frame = frames.find((each) => each.frameId === pick.frameId) ?? null;
+  if (pick.tag === 'video' && (frame?.videos.length ?? 0) <= 1) {
+    // The one player in its frame, so whatever stream that frame fetched is
+    // this player's. The tallest, as `oneStreamPerPlayer` keeps it.
+    const hidden = new Set();
+    for (const item of items) {
+      for (const variant of item.info?.variants ?? []) hidden.add(dedupeKey(variant));
+    }
+    let best = null;
+    for (const item of items) {
+      if (item.frameId !== pick.frameId || !STREAM_KINDS.has(item.kind) || hidden.has(item.url)) continue;
+      if (unlisted(item.initiator)) continue;
+      if (!best || (item.info?.height ?? 0) > (best.info?.height ?? 0)) best = item;
+    }
+    if (best) {
+      return offer({
+        kind: 'stream',
+        url: best.url,
+        thumbnail: picture || ogImage,
+        referer: refererFor(best.initiator, pageUrl),
+        origin: originFor(best.initiator, best.isXhr),
+        height: best.info?.height,
+        durationSec: best.info?.durationSec ?? pick.duration,
+        locked: pick.drm || Boolean(best.info?.protected),
+      });
+    }
+  }
+
+  if (playing && !site && page) {
+    return offer({
+      kind: 'page',
+      url: pageUrl,
+      thumbnail: picture || ogImage,
+      durationSec: pick.duration,
+      meta: { label: 'page', parts: metaParts({ durationSec: pick.duration }) },
+      locked: pick.drm,
+    });
+  }
+
+  if (pick.tag === 'image' && pick.src) {
+    // A thumbnail that links to its own picture at full size is that picture.
+    const linked = parseHttp(pick.link);
+    const full = linked && IMAGE_EXTS.has(fileOf(linked).ext) ? pick.link : '';
+    const size = !full && pick.width && pick.height ? [`${pick.width}×${pick.height}`] : [];
+    return offer({
+      kind: 'image',
+      url: full || pick.src,
+      thumbnail: pick.src,
+      referer: refererFor(originOf(pick.href), pageUrl),
+      meta: { label: 'image', parts: size },
+    });
+  }
+  return entry('unavailable');
 }
 
 const UNITS = ['B', 'KB', 'MB', 'GB', 'TB'];

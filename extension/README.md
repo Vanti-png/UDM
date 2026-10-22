@@ -30,10 +30,12 @@ from there. No host reply ever carries cookie material.
 
 | File | What it does |
 |---|---|
-| `media.js` | Pure helpers, no `chrome.*`: what a response is (`classify`), HLS and DASH manifests (`parseHls`, `parseDash`), and the popup's list (`rows`). Shared by the worker and the popup. |
+| `media.js` | Pure helpers, no `chrome.*`: what a response is (`classify`), HLS and DASH manifests (`parseHls`, `parseDash`), the popup's list (`rows`) and what a click of the page picker stands for (`pickedRow`). Shared by the worker and the popup. |
+| `describe.js` | The words a row is described in (`firstMeta`, `detailMeta`) and what the app's answer means for the user (`problemOf`). Pure; the popup's list and the picker's card say a row alike. |
 | `sessions.js` | Pure helpers for the lent sessions: which domain each site's cookies are read from, which of them mean a sign-in, which changes are worth a push, the push's wire head (`push` for YouTube, `pushSite` for any other site), and for the other sites' switch which site a page is (`registrableDomain`, `otherSiteOf`). |
 | `background.js` | The service worker (an ES module). Watches `webRequest`, keeps a list per tab in `chrome.storage.session`, draws the badge, answers the popup, talks to the host. |
-| `popup.*` | The list, the **İndir** buttons and the session switches (TikTok's only on TikTok pages, the other sites' only on other sites' pages, each also while it is on). |
+| `popup.*` | The list, the **İndir** buttons, the page picker's button and the session switches (TikTok's only on TikTok pages, the other sites' only on other sites' pages, each also while it is on). |
+| `picker.js` | The page picker, the only script this extension puts into a page, and only when its button is pressed: outlines the video, sound or picture under the pointer in every frame, reports the one clicked, and draws the card with **İndir** in the top frame. A plain script, since that is what `executeScript` injects. |
 | `welcome.*` | Opened once, on install. |
 | `theme.css`, `fonts/` | The app's tokens and its typeface (Inter, OFL; the licence ships beside it). |
 
@@ -52,6 +54,17 @@ from there. No host reply ever carries cookie material.
 4. **İndir** sends `{ type: "download", …peer, url, kind, title, pageUrl,
    referer, origin, userAgent, thumbnail }` (Contract A). The host writes it to
    the app's inbox and starts the app with `--handoff`.
+5. **Pick from the page** (the button beside the popup's heading) injects
+   `picker.js` into every frame of the tab and starts it with a fresh token,
+   kept in session storage as `pick:<id>`. A click reports the element -- its
+   source, the widest picture its `srcset` offers, its size, and the links
+   around it, nearest first -- and `media.pickedRow` decides what it stands
+   for: the post it is part of on a site the app reads by address (a tweet in a
+   timeline), the file it plays, the stream its frame fetched, or the page.
+   Pictures go as a fifth kind, `image`, which an app from before it reads as
+   `page`. The worker keeps the payload; the card only names the pick by its
+   token, and a message from a tab is answered only for `picked`, `pickProbe`,
+   `pickGet` and `pickEnd` with that tab's token.
 
 On YouTube and the other sites the app reads by address (`PAGE_SITES` in
 `media.js`), the popup offers the page itself rather than the pieces the player
@@ -168,7 +181,9 @@ The permissions map onto it:
 - `webRequest` with `<all_urls>` -- seeing which videos a tab plays. There is
   no narrower pattern: the videos come from whatever server the site uses.
 - `scripting` -- reading the page's video elements and title when the popup
-  opens, and re-reading a stream's playlist inside the page for its quality.
+  opens, and re-reading a stream's playlist inside the page for its quality;
+  and, when the user presses **Pick from the page**, drawing the picker in that
+  tab and reading the element clicked.
 - `nativeMessaging` -- the only channel out. No remote endpoint, no analytics.
 - `cookies` -- youtube.com and tiktok.com, each only while its switch is on;
   and with Other sites on, the site of the page İndir is pressed on, at that

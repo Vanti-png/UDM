@@ -31,6 +31,17 @@ loaded it -- the same request the page made, often answered from the browser's
 cache. The popup shows the page's preview images, loaded from the site that
 serves them.
 
+**The element you pick on the page.** When you press **Pick from the page**
+in the popup, the extension outlines the video, sound or picture under your
+pointer, in that tab only, until you click one or press Esc. Of the one you
+click it reads the address (for a picture, also the larger sizes the page
+offers of it, and its size), the poster, the length, whether DRM protects it,
+and the links around it on the page, to find the post it belongs to. A card
+on the page then shows it; the app is asked how it would download it, as for
+the popup's first rows, and it is handed over only when you press **Get** on
+the card. What the click found is kept in session storage until the card
+closes.
+
 **Your sign-ins, each only if you turn it on.** With the **YouTube session**
 switch on, the extension reads the cookies of **youtube.com**, so the app can
 download members-only videos your own membership gives you. With the **TikTok
@@ -51,14 +62,16 @@ desktop application, running on the same computer as your browser. Chrome starts
 that program itself, over its native messaging channel, and only for this
 extension.
 
-- **When the popup lists a video:** the same details as below, for each of the
-  first few items it lists, so the app can say what it would download -- the
-  title, the picture, the quality, the format and roughly the size. The app
+- **When the popup lists a video, or the picker's card shows one:** the same
+  details as below, for each of the first few items it lists and for the one
+  you picked, so the app can say what it would download -- the title, the
+  picture, the quality, the format and roughly the size. The app
   reads the video's page or stream from the site to answer, as it would before
   downloading; it downloads nothing and keeps nothing for this.
-- **When you press Get (İndir in Turkish):** that one item's address and kind, the
-  page's title and address, the referring address and origin the request was
-  made with, your browser's user-agent string and the preview image address.
+- **When you press Get (İndir in Turkish), in the popup or on the card:**
+  that one item's address and kind, the page's title and address, the
+  referring address and origin the request was made with, your browser's
+  user-agent string and the preview image address.
   The app opens the video, and when you have chosen the quality and the
   watermark and pressed download there, downloads it from the site, as your
   browser would.
@@ -101,7 +114,8 @@ you turned the YouTube session off, whether you turned the TikTok session and
 Other sites on, and what the app last said about this profile's connection
 (connected, turned off in the app, or not connected).
 
-In `chrome.storage.session`, in memory: the per-tab lists described above.
+In `chrome.storage.session`, in memory: the per-tab lists described above,
+and the element you picked until its card closes.
 
 No cookies are stored by the extension, and no browsing history is kept beyond
 the open tabs.
@@ -162,6 +176,17 @@ sayfanın içinden yeniden okuyabilir -- sayfanın yaptığı isteğin aynısı;
 zaman tarayıcının önbelleğinden yanıtlanır. Açılır pencere, sayfanın önizleme
 görsellerini onları sunan siteden yükleyerek gösterir.
 
+**Sayfada seçtiğiniz öğe.** Açılır penceredeki **Sayfadan seç**'e
+bastığınızda eklenti, yalnızca o sekmede, işaretçinizin altındaki videonun,
+sesin ya da resmin çevresine, siz birine tıklayana ya da Esc'ye basana kadar
+bir çerçeve çizer. Tıkladığınızın adresini (resimse sayfanın onun için sunduğu
+daha büyük boyutları ve boyutunu da), kapak görselini, süresini, DRM ile
+korunup korunmadığını ve hangi gönderiye ait olduğunu bulmak için sayfada
+çevresindeki bağlantıları okur. Ardından sayfada bir kart onu gösterir:
+uygulamaya, açılır penceredeki ilk satırlar için olduğu gibi nasıl ineceği
+sorulur; uygulamaya ise yalnızca karttaki **İndir**'e bastığınızda verilir.
+Tıklamanın bulduğu, kart kapanana kadar oturum deposunda tutulur.
+
 **Oturumlarınız, her biri yalnızca siz açarsanız.** **YouTube oturumu**
 anahtarı açıkken eklenti **youtube.com** çerezlerini okur; böylece uygulama
 kendi üyeliğinizin erişim verdiği üyelere özel videoları indirebilir.
@@ -183,14 +208,15 @@ uygulamasının parçası olan `ud-bridge.exe` adlı programa. O programı Chrom
 kendisi başlatır, kendi yerel mesajlaşma kanalı üzerinden, yalnızca bu eklenti
 için.
 
-- **Açılır pencere bir video listelediğinde:** listelediği ilk birkaç öğenin
-  her biri için aşağıdakiyle aynı bilgiler; böylece uygulama ne indireceğini
+- **Açılır pencere bir video listelediğinde ya da seçicinin kartı birini
+  gösterdiğinde:** listelediği ilk birkaç öğenin ve seçtiğiniz öğenin her biri
+  için aşağıdakiyle aynı bilgiler; böylece uygulama ne indireceğini
   söyleyebilir -- başlığı, görseli, kaliteyi, biçimi ve yaklaşık boyutu.
   Uygulama bunu yanıtlamak için videonun sayfasını ya da akışını, indirmeden
   önce yapacağı gibi siteden okur; bunun için hiçbir şey indirmez, hiçbir şey
   saklamaz.
-- **İndir'e bastığınızda:** yalnızca o öğenin adresi ve türü, sayfanın başlığı
-  ve adresi, isteğin yapıldığı yönlendiren adres ve köken, tarayıcınızın
+- **Açılır pencerede ya da kartta İndir'e bastığınızda:** yalnızca o öğenin
+  adresi ve türü, sayfanın başlığı ve adresi, isteğin yapıldığı yönlendiren adres ve köken, tarayıcınızın
   kullanıcı aracısı dizesi ve önizleme görselinin adresi. Uygulama videoyu
   açar; kaliteyi ve filigranı seçip indirmeyi seçtiğinizde, tarayıcınızın
   yapacağı gibi siteden indirir. Basmadığınız öğeler indirilmez.
@@ -232,7 +258,8 @@ diye), YouTube oturumunu kapatıp kapatmadığınız, TikTok oturumunu ve Diğer
 siteler anahtarını açıp açmadığınız ve uygulamanın bu profilin bağlantısı
 hakkında en son ne dediği (bağlı, uygulamada kapalı ya da bağlı değil).
 
-`chrome.storage.session` içinde, bellekte: yukarıda anlatılan sekme listeleri.
+`chrome.storage.session` içinde, bellekte: yukarıda anlatılan sekme listeleri
+ve kartı kapanana kadar seçtiğiniz öğe.
 
 Eklenti hiçbir çerezi saklamaz ve açık sekmelerin ötesinde bir gezinme geçmişi
 tutmaz.

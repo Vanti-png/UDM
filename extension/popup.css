@@ -13,8 +13,55 @@ body {
 }
 
 header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   padding: 2px 4px 0;
   min-width: 0;
+}
+
+.heading {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The page picker's button: the app's small icon button, quiet until the
+   pointer is on it. */
+.pick {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: -1px -4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition-property: background-color, color, transform;
+  transition-duration: var(--t-micro);
+  transition-timing-function: var(--ease-out);
+}
+
+.pick:hover:not(:disabled) {
+  background: var(--fill-hover);
+  color: var(--text-primary);
+}
+
+.pick:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.pick:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pick svg {
+  width: 18px;
+  height: 18px;
 }
 
 h1 {

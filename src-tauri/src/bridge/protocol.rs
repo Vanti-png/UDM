@@ -324,8 +324,9 @@ pub enum Request {
     Probe(Download),
 }
 
-/// A video or sound the extension saw a page play, as it arrives on the wire,
-/// whether to be downloaded or only probed.
+/// A video or sound the extension saw a page play, or a picture the user
+/// picked on one, as it arrives on the wire, whether to be downloaded or only
+/// probed.
 ///
 /// Everything but the address is optional and everything is untrusted: it is
 /// checked and cut down by `handoff::validate` before any of it is written
@@ -336,8 +337,9 @@ pub struct Download {
     #[serde(flatten)]
     pub peer: Peer,
     pub url: String,
-    /// `page`, `stream`, `video` or `audio`. Anything else, or nothing, is
-    /// read as `page`: the app analyses a page the most carefully.
+    /// `page`, `stream`, `video`, `audio` or `image` -- a picture the page
+    /// picker handed over. Anything else, or nothing, is read as `page`: the
+    /// app analyses a page the most carefully.
     #[serde(default)]
     pub kind: Option<String>,
     #[serde(default)]

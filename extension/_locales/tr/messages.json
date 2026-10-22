@@ -12,6 +12,7 @@
   "kindStream": { "message": "Akış" },
   "kindVideo": { "message": "Video" },
   "kindAudio": { "message": "Ses" },
+  "kindImage": { "message": "Resim" },
   "kindPage": { "message": "Sayfa" },
   "kindLive": { "message": "Canlı" },
   "kindProtected": { "message": "Korumalı" },
@@ -22,6 +23,12 @@
   "protectedBody": { "message": "Universal Downloader bunları indiremez." },
   "unlistedTitle": { "message": "Bu sitede kullanılamaz" },
   "unlistedBody": { "message": "Bu sitedeki videolar burada listelenmez." },
+
+  "btnPick": { "message": "Sayfadan seç" },
+  "pickHint": { "message": "Bir videoya, sese ya da resme tıklayın · Vazgeçmek için Esc" },
+  "pickFailed": { "message": "Bu sayfada seçim yapılamıyor" },
+  "pickUnavailable": { "message": "Bu öğe gönderilemiyor" },
+  "pickClose": { "message": "Kapat" },
 
   "noticeNotInstalled": { "message": "Universal Downloader'ı bir kez açın" },
   "noticeUpdate": { "message": "Universal Downloader'ı güncelleyin" },

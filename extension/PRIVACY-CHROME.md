@@ -32,6 +32,17 @@ loaded it -- the same request the page made, often answered from the browser's
 cache. The popup shows the page's preview images, loaded from the site that
 serves them.
 
+**The element you pick on the page.** When you press **Pick from the page**
+in the popup, the extension outlines the video, sound or picture under your
+pointer, in that tab only, until you click one or press Esc. Of the one you
+click it reads the address (for a picture, also the larger sizes the page
+offers of it, and its size), the poster, the length, whether DRM protects it,
+and the links around it on the page, to find the post it belongs to. A card
+on the page then shows it; the app is asked how it would download it, as for
+the popup's first rows, and it is handed over only when you press **Get** on
+the card. What the click found is kept in session storage until the card
+closes.
+
 ## What it sends, and where
 
 To one place: a program called `ud-bridge.exe`, part of the Universal Downloader
@@ -44,14 +55,16 @@ extension.
   and the extension's version, and nothing about the page. If an earlier
   version of the extension had lent the app a sign-in, the popup also tells the
   app to delete it.
-- **When the popup lists a video:** the same details as below, for each of the
-  first few items it lists, so the app can say what it would download -- the
-  title, the picture, the quality, the format and roughly the size. The app
+- **When the popup lists a video, or the picker's card shows one:** the same
+  details as below, for each of the first few items it lists and for the one
+  you picked, so the app can say what it would download -- the title, the
+  picture, the quality, the format and roughly the size. The app
   reads the video's page or stream from the site to answer, as it would before
   downloading; it downloads nothing and keeps nothing for this.
-- **When you press Get (İndir in Turkish):** that one item's address and kind, the
-  page's title and address, the referring address and origin the request was
-  made with, your browser's user-agent string and the preview image address.
+- **When you press Get (İndir in Turkish), in the popup or on the card:**
+  that one item's address and kind, the page's title and address, the
+  referring address and origin the request was made with, your browser's
+  user-agent string and the preview image address.
   The app opens the video, and only when you have chosen the quality and
   pressed download there does it download it from the site, as your browser
   would. Nothing is downloaded for items you do not press.
@@ -64,9 +77,10 @@ or obfuscated.
 In `chrome.storage.local`, on your own machine: a random identifier for this
 browser profile, so the app can tell one Chrome profile from another.
 
-In `chrome.storage.session`, in memory: the per-tab lists described above, and
-the app's answers about how the last few listed videos would download. Both
-are gone when the browser closes.
+In `chrome.storage.session`, in memory: the per-tab lists described above,
+the element you picked until its card closes, and the app's answers about how
+the last few listed videos would download. All of it is gone when the browser
+closes.
 
 No cookies are stored by the extension, and no browsing history is kept beyond
 the open tabs.
@@ -123,6 +137,17 @@ sayfanın içinden yeniden okuyabilir -- sayfanın yaptığı isteğin aynısı;
 zaman tarayıcının önbelleğinden yanıtlanır. Açılır pencere, sayfanın önizleme
 görsellerini onları sunan siteden yükleyerek gösterir.
 
+**Sayfada seçtiğiniz öğe.** Açılır penceredeki **Sayfadan seç**'e
+bastığınızda eklenti, yalnızca o sekmede, işaretçinizin altındaki videonun,
+sesin ya da resmin çevresine, siz birine tıklayana ya da Esc'ye basana kadar
+bir çerçeve çizer. Tıkladığınızın adresini (resimse sayfanın onun için sunduğu
+daha büyük boyutları ve boyutunu da), kapak görselini, süresini, DRM ile
+korunup korunmadığını ve hangi gönderiye ait olduğunu bulmak için sayfada
+çevresindeki bağlantıları okur. Ardından sayfada bir kart onu gösterir:
+uygulamaya, açılır penceredeki ilk satırlar için olduğu gibi nasıl ineceği
+sorulur; uygulamaya ise yalnızca karttaki **İndir**'e bastığınızda verilir.
+Tıklamanın bulduğu, kart kapanana kadar oturum deposunda tutulur.
+
 ## Neyi, nereye gönderiyor
 
 Tek bir yere: Universal Downloader masaüstü uygulamasının parçası olan ve
@@ -135,14 +160,16 @@ eklenti için başlatır.
   eklentinin sürümünü taşır; sayfa hakkında hiçbir şey taşımaz. Eklentinin
   daha önceki bir sürümü uygulamaya bir oturum vermişse açılır pencere
   uygulamaya onu silmesini de söyler.
-- **Açılır pencere bir video listelediğinde:** listelediği ilk birkaç öğenin
-  her biri için aşağıdaki bilgilerin aynısı; uygulama ne indireceğini --
-  başlığı, görseli, kaliteyi, biçimi ve yaklaşık boyutu -- söyleyebilsin diye.
+- **Açılır pencere bir video listelediğinde ya da seçicinin kartı birini
+  gösterdiğinde:** listelediği ilk birkaç öğenin ve seçtiğiniz öğenin her biri
+  için aşağıdaki bilgilerin aynısı; uygulama ne indireceğini -- başlığı,
+  görseli, kaliteyi, biçimi ve yaklaşık boyutu -- söyleyebilsin diye.
   Uygulama bunu yanıtlamak için videonun sayfasını ya da akışını, indirmeden
   önce yaptığı gibi siteden okur; bunun için hiçbir şey indirmez ve saklamaz.
-- **İndir'e bastığınızda:** o tek öğenin adresi ve türü, sayfanın başlığı ve
-  adresi, isteğin yapıldığı yönlendiren adres ve köken, tarayıcınızın kullanıcı
-  aracısı dizesi ve önizleme görselinin adresi. Uygulama videoyu açar; onu
+- **Açılır pencerede ya da kartta İndir'e bastığınızda:** o tek öğenin adresi
+  ve türü, sayfanın başlığı ve adresi, isteğin yapıldığı yönlendiren adres ve
+  köken, tarayıcınızın kullanıcı aracısı dizesi ve önizleme görselinin
+  adresi. Uygulama videoyu açar; onu
   siteden, tarayıcınızın yapacağı gibi, ancak siz orada kaliteyi seçip
   indirmeye bastığınızda indirir. Basmadığınız öğeler için hiçbir şey
   indirilmez.
@@ -156,9 +183,10 @@ Kendi makinenizdeki `chrome.storage.local` içinde: bu tarayıcı profili için
 rastgele bir tanımlayıcı; uygulama bir Chrome profilini diğerinden ayırabilsin
 diye.
 
-`chrome.storage.session` içinde, bellekte: yukarıda anlatılan sekme listeleri
-ve uygulamanın listelenen son birkaç videonun nasıl ineceğine verdiği
-yanıtlar. İkisi de tarayıcı kapanınca gider.
+`chrome.storage.session` içinde, bellekte: yukarıda anlatılan sekme
+listeleri, kartı kapanana kadar seçtiğiniz öğe ve uygulamanın listelenen son
+birkaç videonun nasıl ineceğine verdiği yanıtlar. Hepsi tarayıcı kapanınca
+gider.
 
 Eklenti hiçbir çerezi saklamaz ve açık sekmelerin ötesinde bir gezinme geçmişi
 tutmaz.

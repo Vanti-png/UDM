@@ -173,7 +173,7 @@ Bir sekmenin hangi videoları ve sesleri oynattığını görmek için. Eklenti,
 **İzin: scripting**
 
 ```
-Kullanıcı araç çubuğundaki simgeye tıkladığında, yalnızca o anki sekmede iki küçük işlev çalıştırmak için: biri sayfanın başlığını, önizleme görselini ve <video>/<audio> öğelerini (adres, kapak, süre, çözünürlük, DRM kullanılıp kullanılmadığı) okur; diğeri bir akışın oynatma listesini, onu ilk yükleyen çerçevenin içinden yeniden okuyarak kalitesini ve süresini öğrenir. Bu işlevler sayfayı değiştirmez, kalıcı bir betik bırakmaz ve kullanıcı tıklamadan hiç çalışmaz.
+Kullanıcı araç çubuğundaki simgeye tıkladığında, yalnızca o anki sekmede iki küçük işlev çalıştırmak için: biri sayfanın başlığını, önizleme görselini ve <video>/<audio> öğelerini (adres, kapak, süre, çözünürlük, DRM kullanılıp kullanılmadığı) okur; diğeri bir akışın oynatma listesini, onu ilk yükleyen çerçevenin içinden yeniden okuyarak kalitesini ve süresini öğrenir. Bu işlevler sayfayı değiştirmez, kalıcı bir betik bırakmaz ve kullanıcı tıklamadan hiç çalışmaz. Kullanıcı açılır penceredeki "Sayfadan seç" düğmesine bastığında da, yalnızca o sekmede, paketteki picker.js'i çalıştırmak için: işaretçinin altındaki videonun, sesin ya da resmin çevresine bir çerçeve çizer, tıklanan öğenin adresini, boyutunu ve hangi gönderiye ait olduğunu bulmak için çevresindeki bağlantıları okur ve sayfada bir kart gösterir; kart kapanınca ya da Esc'ye basılınca kendini tümüyle kaldırır.
 ```
 
 **Ana makine izni: <all_urls>**
@@ -197,7 +197,7 @@ chrome.storage.local içinde tek bir değer: bu tarayıcı profili için rastgel
 **Uzaktan kod:** Hayır, uzaktan kod kullanmıyorum.
 
 ```
-Tüm mantık yüklenen paketin içindedir. Eklenti hiçbir yerden betik yüklemez, çalışma zamanında hiçbir kod değerlendirmez ve küçültülmemiş ya da gizlenmemiştir; background.js ve media.js yayınlandığı haliyle okunabilir. scripting ile çalıştırılan iki işlev de pakettedir.
+Tüm mantık yüklenen paketin içindedir. Eklenti hiçbir yerden betik yüklemez, çalışma zamanında hiçbir kod değerlendirmez ve küçültülmemiş ya da gizlenmemiştir; background.js ve media.js yayınlandığı haliyle okunabilir. scripting ile çalıştırılan iki işlev ve picker.js de pakettedir.
 ```
 
 **Veri kullanımı**
@@ -337,7 +337,7 @@ To see which videos and sounds a tab plays. The extension looks at the response 
 **Permission: scripting**
 
 ```
-When the user clicks the toolbar icon, and only in that tab, to run two small functions: one reads the page's title, preview image and <video>/<audio> elements (address, poster, length, resolution, whether DRM is in use); the other reads a stream's playlist again from inside the frame that first loaded it, to learn its quality and length. Neither changes the page, neither leaves a script behind, and neither runs without the user's click.
+When the user clicks the toolbar icon, and only in that tab, to run two small functions: one reads the page's title, preview image and <video>/<audio> elements (address, poster, length, resolution, whether DRM is in use); the other reads a stream's playlist again from inside the frame that first loaded it, to learn its quality and length. Neither changes the page, neither leaves a script behind, and neither runs without the user's click. And when the user presses "Pick from the page" in the popup, and only in that tab, to run picker.js from the package: it outlines the video, sound or picture under the pointer, reads the clicked element's address and size and the links around it to find the post it belongs to, and shows a card on the page; it removes itself entirely when the card closes or Esc is pressed.
 ```
 
 **Host permission: <all_urls>**
@@ -361,7 +361,7 @@ One value in chrome.storage.local: a random identifier for this browser profile,
 **Remote code:** No, I am not using remote code.
 
 ```
-All logic is contained in the uploaded package. The extension loads no scripts from anywhere, evaluates nothing at runtime, and is not minified or obfuscated — background.js and media.js can be read as shipped. Both functions run with scripting are in the package.
+All logic is contained in the uploaded package. The extension loads no scripts from anywhere, evaluates nothing at runtime, and is not minified or obfuscated — background.js and media.js can be read as shipped. Both functions run with scripting, and picker.js, are in the package.
 ```
 
 **Data usage**

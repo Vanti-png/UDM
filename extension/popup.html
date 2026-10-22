@@ -8,9 +8,27 @@
   </head>
   <body>
     <header>
-      <h1 data-i18n="popupTitle"></h1>
-      <p class="host" id="host"></p>
+      <div class="heading">
+        <h1 data-i18n="popupTitle"></h1>
+        <p class="host" id="host"></p>
+      </div>
+      <!-- Lucide's square-mouse-pointer, the app's icon set. -->
+      <button type="button" class="pick" id="pick" data-i18n-title="btnPick" hidden>
+        <svg viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12.034 12.681a.498.498 0 0 1 .647-.647l9 3.5a.5.5 0 0 1-.033.943l-3.444 1.068a1 1 0 0 0-.66.66l-1.067 3.443a.5.5 0 0 1-.943.033z" />
+          <path d="M21 11V5a2 2 0 0 0-2-2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h6" />
+        </svg>
+      </button>
     </header>
+
+    <p class="notice" id="pickNotice" role="alert" hidden>
+      <svg viewBox="0 0 24 24" aria-hidden="true">
+        <circle cx="12" cy="12" r="9.25" fill="none" stroke="currentColor" stroke-width="1.75" />
+        <path d="M12 7.5v5.25" stroke="currentColor" stroke-width="1.75" stroke-linecap="round" />
+        <circle cx="12" cy="16.25" r="1.1" fill="currentColor" />
+      </svg>
+      <span id="pickNoticeText"></span>
+    </p>
 
     <!-- One line, said where it applies, and gone when it no longer does. -->
     <p class="notice" id="notice" role="alert" hidden>

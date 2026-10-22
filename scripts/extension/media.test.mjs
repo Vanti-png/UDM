@@ -26,8 +26,10 @@ import {
   isNoise,
   isoDuration,
   normaliseFrame,
+  normalisePick,
   parseDash,
   parseHls,
+  pickedRow,
   protectedService,
   refererFor,
   rows,
@@ -644,6 +646,177 @@ describe('rows', () => {
   test('no more than thirty rows', () => {
     const items = Array.from({ length: 45 }, (_, n) => item(`https://cdn.example/v${n}.mp4`, 'video', { size: 1e6 + n }));
     assert.equal(rows({ url: PAGE, items }, []).length, 30);
+  });
+});
+
+describe('pickedRow', () => {
+  const pick = (raw, frameId = 0) => normalisePick({ links: [], ...raw }, frameId);
+  const BLOG = 'https://blog.example/post/7';
+
+  test('a video in an X feed is its post, not the feed', () => {
+    const state = { url: 'https://x.com/home', title: 'Home / X', items: [] };
+    const picked = pick({
+      tag: 'video',
+      href: 'https://x.com/home',
+      src: 'blob:https://x.com/1b2c',
+      poster: 'https://pbs.twimg.com/amplify_video_thumb/1/img/a.jpg',
+      links: ['https://x.com/someone', 'https://x.com/someone/status/1790000000000000001/analytics', 'https://x.com/other/status/2'],
+    });
+    const { status, row } = pickedRow(state, [frame({ href: state.url, title: 'Home / X' })], picked, { userAgent: UA });
+    assert.equal(status, 'ready');
+    assert.equal(row.payload.url, 'https://x.com/someone/status/1790000000000000001');
+    assert.equal(row.payload.kind, 'page');
+    assert.equal(row.thumbnail, 'https://pbs.twimg.com/amplify_video_thumb/1/img/a.jpg');
+    assert.deepEqual(row.meta, { label: 'site', site: 'X', parts: [] });
+  });
+
+  test('a picture under an overlay on Instagram is the post its link names', () => {
+    const state = { url: 'https://www.instagram.com/', items: [] };
+    const picked = pick({
+      tag: 'image',
+      href: state.url,
+      src: 'https://scontent.cdninstagram.com/v/t51/abc_n.jpg?stp=dst-jpg',
+      width: 1080,
+      height: 1350,
+      link: 'https://www.instagram.com/p/C8xYz12AbCd/',
+    });
+    const { status, row } = pickedRow(state, [], picked);
+    assert.equal(status, 'ready');
+    assert.equal(row.payload.url, 'https://www.instagram.com/p/C8xYz12AbCd/');
+    assert.equal(row.thumbnail, 'https://scontent.cdninstagram.com/v/t51/abc_n.jpg?stp=dst-jpg');
+  });
+
+  test("links around the element count only on the site that shows it", () => {
+    // A blog's article links to a tweet; the blog's own picture is not it.
+    const picked = pick({
+      tag: 'image',
+      href: BLOG,
+      src: 'https://blog.example/media/sunset.jpg',
+      width: 1600,
+      height: 900,
+      links: ['https://x.com/someone/status/42'],
+    });
+    const { status, row } = pickedRow({ url: BLOG, items: [] }, [], picked);
+    assert.equal(status, 'ready');
+    assert.equal(row.payload.kind, 'image');
+    assert.equal(row.payload.url, 'https://blog.example/media/sunset.jpg');
+    assert.equal(row.payload.referer, BLOG);
+    assert.deepEqual(row.meta, { label: 'image', parts: ['1600×900'] });
+  });
+
+  test('a thumbnail that links to its full-size picture is that picture', () => {
+    const picked = pick({
+      tag: 'image',
+      href: BLOG,
+      src: 'https://blog.example/media/sunset-300.jpg',
+      width: 300,
+      height: 169,
+      link: 'https://blog.example/media/sunset.jpg',
+    });
+    const { row } = pickedRow({ url: BLOG, items: [] }, [], picked);
+    assert.equal(row.payload.url, 'https://blog.example/media/sunset.jpg');
+    assert.equal(row.thumbnail, 'https://blog.example/media/sunset-300.jpg');
+    assert.deepEqual(row.meta.parts, []);
+  });
+
+  test('a picture the page drew for itself cannot be handed over', () => {
+    const picked = pick({ tag: 'image', href: BLOG, src: 'data:image/png;base64,AAAA', width: 400, height: 400 });
+    assert.equal(picked.src, '');
+    const { status, row } = pickedRow({ url: BLOG, items: [] }, [], picked);
+    assert.equal(status, 'unavailable');
+    assert.equal(row.payload, null);
+  });
+
+  test('a player playing a file is that file, with what the request said about it', () => {
+    const fetched = item('https://cdn.example/clip.mp4', 'video', { size: 24 * 1024 * 1024, initiator: 'https://player.example', frameId: 3 });
+    const picked = pick({ tag: 'video', href: 'https://player.example/embed/9', src: 'https://cdn.example/clip.mp4#t=4', height: 720, duration: 65 }, 3);
+    const { status, row } = pickedRow({ url: BLOG, items: [fetched] }, [], picked);
+    assert.equal(status, 'ready');
+    assert.equal(row.payload.kind, 'video');
+    assert.equal(row.payload.url, 'https://cdn.example/clip.mp4');
+    assert.equal(row.payload.referer, 'https://player.example/');
+    assert.deepEqual(row.meta, { label: 'video', parts: ['720p', '1:05'] });
+  });
+
+  test('a player built from script is the stream its frame fetched, when it is the only one there', () => {
+    const master = item('https://cdn.example/hls/master.m3u8', 'hls', {
+      info: { master: true, variants: ['https://cdn.example/hls/720p.m3u8'], height: 1080, protected: false },
+    });
+    const variant = item('https://cdn.example/hls/720p.m3u8', 'hls', { info: { master: false, durationSec: 60, protected: false } });
+    const top = frame({ href: BLOG, videos: [{ src: '', duration: 60 }] });
+    const picked = pick({ tag: 'video', href: BLOG, src: 'blob:https://blog.example/9', duration: 60 });
+    const { status, row } = pickedRow({ url: BLOG, items: [master, variant] }, [top], picked);
+    assert.equal(status, 'ready');
+    assert.equal(row.payload.kind, 'stream');
+    assert.equal(row.payload.url, 'https://cdn.example/hls/master.m3u8');
+    assert.deepEqual(row.meta.parts, ['1080p', '1:00']);
+  });
+
+  test('with two such players in the frame the stream could be either, and the page goes instead', () => {
+    const master = item('https://cdn.example/hls/master.m3u8', 'hls', { info: { master: true, variants: [], height: 1080, protected: false } });
+    const top = frame({ href: BLOG, videos: [{ src: '' }, { src: '' }] });
+    const picked = pick({ tag: 'video', href: BLOG, src: 'blob:https://blog.example/9' });
+    const { status, row } = pickedRow({ url: BLOG, items: [master] }, [top], picked);
+    assert.equal(status, 'ready');
+    assert.equal(row.payload.kind, 'page');
+    assert.equal(row.payload.url, BLOG);
+    assert.equal(row.meta.label, 'page');
+  });
+
+  test('a player using EME says it is protected, with nothing to hand over', () => {
+    const picked = pick({ tag: 'video', href: BLOG, src: 'blob:https://blog.example/9', drm: true });
+    const { status, row } = pickedRow({ url: BLOG, items: [] }, [], picked);
+    assert.equal(status, 'protected');
+    assert.equal(row.payload, null);
+  });
+
+  test("a known site's video page is the page, as the popup lists it", () => {
+    const state = { url: 'https://vimeo.com/76979871', items: [] };
+    const picked = pick({ tag: 'video', href: state.url, src: 'blob:https://vimeo.com/1' });
+    const { row } = pickedRow(state, [], picked);
+    assert.equal(row.payload.url, state.url);
+    assert.deepEqual(row.meta, { label: 'site', site: 'Vimeo', parts: [] });
+  });
+
+  test("a player in a known site's feed that nothing ties to a post is not handed over", () => {
+    const state = { url: 'https://x.com/home', items: [] };
+    const picked = pick({ tag: 'video', href: state.url, src: 'blob:https://x.com/1', links: ['https://x.com/someone'] });
+    assert.equal(pickedRow(state, [frame({ videos: [{}, {}] })], picked).status, 'unavailable');
+  });
+
+  test('a protected service and an unlisted site are said as such', () => {
+    const picked = pick({ tag: 'video', href: 'https://www.netflix.com/watch/1', src: '' });
+    assert.equal(pickedRow({ url: 'https://www.netflix.com/watch/1', items: [] }, [], picked).status, 'protected');
+    if (UNLISTED_SITES.length > 0) {
+      const embedded = pick({ tag: 'video', href: `https://www.${UNLISTED_SITES[0]}/embed/x`, src: '' });
+      assert.equal(pickedRow({ url: BLOG, items: [] }, [], embedded).status, 'unlisted');
+    }
+  });
+
+  test('normalisePick keeps only what it can check', () => {
+    assert.equal(normalisePick({ tag: 'iframe' }, 0), null);
+    assert.equal(normalisePick(null, 0), null);
+    const picked = normalisePick(
+      {
+        tag: 'image',
+        src: 'javascript:alert(1)',
+        poster: 'https://cdn.example/p.jpg',
+        width: -5,
+        height: 'tall',
+        drm: 'yes',
+        link: 'blob:https://x',
+        links: ['https://a.example/1', 'file:///etc/passwd', ...Array.from({ length: 60 }, (_, i) => `https://a.example/${i}`)],
+      },
+      -1,
+    );
+    assert.equal(picked.frameId, 0);
+    assert.equal(picked.src, '');
+    assert.equal(picked.width, 0);
+    assert.equal(picked.height, 0);
+    assert.equal(picked.drm, false);
+    assert.equal(picked.link, '');
+    assert.ok(picked.links.length <= 40);
+    assert.ok(picked.links.every((link) => link.startsWith('https://')));
   });
 });
 

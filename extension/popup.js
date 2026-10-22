@@ -1,5 +1,6 @@
 // The popup: what this tab is playing, and a button to hand each one to the
-// app.
+// app -- or, beside its heading, one to pick the video, sound or picture on
+// the page itself (picker.js).
 // <full>
 //
 // And the session switches -- YouTube's on YouTube's own pages, TikTok's on
@@ -16,7 +17,8 @@
 // into the DOM as text through textContent, and images load only from http
 // and https addresses; nothing here assigns HTML.
 
-import { displayHost, formatDuration, formatEstimate, isHttpUrl } from './media.js';
+import { NOTICES, detailMeta, firstMeta, problemOf } from './describe.js';
+import { displayHost, isHttpUrl, protectedService, unlisted } from './media.js';
 // <full>
 import { onTikTok, onYouTube } from './sessions.js';
 // </full>
@@ -26,15 +28,6 @@ const el = (id) => document.getElementById(id);
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-// The kind of each row, in the words the meta line uses for it.
-const LABELS = {
-  stream: 'kindStream',
-  video: 'kindVideo',
-  audio: 'kindAudio',
-  page: 'kindPage',
-  protected: 'kindProtected',
-};
-
 // Long enough to register as "it is doing something", short enough that a
 // helper which answers at once does not look slow.
 const MIN_SENDING_MS = 300;
@@ -43,35 +36,6 @@ const MIN_SENDING_MS = 300;
 // rows at the top are asked about, and two at a time.
 const PROBE_ROWS = 4;
 const PROBE_PARALLEL = 2;
-
-// The labels a plan falls back on when the source named no quality. They say
-// nothing the kind of the row does not already say.
-const VAGUE_QUALITY = new Set(['video', 'audio', 'image']);
-
-// What the app's answer means for this popup, as one of three sentences.
-// `forbidden`, `version` and `malformed` all come down to an app older than
-// this extension: one that does not know the store copy's id, speaks an older
-// wire, or does not know what a download request is.
-function problemOf(result) {
-  if (!result) return 'unreachable';
-  if (result.ok) return result.status?.canDownload === true ? null : 'update';
-  switch (result.code) {
-    case 'notInstalled':
-      return 'notInstalled';
-    case 'forbidden':
-    case 'version':
-    case 'malformed':
-      return 'update';
-    default:
-      return 'unreachable';
-  }
-}
-
-const NOTICES = {
-  notInstalled: { text: 'noticeNotInstalled', retry: true },
-  update: { text: 'noticeUpdate', retry: false },
-  unreachable: { text: 'noticeUnreachable', retry: true },
-};
 
 let problem = null;
 
@@ -162,35 +126,6 @@ function line(className, text, id) {
   return p;
 }
 
-// What the row knows before the app has said anything: its kind, and the
-// quality, size or length the page gave away.
-function firstMeta(meta) {
-  const label = meta.label === 'site' ? meta.site : t(LABELS[meta.label] ?? 'kindVideo');
-  return [label, ...(meta.parts ?? [])].filter(Boolean).join(' · ');
-}
-
-// What the app said it would download, in the order its own Home screen
-// says it -- "1080p - MKV" there, "1080p · MKV · ~82 MB" here. The length
-// is added on the large card, where there is room for it; in a row of the
-// list it would push the size out of sight.
-function detailMeta(preview, row, { withLength = false } = {}) {
-  const quality = preview.qualityLabel && !VAGUE_QUALITY.has(preview.qualityLabel.toLowerCase())
-    ? preview.qualityLabel
-    : null;
-  const length = withLength && !preview.isLive
-    ? formatDuration(preview.durationSec ?? row.durationSec ?? 0)
-    : '';
-  return [
-    preview.isLive ? t('kindLive') : null,
-    quality,
-    preview.container ? preview.container.toUpperCase() : null,
-    formatEstimate(preview.estimatedBytes) || null,
-    length || null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
-}
-
 async function send(button, row) {
   button.disabled = true;
   button.dataset.state = 'sending';
@@ -247,7 +182,7 @@ function rowNode(row, index) {
   text.className = 'text';
   const titleId = `row-${index}`;
   const title = line('title', row.title, titleId);
-  const meta = line('meta', row.protected ? t('kindProtected') : firstMeta(row.meta));
+  const meta = line('meta', row.protected ? t('kindProtected') : firstMeta(row.meta, t));
   text.append(title, meta);
   const picture = pictureBox('thumb', row.thumbnail);
   node.append(picture, text);
@@ -265,7 +200,7 @@ function featureNode(row) {
   node.className = 'feature';
   const picture = pictureBox('poster', row.thumbnail);
   const title = line('title', row.title, 'row-0');
-  const meta = line('meta', row.protected ? t('kindProtected') : firstMeta(row.meta));
+  const meta = line('meta', row.protected ? t('kindProtected') : firstMeta(row.meta, t));
   const text = document.createElement('div');
   text.className = 'text';
   text.append(title, meta);
@@ -305,7 +240,7 @@ function apply(item, answer) {
   // </full>
   const preview = answer?.preview;
   if (!preview) {
-    item.meta.textContent = firstMeta(row.meta);
+    item.meta.textContent = firstMeta(row.meta, t);
     return;
   }
   if (preview.title) {
@@ -316,7 +251,7 @@ function apply(item, answer) {
     showPicture(item.picture, preview.thumbnail);
     row.payload.thumbnail = preview.thumbnail;
   }
-  item.meta.textContent = detailMeta(preview, row, { withLength: item.feature }) || firstMeta(row.meta);
+  item.meta.textContent = detailMeta(preview, row, t, { withLength: item.feature }) || firstMeta(row.meta, t);
 }
 
 // Ask about the rows at the top, a couple at a time, and fill each in as its
@@ -509,6 +444,30 @@ for (const [site, id] of Object.entries(SWITCHES)) {
 el('noticeAction').textContent = t('btnRetry');
 el('noticeAction').addEventListener('click', () => checkApp());
 
+// The page picker. The popup closes as the page takes over, which it would do
+// anyway the moment the pointer went to the page; until the picker is
+// running there, it stays, so a page that will not take one can say so.
+el('pick').setAttribute('aria-label', t('btnPick'));
+
+function offerPick(tab) {
+  const button = el('pick');
+  const url = tab?.url;
+  button.hidden = !Number.isInteger(tab?.id) || !isHttpUrl(url) || Boolean(protectedService(url)) || unlisted(url);
+  if (button.hidden) return;
+  button.addEventListener('click', async () => {
+    button.disabled = true;
+    el('pickNotice').hidden = true;
+    const reply = await ask('pick', { tabId: tab.id });
+    if (reply?.ok) {
+      window.close();
+      return;
+    }
+    button.disabled = false;
+    el('pickNoticeText').textContent = t('pickFailed');
+    el('pickNotice').hidden = false;
+  });
+}
+
 async function start() {
   let tab = null;
   try {
@@ -519,6 +478,7 @@ async function start() {
   const host = displayHost(tab?.url);
   el('host').textContent = host;
   el('host').hidden = host === '';
+  offerPick(tab);
   // <full>
   // Shown before the app answers, so the card does not grow under the pointer.
   onYouTubeTab = onYouTube(tab?.url);

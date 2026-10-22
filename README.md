@@ -84,8 +84,9 @@ pick Universal Downloader.
   picture.
 - **Takes a video from the browser** (Windows). The Universal Downloader
   Connector extension for Chrome and Firefox lists what a tab is playing and
-  hands one to the app, which opens it on Home. See
-  [`extension/README.md`](extension/README.md).
+  hands one to the app, which opens it on Home. Its picker lets the user click
+  the video, sound or picture they mean on the page itself, as an eyedropper
+  picks a colour. See [`extension/README.md`](extension/README.md).
 
 Recognised sources include YouTube, TikTok, Instagram, X, Reddit, Facebook,
 Twitch, Pinterest, Vimeo, Dailymotion and SoundCloud, plus direct media files

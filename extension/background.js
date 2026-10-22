@@ -33,6 +33,7 @@
 // The wire format is src-tauri/src/bridge/protocol.rs. Field names come from
 // there, not from taste.
 
+import { NOTICES, detailMeta, firstMeta, problemOf } from './describe.js';
 import { STORE } from './edition.js';
 import {
   MAX_ITEMS,
@@ -42,8 +43,10 @@ import {
   headerMap,
   isHttpUrl,
   normaliseFrame,
+  normalisePick,
   parseDash,
   parseHls,
+  pickedRow,
   protectedService,
   rows,
   samePage,
@@ -90,6 +93,7 @@ const TIKTOK_KEY = 'tiktokOn';
 const OTHER_KEY = 'otherOn';
 const LINK_KEY = 'link';
 const TAB_PREFIX = 'tab:';
+const PICK_PREFIX = 'pick:';
 
 // How long the popup is kept waiting on the page. A tab showing a dialog does
 // not run injected scripts until the dialog is dismissed, and a popup that sits
@@ -516,7 +520,7 @@ function updateTab(tabId, change) {
 function dropTab(tabId) {
   playing.delete(tabId);
   const run = (chains.get(tabId) ?? Promise.resolve()).then(() =>
-    chrome.storage.session.remove(`${TAB_PREFIX}${tabId}`),
+    chrome.storage.session.remove([`${TAB_PREFIX}${tabId}`, `${PICK_PREFIX}${tabId}`]),
   );
   const settled = run.catch(() => null);
   chains.set(tabId, settled);
@@ -776,6 +780,16 @@ async function scan(message) {
     return { ok: true, url, protectedService: null, unlisted: true, rows: [] };
   }
 
+  const { frames, page } = await readPage(tabId, url, title);
+  const list = rows(page, frames, { userAgent: navigator.userAgent });
+  showCount(tabId, page, list.length);
+  return { ok: true, url, protectedService: null, rows: list };
+}
+
+// What the popup's list and the picker's card are made from: every frame's
+// report, and the record of what the tab fetched, with the manifests it named
+// read.
+async function readPage(tabId, url, title) {
   // The record counts for this page only if it is this page's: the popup can
   // open before the worker has heard that the tab moved on.
   const onPage = (record) => {
@@ -800,10 +814,7 @@ async function scan(message) {
     record = written ? onPage(written) : attach(structuredClone(record));
   }
 
-  const page = { ...record, url, title: title || record.title };
-  const list = rows(page, frames, { userAgent: navigator.userAgent });
-  showCount(tabId, page, list.length);
-  return { ok: true, url, protectedService: null, rows: list };
+  return { frames, page: { ...record, url, title: title || record.title } };
 }
 
 // <full>
@@ -1155,11 +1166,187 @@ async function probeAnswer(fields) {
   return probing.get(key);
 }
 
+// The page picker (picker.js). The popup's "Pick from page" puts it into
+// every frame of the tab, and from then until its card is closed the tab
+// holds one pick in session storage: the token its picker names it by and,
+// once an element has been clicked, what that element stands for -- the
+// payload the card's İndir sends. The payload is worked out here from what
+// the frames report and never taken from the page, which can describe an
+// element but not choose what reaches the app.
+const t = (key) => chrome.i18n.getMessage(key);
+let pickWrites = Promise.resolve();
+
+async function readPick(tabId) {
+  const key = `${PICK_PREFIX}${tabId}`;
+  try {
+    const stored = (await chrome.storage.session.get(key))[key];
+    return stored && typeof stored.token === 'string' ? stored : null;
+  } catch {
+    return null;
+  }
+}
+
+// Every change waits for the one before it: the card's probe and its İndir
+// can both be answered at once, and each writes what it learnt.
+function changePick(tabId, change) {
+  const key = `${PICK_PREFIX}${tabId}`;
+  pickWrites = pickWrites
+    .then(async () => {
+      const next = change(await readPick(tabId));
+      if (next === null) await chrome.storage.session.remove(key);
+      else if (next) await chrome.storage.session.set({ [key]: next });
+    })
+    .catch(() => {});
+  return pickWrites;
+}
+
+// Each frame's picker, answering whether the word reached it.
+async function tellFrames(tabId, message, frameId) {
+  try {
+    const options = Number.isInteger(frameId) ? { frameId } : undefined;
+    return (await chrome.tabs.sendMessage(tabId, message, options)) === true;
+  } catch {
+    return false;
+  }
+}
+
+// Runs in each frame once picker.js has: self-contained, as `collect` is.
+function startPicker(token) {
+  return globalThis.udPicker?.start(token) === true;
+}
+
+async function pick(message) {
+  const tabId = message.tabId;
+  if (!Number.isInteger(tabId) || tabId < 0) return { ok: false };
+  let tab;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch {
+    return { ok: false };
+  }
+  const url = tab.url ?? '';
+  if (!url || protectedService(url) || unlisted(url)) return { ok: false };
+
+  const token = crypto.randomUUID();
+  await changePick(tabId, () => ({ token }));
+  try {
+    const target = { tabId, allFrames: true };
+    await withTimeout(chrome.scripting.executeScript({ target, files: ['picker.js'] }), COLLECT_TIMEOUT_MS);
+    const started = await withTimeout(
+      chrome.scripting.executeScript({ target, func: startPicker, args: [token] }),
+      COLLECT_TIMEOUT_MS,
+    );
+    if ((started ?? []).some((entry) => entry?.frameId === 0 && entry.result === true)) return { ok: true };
+  } catch {
+    // The Web Store, the browser's own pages, and frames the browser will not
+    // let an extension into.
+  }
+  await changePick(tabId, (held) => (held?.token === token ? null : undefined));
+  return { ok: false };
+}
+
+// The card's words, said as the popup says a row's.
+function cardOf(status, row) {
+  if (status === 'unlisted') {
+    return { title: t('unlistedTitle'), meta: t('unlistedBody'), thumbnail: '', canGet: false, probe: false };
+  }
+  const meta = status === 'ready' ? firstMeta(row.meta, t) : t(status === 'protected' ? 'kindProtected' : 'pickUnavailable');
+  return { title: row.title, thumbnail: row.thumbnail, meta, canGet: status === 'ready', probe: status === 'ready' };
+}
+
+// A click in one of the tab's frames. The other frames stop picking at once;
+// the top one draws the card, or the frame clicked in when the top frame has
+// no picker to draw it.
+async function picked(message, { tabId, frameId, held }) {
+  if (held.status) return { ok: false };
+  const choice = normalisePick(message.pick, frameId);
+  if (!choice) return { ok: false };
+  void tellFrames(tabId, { udPick: 'stop', token: held.token });
+
+  let tab;
+  try {
+    tab = await chrome.tabs.get(tabId);
+  } catch {
+    return { ok: false };
+  }
+  const { frames, page } = await readPage(tabId, tab.url ?? '', tab.title ?? '');
+  const { status, row } = pickedRow(page, frames, choice, { userAgent: navigator.userAgent });
+  await changePick(tabId, (now) =>
+    now?.token === held.token ? { token: held.token, status, payload: row.payload, durationSec: row.durationSec } : undefined,
+  );
+
+  const word = { udPick: 'card', token: held.token, card: cardOf(status, row) };
+  if (!(await tellFrames(tabId, word, 0)) && frameId !== 0) await tellFrames(tabId, word, frameId);
+  return { ok: true };
+}
+
+// What the app would make of the pick, as the popup asks it of a row, and
+// the title and still it gives kept for İndir as the popup keeps them.
+async function pickProbe(_message, { tabId, held }) {
+  if (held.status !== 'ready' || !held.payload) return {};
+  const answer = await probe({ payload: held.payload });
+  if (answer?.protected) {
+    await changePick(tabId, (now) => (now?.token === held.token ? { ...now, status: 'protected' } : undefined));
+    return { meta: t('kindProtected'), canGet: false };
+  }
+  // <full>
+  if (answer?.signIn) return { meta: t(answer.withSession ? 'rowWithSession' : 'rowSignIn') };
+  // </full>
+  const preview = answer?.preview;
+  if (!preview) return {};
+  await changePick(tabId, (now) => {
+    if (now?.token !== held.token || !now.payload) return undefined;
+    const payload = { ...now.payload };
+    if (preview.title) payload.title = preview.title;
+    if (preview.thumbnail) payload.thumbnail = preview.thumbnail;
+    return { ...now, payload };
+  });
+  return {
+    title: preview.title,
+    thumbnail: preview.thumbnail,
+    meta: detailMeta(preview, held, t, { withLength: true }) || null,
+  };
+}
+
+// İndir on the card: what was kept for the pick, through the same door as the
+// popup's.
+async function pickGet(_message, { tabId, held }) {
+  if (held.status !== 'ready' || !held.payload) return { sent: false, notice: t('pickUnavailable') };
+  // Sent stays sent, as in the popup.
+  if (held.sent) return { sent: true };
+  const reply = await download({ payload: held.payload });
+  const result = reply?.result ?? null;
+  if (result?.ok) {
+    await changePick(tabId, (now) => (now?.token === held.token ? { ...now, sent: true } : undefined));
+    return { sent: true };
+  }
+  return { sent: false, notice: t(NOTICES[problemOf(result) ?? 'unreachable'].text) };
+}
+
+async function pickEnd(_message, { tabId, held }) {
+  await changePick(tabId, (now) => (now?.token === held.token ? null : undefined));
+  void tellFrames(tabId, { udPick: 'end', token: held.token });
+  return { ok: true };
+}
+
+// What a picker may ask, and only about the pick it was started for.
+const PAGE_ACTIONS = { picked, pickProbe, pickGet, pickEnd };
+
+async function fromPage(action, message, sender) {
+  const tabId = sender.tab?.id;
+  if (!Number.isInteger(tabId)) return null;
+  const held = await readPick(tabId);
+  if (!held || typeof message.token !== 'string' || message.token !== held.token) return null;
+  const frameId = Number.isInteger(sender.frameId) && sender.frameId >= 0 ? sender.frameId : 0;
+  return PAGE_ACTIONS[action](message, { tabId, frameId, held });
+}
+
 const ACTIONS = {
   scan,
   status,
   download,
   probe,
+  pick,
   // <full>
   connect,
   forget,
@@ -1270,12 +1457,21 @@ chrome.cookies.onChanged.addListener((change) => {
 // </full>
 
 // Only this extension's own pages may ask for anything, and only by name. A
-// page in a tab never can: nothing here injects a script that would listen,
-// and a message from anywhere else is not answered at all.
+// page in a tab never can. The one script this extension puts into a page,
+// the picker, may ask the four things PAGE_ACTIONS names, and only with the
+// token of the pick the popup started on that tab -- which it learns from
+// this worker, and the page cannot read; anything else from a tab, and any
+// message from anywhere else, is not answered at all.
 chrome.runtime.onMessage.addListener((message, sender, respond) => {
-  if (sender.id !== chrome.runtime.id || sender.tab !== undefined) return false;
+  if (sender.id !== chrome.runtime.id) return false;
   const action = message?.action;
-  if (typeof action !== 'string' || !Object.hasOwn(ACTIONS, action)) return false;
+  if (typeof action !== 'string') return false;
+  if (sender.tab !== undefined) {
+    if (!Object.hasOwn(PAGE_ACTIONS, action)) return false;
+    fromPage(action, message, sender).then(respond, () => respond(null));
+    return true;
+  }
+  if (!Object.hasOwn(ACTIONS, action)) return false;
   ACTIONS[action](message).then(respond, () => respond(null));
   return true;
 });

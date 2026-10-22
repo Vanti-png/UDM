@@ -44,14 +44,14 @@ const MAX_ORIGIN_BYTES: usize = 512;
 const MAX_USER_AGENT_BYTES: usize = 512;
 const MAX_TITLE_CHARS: usize = 300;
 
-const KINDS: &[&str] = &["page", "stream", "video", "audio"];
+const KINDS: &[&str] = &["page", "stream", "video", "audio", "image"];
 
 /// One link waiting for the app, exactly as the inbox file holds it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Handoff {
     pub url: String,
-    /// `page`, `stream`, `video` or `audio`.
+    /// `page`, `stream`, `video`, `audio` or `image`.
     pub kind: String,
     #[serde(default)]
     pub title: Option<String>,
@@ -414,6 +414,12 @@ mod tests {
         assert_eq!(handoff.kind, "page");
         assert_eq!(handoff.page_url, None);
         assert_eq!(handoff.origin, None);
+    }
+
+    #[test]
+    fn a_picture_the_page_picker_handed_over_keeps_its_kind() {
+        let download = wire(serde_json::json!({ "kind": "Image" }));
+        assert_eq!(validate(&download, 0).unwrap().kind, "image");
     }
 
     #[test]
