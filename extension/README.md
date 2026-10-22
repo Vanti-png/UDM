@@ -149,9 +149,10 @@ against a `chrome` with only the store's permissions.
 `node scripts/pack-extension.mjs` writes `extension-upload.zip` at the
 repository root: the store build, for the Chrome Web Store, and the only zip
 that ever goes there. `--full` writes `extension-full.zip`, the full build for
-Chrome, published beside the app for loading unpacked. Both remove the `key`
-from the manifest -- Google's guidance is
-to strip it -- and leaves out `key.pem` (which must never leave the machine that
+Chrome, published beside the app for loading unpacked. The store build removes
+the `key` from the manifest -- Google's guidance is to strip it -- while the
+full build keeps it, since an unpacked copy without it gets an id from its
+folder that the host refuses. Both leave out `key.pem` (which must never leave the machine that
 publishes), `make-icons.mjs`, `.gitignore`, these notes, `PRIVACY.md`,
 `PRIVACY-CHROME.md`, `STORE-LISTING.md` and any test file; the store build
 also leaves out `sessions.js`. Everything else ships, `media.js` and

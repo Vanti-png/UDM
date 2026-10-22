@@ -15,7 +15,10 @@
 // The `key` in extension/manifest.json pins the id of an unpacked install so
 // the Rust host's allow-list can name it during development. The store issues
 // its own id and Google's guidance is to strip the field before uploading, so
-// it is removed from the copy that ships and left alone in the working tree.
+// it is removed from the store and Firefox copies and left alone in the
+// working tree. The full Chrome copy keeps it: that one is loaded unpacked,
+// and without the key Chrome derives the id from the folder it was unpacked
+// to, which the host refuses.
 //
 // The directory also holds things that must not be published: the private half
 // of that key, the icon generator, and the developer and store notes. An
@@ -95,7 +98,7 @@ function contentsOf(file) {
   let contents = readFileSync(file);
   if (name === 'manifest.json') {
     let manifest = JSON.parse(contents.toString('utf8'));
-    delete manifest.key;
+    if (STORE || FIREFOX) delete manifest.key;
     if (FIREFOX) manifest = forFirefox(manifest);
     contents = Buffer.from(`${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   }

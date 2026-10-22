@@ -8,7 +8,7 @@ switches, carries none of their code and does not ask for `cookies` or `alarms`.
 strips the development `key` from the manifest, as Google's guidance says, and leaves out
 `key.pem`, `sessions.js`, the icon generator, the notes and any test file. Bump `version` in
 `extension/manifest.json` before every upload; Chrome refuses a package whose version has not
-increased. This one is **1.0.7** (1.0.6 was built but never uploaded).
+increased. This one is **1.0.8**.
 
 **Images:** `store-assets/`, from `node scripts/build-store-assets.mjs` (rerun it whenever the
 popup or the mark changes). They are photographs of the store build's real popup, rendered with
@@ -307,9 +307,13 @@ nothing is read until the user turns a switch on. The declaration lives in `forF
 The extension has no server and sends nothing over the network. It talks only to com.universaldownloader.bridge, a native messaging host installed by the Universal Downloader desktop application on the same computer (free, open source: https://github.com/unsalable/downloader/releases/tag/latest). No site account is needed to test it: play a video on any site, click the toolbar icon, press Get. Three switches in the popup, "YouTube session", "TikTok session" and "Session on other sites", are off until the user turns them on. The first two each let the extension read that one site's cookies (youtube.com or tiktok.com) and pass them to that application, so it can download members-only YouTube videos the user pays for and age-restricted TikTok posts the user's own account can see. "Session on other sites" reads the cookies of one site only when the user presses Get on that site's page -- the page's registrable domain, never YouTube's or TikTok's -- and the application keeps them, encrypted, for at most an hour. Turning a switch off tells the application to delete what it holds. No source file is minified or generated.
 ```
 
-**Version notes.** 1.0.7 changes nothing in the Firefox package's behaviour; if
-addons.mozilla.org already has 1.0.6, say so in a line ("No change in what it does."). If it does
-not, use these:
+**Version notes.** For addons.mozilla.org, which has 1.0.7:
+
+```
+1.0.8: Pick from the page: the button beside the popup's heading lets you click the video, sound or picture on the page itself, and the popup then shows what the app would download from it, with Get and Pick again. The third session switch is now called "Session on other sites", and its lines say what it is for and what Get does with it.
+```
+
+The notes 1.0.7 went out with:
 
 ```
 1.0.7: Get opens the video in the app, where the quality is chosen before it downloads. "TikTok session" lends the browser's TikTok sign-in for age-restricted posts, and "Other sites" lends the sign-in of the site Get is pressed on, for that download. YouTube's and TikTok's switches show on their own sites. Each sends only to the Universal Downloader application on this computer.
