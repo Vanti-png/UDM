@@ -292,7 +292,7 @@ export const tr: Record<TranslationKey, string> = {
     'Tarayıcında oynayan videoları tek tıkla bu uygulamaya gönderir.',
   'settings.browserLink': 'Tarayıcı oturumları',
   'settings.browserLinkHint':
-    "Yalnızca hesabının görebildiği videolar için tarayıcındaki YouTube ve TikTok oturumlarını, uzantıda Diğer siteler açıksa İndir'e bastığın sitenin oturumunu da kullanır. Oturumlar bu bilgisayarda şifreli durur; diğer sitelerinki bir saat sonra silinir. Oturumlar uzantının tam sürümünde var (Firefox ve GitHub); Chrome Web Mağazası sürümünde yok.",
+    "Yalnızca hesabının görebildiği videolar için tarayıcındaki YouTube ve TikTok oturumlarını, uzantıda Diğer sitelerde oturum açıksa İndir'e bastığın sitenin oturumunu da kullanır. Oturumlar bu bilgisayarda şifreli durur; diğer sitelerinki bir saat sonra silinir. Oturumlar uzantının tam sürümünde var (Firefox ve GitHub); Chrome Web Mağazası sürümünde yok.",
   'settings.linkBroken': 'Tarayıcılar yardımcıyı başlatamıyor',
   'settings.linkBrokenHint':
     'Uzantının bu uygulamaya ulaşmasını sağlayan kayıt eksik ya da başka bir yeri gösteriyor. Bunu bir tarayıcı güncellemesi, bir temizlik aracı veya uygulamanın ikinci bir kopyası yapmış olabilir. Onar, kaydı geri yazar.',

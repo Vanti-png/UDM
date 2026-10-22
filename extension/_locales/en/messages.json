@@ -121,16 +121,16 @@
     "description": "Under the TikTok switch while it is off: what turning it on is for."
   },
   "otherTitle": {
-    "message": "Other sites",
+    "message": "Session on other sites",
     "description": "Title of the switch that lends the sign-in of the site Get is pressed on -- any site but YouTube and TikTok -- to the app, for that download. Shown on such sites' pages, and on any page while it is on."
   },
   "otherOn": {
-    "message": "Only for the site you press Get on",
-    "description": "Under the Other sites switch while it is on: pressing Get on a page hands the app that one site's sign-in, for that download, and nothing else."
+    "message": "Get lends that site's sign-in to the app",
+    "description": "Under the Session on other sites switch while it is on: pressing Get on a page hands the app that one site's sign-in, for that download, and nothing else."
   },
   "otherOffHint": {
-    "message": "For Instagram, X and more",
-    "description": "Under the Other sites switch while it is off: what turning it on is for. The names are examples of sites, left untranslated."
+    "message": "For sign-in-only posts on X, Instagram",
+    "description": "Under the Session on other sites switch while it is off: what turning it on is for. The names are examples of sites, left untranslated."
   },
   "rowSignIn": {
     "message": "Needs your TikTok sign-in",
@@ -155,7 +155,7 @@
     "message": "Universal Downloader comes to the front with the video open, where you choose the quality and the watermark and download it."
   },
   "welcomeSession": {
-    "message": "For members-only YouTube videos, turn on YouTube session in the popup; for age-restricted TikTok posts, TikTok session, which the popup shows on TikTok; for posts on other sites that only your account can see, Other sites, which lends the sign-in of the site you press Get on, for that download. Each lends only to the app on this computer, and stays off until you turn it on.",
+    "message": "For members-only YouTube videos, turn on YouTube session in the popup; for age-restricted TikTok posts, TikTok session, which the popup shows on TikTok; for posts on other sites that only your account can see, Session on other sites, which lends the sign-in of the site you press Get on, for that download. Each lends only to the app on this computer, and stays off until you turn it on.",
     "description": "Welcome page paragraph under the Sign-ins heading. The three switch names are the popup's titles for them."
   },
   "pinTitle": { "message": "Keep it within reach" },

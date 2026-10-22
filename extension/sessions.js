@@ -96,10 +96,10 @@ export function onTikTok(raw) {
   return siteOfUrl(raw) === 'tiktok';
 }
 
-// The third switch, "Other sites", is not a site of SITES: it is a slot for
-// whichever site the user presses İndir on, and its jar is read then and only
-// then -- never on a cookie change, never by the daily alarm -- so nothing in
-// SITES' loops is about it. `Site::Other` on the wire.
+// The third switch, "Session on other sites", is not a site of SITES: it is a
+// slot for whichever site the user presses İndir on, and its jar is read then
+// and only then -- never on a cookie change, never by the daily alarm -- so
+// nothing in SITES' loops is about it. `Site::Other` on the wire.
 export const OTHER = 'other';
 
 // Second-level labels a country code keeps under itself, so that
@@ -153,10 +153,10 @@ const OWN_SWITCH = new Set([
 ]);
 
 /**
- * The site whose sign-in the "Other sites" switch would lend for a page, as a
- * registrable domain, or null: for a page that is not on the web, one on an
- * IP address or a bare name like `localhost`, and one of the sites whose
- * session has a switch of its own.
+ * The site whose sign-in the "Session on other sites" switch would lend for a
+ * page, as a registrable domain, or null: for a page that is not on the web,
+ * one on an IP address or a bare name like `localhost`, and one of the sites
+ * whose session has a switch of its own.
  */
 export function otherSiteOf(raw) {
   const url = parseHttp(raw);

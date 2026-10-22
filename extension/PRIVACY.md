@@ -48,11 +48,11 @@ switch on, the extension reads the cookies of **youtube.com**, so the app can
 download members-only videos your own membership gives you. With the **TikTok
 session** switch on, it reads the cookies of **tiktok.com**, so the app can
 download age-restricted posts your own TikTok account can see. With the
-**Other sites** switch on, and only at the moment you press **Get** on a page
-of some other site -- Instagram, X, Facebook, Vimeo, Reddit and so on -- it
-reads that one site's cookies (the page's own domain, such as instagram.com,
-and its subdomains), so the app can download a post your own account on that
-site can see. Nothing else is read: no cookies of a site you did not press
+**Session on other sites** switch on, and only at the moment you press **Get**
+on a page of some other site -- Instagram, X, Facebook, Vimeo, Reddit and so
+on -- it reads that one site's cookies (the page's own domain, such as
+instagram.com, and its subdomains), so the app can download a post your own
+account on that site can see. Nothing else is read: no cookies of a site you did not press
 Get on, and none in the background. Each switch is off until you turn it on,
 and turning one on does not turn on another.
 
@@ -95,13 +95,13 @@ extension.
   for a TikTok download that needs them, and deletes them when you turn the
   switch off, after seven days without a refresh, or when you sign out of
   TikTok.
-- **When you press Get with Other sites on:** the cookies of that page's site,
-  just before the item itself, and at no other time -- not when they change,
-  not when you open the popup, not once a day. The app keeps only that
-  site's, encrypted the same way, hands them to the download engine only for
-  a download from that site, and deletes them an hour after they were sent,
-  when you press Get on another site (which replaces them), or when you turn
-  the switch off. If the browser has no cookies for that site, nothing is
+- **When you press Get with Session on other sites on:** the cookies of that
+  page's site, just before the item itself, and at no other time -- not when
+  they change, not when you open the popup, not once a day. The app keeps only
+  that site's, encrypted the same way, hands them to the download engine only
+  for a download from that site, and deletes them an hour after they were
+  sent, when you press Get on another site (which replaces them), or when you
+  turn the switch off. If the browser has no cookies for that site, nothing is
   kept, and what was held for the site before goes.
 
 You can confirm all of this by reading `background.js`, which is not minified
@@ -112,8 +112,8 @@ or obfuscated.
 In `chrome.storage.local`, on your own machine: a random identifier for this
 browser profile (so the app can tell one Chrome profile from another), whether
 you turned the YouTube session off, whether you turned the TikTok session and
-Other sites on, and what the app last said about this profile's connection
-(connected, turned off in the app, or not connected).
+Session on other sites on, and what the app last said about this profile's
+connection (connected, turned off in the app, or not connected).
 
 In `chrome.storage.session`, in memory: the per-tab lists described above,
 and the element you picked, until you close it or the tab leaves that page.
@@ -125,8 +125,8 @@ the open tabs.
 
 - Nothing about the pages you visit leaves the browser until you press
   **Get**, and your cookies leave it only while the **YouTube session**,
-  **TikTok session** or **Other sites** switch is on -- and only that site's.
-  An other site's leave it only when you press Get on its page.
+  **TikTok session** or **Session on other sites** switch is on -- and only
+  that site's. An other site's leave it only when you press Get on its page.
 - Turning a switch off stops that site's cookies being sent and tells the app
   to delete what it holds of them, even if the app is closed at the time.
 - Removing the extension stops it entirely.
@@ -195,11 +195,12 @@ anahtarı açıkken eklenti **youtube.com** çerezlerini okur; böylece uygulama
 kendi üyeliğinizin erişim verdiği üyelere özel videoları indirebilir.
 **TikTok oturumu** anahtarı açıkken **tiktok.com** çerezlerini okur; böylece
 uygulama kendi TikTok hesabınızın görebildiği yaş sınırlı gönderileri
-indirebilir. **Diğer siteler** anahtarı açıkken, yalnızca başka bir sitenin
--- Instagram, X, Facebook, Vimeo, Reddit gibi -- sayfasında **İndir**'e
-bastığınız anda, o tek sitenin çerezlerini (sayfanın kendi alan adının,
-örneğin instagram.com'un, ve alt alan adlarının çerezlerini) okur; böylece
-uygulama o sitedeki kendi hesabınızın görebildiği bir gönderiyi indirebilir.
+indirebilir. **Diğer sitelerde oturum** anahtarı açıkken, yalnızca başka bir
+sitenin -- Instagram, X, Facebook, Vimeo, Reddit gibi -- sayfasında
+**İndir**'e bastığınız anda, o tek sitenin çerezlerini (sayfanın kendi alan
+adının, örneğin instagram.com'un, ve alt alan adlarının çerezlerini) okur;
+böylece uygulama o sitedeki kendi hesabınızın görebildiği bir gönderiyi
+indirebilir.
 Başka hiçbir şey okunmaz: İndir'e basmadığınız bir sitenin çerezleri de,
 arka planda hiçbir çerez de. Her anahtar siz açana kadar kapalıdır ve birini
 açmak diğerlerini açmaz.
@@ -240,8 +241,8 @@ için.
   saklar, indirme motoruna yalnızca onlara ihtiyaç duyan bir TikTok indirmesi
   için verir; anahtarı kapattığınızda, yedi gün yenilenmezse ya da TikTok'tan
   çıkış yaparsanız siler.
-- **Diğer siteler açıkken İndir'e bastığınızda:** o sayfanın sitesinin
-  çerezleri, öğenin kendisinden hemen önce ve başka hiçbir zaman --
+- **Diğer sitelerde oturum açıkken İndir'e bastığınızda:** o sayfanın
+  sitesinin çerezleri, öğenin kendisinden hemen önce ve başka hiçbir zaman --
   değiştiklerinde de, açılır pencereyi açtığınızda da, günde bir kez de
   gönderilmez. Uygulama yalnızca o siteye ait olanları tutar, onları aynı
   şekilde şifreli saklar, indirme motoruna yalnızca o siteden bir indirme için
@@ -258,8 +259,9 @@ okuyarak doğrulayabilirsiniz.
 Kendi makinenizdeki `chrome.storage.local` içinde: bu tarayıcı profili için
 rastgele bir tanımlayıcı (uygulama bir Chrome profilini diğerinden ayırabilsin
 diye), YouTube oturumunu kapatıp kapatmadığınız, TikTok oturumunu ve Diğer
-siteler anahtarını açıp açmadığınız ve uygulamanın bu profilin bağlantısı
-hakkında en son ne dediği (bağlı, uygulamada kapalı ya da bağlı değil).
+sitelerde oturum anahtarını açıp açmadığınız ve uygulamanın bu profilin
+bağlantısı hakkında en son ne dediği (bağlı, uygulamada kapalı ya da bağlı
+değil).
 
 `chrome.storage.session` içinde, bellekte: yukarıda anlatılan sekme listeleri
 ve siz kapatana ya da sekme o sayfadan ayrılana kadar seçtiğiniz öğe.
@@ -271,8 +273,8 @@ tutmaz.
 
 - Ziyaret ettiğiniz sayfalarla ilgili hiçbir şey, İndir'e basana kadar
   tarayıcıdan çıkmaz; çerezleriniz yalnızca **YouTube oturumu**, **TikTok
-  oturumu** ya da **Diğer siteler** anahtarı açıkken ve yalnızca o sitenin
-  olanları çıkar. Diğer bir sitenin çerezleri yalnızca onun sayfasında
+  oturumu** ya da **Diğer sitelerde oturum** anahtarı açıkken ve yalnızca o
+  sitenin olanları çıkar. Diğer bir sitenin çerezleri yalnızca onun sayfasında
   İndir'e bastığınızda çıkar.
 - Bir anahtarı kapatmak o sitenin çerezlerinin gönderilmesini durdurur ve
   uygulamaya o siteden elindekini silmesini söyler; uygulama o sırada kapalı

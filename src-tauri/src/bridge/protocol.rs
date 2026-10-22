@@ -154,11 +154,11 @@ impl Browser {
 /// answers `malformed` -- it can never store a TikTok jar as YouTube's.
 ///
 /// `Other` is not one site but a slot for whichever site the user last pressed
-/// İndir on with the extension's "Other sites" switch on: Instagram one minute,
-/// Vimeo the next. Its push names the site in `domain`, its jar holds that
-/// domain's cookies alone, and it lapses an hour after it was captured
-/// (`OTHER_SESSION_TTL_SECS`), because it is lent for one download rather than
-/// kept fresh the way YouTube's and TikTok's are.
+/// İndir on with the extension's "Session on other sites" switch on: Instagram
+/// one minute, Vimeo the next. Its push names the site in `domain`, its jar
+/// holds that domain's cookies alone, and it lapses an hour after it was
+/// captured (`OTHER_SESSION_TTL_SECS`), because it is lent for one download
+/// rather than kept fresh the way YouTube's and TikTok's are.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Site {

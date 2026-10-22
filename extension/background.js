@@ -6,9 +6,9 @@
 // It also lends the app this profile's YouTube and TikTok sessions, each only
 // while the user has turned its switch on, so the members-only videos the user
 // pays for and the age-restricted posts their account may see can be
-// downloaded. With a third switch, "Other sites", it lends one more: the
-// sign-in of the site a press of İndir is on, read at that press and for that
-// press only. All of that goes through the same channel as the list.
+// downloaded. With a third switch, "Session on other sites", it lends one
+// more: the sign-in of the site a press of İndir is on, read at that press and
+// for that press only. All of that goes through the same channel as the list.
 //
 // The Chrome Web Store build lends nothing (extension/edition.js): every block
 // fenced like this one is cut out of it, and it asks for no `cookies` or
@@ -280,8 +280,8 @@ function setTiktokOn(on) {
   return chrome.storage.local.set({ [TIKTOK_KEY]: on });
 }
 
-// Whether the user turned the "Other sites" switch on. Off until someone
-// does, as TikTok's is.
+// Whether the user turned the "Session on other sites" switch on. Off until
+// someone does, as TikTok's is.
 async function isOtherOn() {
   const stored = await chrome.storage.local.get(OTHER_KEY);
   return stored[OTHER_KEY] === true;

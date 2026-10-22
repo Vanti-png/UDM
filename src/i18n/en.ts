@@ -296,7 +296,7 @@ export const en = {
     'Sends the videos playing in your browser to this app with one click.',
   'settings.browserLink': 'Browser sign-ins',
   'settings.browserLinkHint':
-    'Uses your browser’s YouTube and TikTok sign-ins for videos only your account can watch, and with Other sites on in the extension, the sign-in of the site you press Get on. They stay encrypted on this PC; other sites’ are deleted after an hour. Sign-ins come with the full extension (Firefox and GitHub), not the Chrome Web Store one.',
+    'Uses your browser’s YouTube and TikTok sign-ins for videos only your account can watch, and with Session on other sites on in the extension, the sign-in of the site you press Get on. They stay encrypted on this PC; other sites’ are deleted after an hour. Sign-ins come with the full extension (Firefox and GitHub), not the Chrome Web Store one.',
   'settings.linkBroken': 'Browsers cannot start the helper',
   'settings.linkBrokenHint':
     'The entry that lets the extension reach this app is missing, or it points somewhere else. A browser update, a cleanup tool or a second copy of the app can do that. Repair writes it back.',

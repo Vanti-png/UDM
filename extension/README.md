@@ -14,11 +14,12 @@ native messaging channel to the app on the same computer:
   and age-restricted posts the user's own TikTok account can see can be
   downloaded. Chrome 127 encrypts its cookie database against other programs on
   the same machine, which is what stopped the download engine reading it
-  directly. A third switch, **Diğer siteler** (Other sites), lends one more:
-  the sign-in of the site whose page **İndir** is pressed on, read at that
-  press for that site's registrable domain alone and sent just before the
-  download as a `pushSite` with `site: "other"` and the `domain`. Never in the
-  background, never YouTube's or TikTok's, and the app keeps it an hour.
+  directly. A third switch, **Diğer sitelerde oturum** (Session on other
+  sites), lends one more: the sign-in of the site whose page **İndir** is
+  pressed on, read at that press for that site's registrable domain alone and
+  sent just before the download as a `pushSite` with `site: "other"` and the
+  `domain`. Never in the background, never YouTube's or TikTok's, and the app
+  keeps it an hour.
 
 Nothing here listens on a port. Chrome starts `ud-bridge.exe` itself, only for
 this extension's ids, and only because the app wrote a registry value under the
@@ -191,8 +192,8 @@ The permissions map onto it:
   tab and reading the element clicked.
 - `nativeMessaging` -- the only channel out. No remote endpoint, no analytics.
 - `cookies` -- youtube.com and tiktok.com, each only while its switch is on;
-  and with Other sites on, the site of the page İndir is pressed on, at that
-  press only.
+  and with Session on other sites on, the site of the page İndir is pressed
+  on, at that press only.
 - `storage` -- a profile id, the three switches, the host's last word on the
   link, and the per-tab lists (session storage, gone when the browser closes).
 - `alarms` -- a daily refresh, so a lent session does not go stale unnoticed.
