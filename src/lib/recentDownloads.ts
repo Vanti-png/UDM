@@ -1,10 +1,9 @@
 import type { HistoryEntry } from '@/types';
 
 /**
- * The last downloads a screen can take, newest first: finished, still where
- * they were saved, and of a kind the screen accepts. Each file once --
- * downloading a link again after its file was deleted writes to the same path
- * and adds a second record of it.
+ * The first `count` downloads a screen can take, from a history read newest
+ * first. Each file once: downloading a link again after its file was deleted
+ * writes to the same path and adds a second record of it.
  */
 export function recentDownloads(
   entries: HistoryEntry[],

@@ -195,9 +195,8 @@ export function ConvertPage({ settings }: { settings: Settings }) {
     setSubmitError(null);
   }, []);
 
-  // A recent download is ticked into the list and out again. From the list as
-  // it stands rather than the one this render saw, so two quick presses on the
-  // same row both count.
+  // From the list as it stands, not as this render saw it, so two quick
+  // presses on one row both count.
   const toggleRecent = useCallback(
     (path: string) => {
       forgetFileNotices();
@@ -532,9 +531,9 @@ export function ConvertPage({ settings }: { settings: Settings }) {
 
       {/* -- or one just downloaded ---------------------------------------- */}
 
-      {/* Under the button, so the form keeps its place and Convert is just
-          above the rows ticked. Held still while a submission is out: success
-          empties the staged list, and would take a file ticked meanwhile. */}
+      {/* Under the button, so the form keeps its place. Still while
+          submitting: success empties the staged list, taking any file ticked
+          meanwhile. */}
       <RecentDownloads
         accepts={isConvertibleDownload}
         onPress={toggleRecent}

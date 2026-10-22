@@ -137,11 +137,8 @@ export const INPUT_EXTENSIONS = [
 
 const INPUTS = new Set<string>(INPUT_EXTENSIONS);
 
-/**
- * A download the converter can read. The file's own extension decides, the
- * same test the picker applies -- a video, its sound kept on its own, a photo
- * from a carousel.
- */
+/** A download the converter can read, by its saved file's extension: the
+ *  same test the picker applies. */
 export function isConvertibleDownload(entry: HistoryEntry): boolean {
   return INPUTS.has(fileExtension(entry.filePath));
 }

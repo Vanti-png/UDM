@@ -221,9 +221,9 @@
     : tasks
         .filter((entry) => entry.status === 'completed' || entry.status === 'failed')
         .map((entry, index) => {
-          // What the row's format label says it is, so the editor's list of
-          // recent videos has a picture and a song to pass over, and the
-          // converter's list a picture and a song to offer as what they are.
+          // What the row's format label says it is, so the recent-download
+          // lists have a picture and a song: the editor's to pass over, the
+          // converter's to offer.
           const container = /JPG/.test(entry.formatLabel) ? 'jpg' : /MP3/.test(entry.formatLabel) ? 'mp3' : 'mp4';
           return {
             id: index + 1,

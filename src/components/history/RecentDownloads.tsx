@@ -28,13 +28,13 @@ const SCANNED = 200;
 const TEXT_INSET = IS_MOBILE ? 96 : 104;
 
 interface RecentDownloadsProps {
-  /** Which finished downloads this screen can take. */
+  /** Which finished downloads this screen can take. Keep it stable: a new
+   *  function reads the history again. */
   accepts: (entry: HistoryEntry) => boolean;
   /**
    * What pressing a row does. A promise holds every row still until it
    * settles, with a spinner on the one pressed; one that resolves to null
-   * means the file would not open -- most likely gone since the list was
-   * read -- and the list is read again.
+   * means the file would not open, and the list is read again.
    */
   onPress: (path: string) => Promise<unknown> | void;
   /** What a row is called to a screen reader; its `{title}` is filled in. */

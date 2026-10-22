@@ -9,9 +9,8 @@ export const AUDIO_EXTENSIONS = ['mp3', 'm4a', 'aac', 'wav', 'flac', 'ogg', 'opu
 const EDITABLE = new Set(VIDEO_EXTENSIONS);
 
 /**
- * A download the editor can open: a video. The editor turns a file with no
- * picture away, and a recent download that leads to that refusal is not worth
- * offering.
+ * A download the editor can open: a video, since it turns away a file with no
+ * picture.
  *
  * The container decides, with one exception: sound kept in its source's own
  * container can be a WebM with no picture in it. A request for pictures is no
