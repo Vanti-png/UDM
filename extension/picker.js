@@ -86,9 +86,7 @@
       color: var(--text-primary);
       -webkit-font-smoothing: antialiased;
     }
-    /* The element under the pointer glows, breathing, so it reads as the one
-       a click would take; once taken, it holds still. The white rim keeps the
-       glow apart from whatever colours the picture has. */
+    /* The white rim keeps the glow apart from whatever colours the picture has. */
     .box {
       position: fixed;
       border: 2px solid var(--accent);
@@ -896,7 +894,7 @@
     if (answer?.canGet === false) button?.remove();
   }
 
-  // The worker starts a new pick on this tab, whose start clears this card.
+  // On success the new pick's start clears this card.
   async function pickAgain(button, notice) {
     button.disabled = true;
     notice.hidden = true;

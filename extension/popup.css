@@ -244,8 +244,7 @@ h1 {
   font-size: 13px;
 }
 
-/* A pick from the page: room beside the title for its ×, and Pick again
-   beside İndir. */
+/* A pick from the page, its × beside the title. */
 .picked .text {
   position: relative;
   padding-right: 24px;

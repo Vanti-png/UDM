@@ -1280,9 +1280,8 @@ async function picked(message, { tabId, frameId, held }) {
   return { ok: true };
 }
 
-// The popup shows the pick. Chrome before 127 will not open it for an
-// extension like this one, and no browser opens it in a window without focus;
-// the card on the page stands in then.
+// Chrome before 127 will not open it for an extension like this one, nor any
+// browser in a window without focus; the card on the page stands in.
 async function openPopup(windowId) {
   try {
     await chrome.action.openPopup(Number.isInteger(windowId) ? { windowId } : {});
@@ -1292,8 +1291,7 @@ async function openPopup(windowId) {
   }
 }
 
-// The pick the popup shows above the list, while the tab is still on the page
-// it was made on.
+// Only while the tab is still on the page the pick was made on.
 async function pickOn(tabId, url) {
   const held = await readPick(tabId);
   if (!held?.status || !held.row) return null;
@@ -1304,7 +1302,7 @@ async function pickOn(tabId, url) {
   return { status: held.status, row: held.row };
 }
 
-// The popup's × on a pick: back to the list.
+// The popup's × on a pick.
 async function forgetPick(message) {
   const tabId = message.tabId;
   if (!Number.isInteger(tabId) || tabId < 0) return { ok: false };
@@ -1316,8 +1314,7 @@ async function forgetPick(message) {
   return { ok: true };
 }
 
-// The card's Pick again, as the popup's button: a new pick on the same tab,
-// whose start clears the card.
+// The card's Pick again: the new pick's start clears the card.
 function pickAgain(_message, { tabId }) {
   return pick({ tabId });
 }

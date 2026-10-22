@@ -213,16 +213,14 @@ function featureNode(row) {
   return drawn(row, node, picture, title, meta, button, true);
 }
 
-// What a pick's card says before the app has, by what the click found.
+// Before the app has said anything.
 function pickMeta(status, row) {
   if (status === 'ready') return firstMeta(row.meta, t);
   if (status === 'unlisted') return t('unlistedBody');
   return t(status === 'protected' ? 'kindProtected' : 'pickUnavailable');
 }
 
-// The element picked on the page, which the popup opened itself to show: the
-// feature card, with Pick again beside İndir for a click that took the wrong
-// one, and × back to the list.
+// The pick the popup opened itself to show, as the feature card.
 function pickNode({ status, row }, onDismiss) {
   const node = document.createElement('div');
   node.className = 'feature picked';
