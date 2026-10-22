@@ -168,6 +168,7 @@ export const en = {
   'convert.resetFolder': 'Reset',
   'convert.start': 'Convert',
   'convert.startMany': 'Convert {n} files',
+  'convert.pickRecent': 'Convert {title}',
   'convert.jobs': 'Conversions',
   'convert.working': 'Converting',
   'convert.remove': 'Remove',
@@ -212,6 +213,7 @@ export const en = {
   'convert.formatHint.jp2': 'JPEG 2000, for archives',
 
   'history.title': 'History',
+  'history.recent': 'Recent downloads',
   'history.emptyTitle': 'No downloads yet',
   'history.emptyBody': 'Your completed downloads will appear here.',
   'history.search': 'Search history',
@@ -571,7 +573,6 @@ export const en = {
   'editor.pickTitle': 'Choose a video to edit',
   'editor.pickBody': 'From this phone, or from a link.',
   'editor.chooseVideo': 'Choose a video',
-  'editor.recent': 'Recent downloads',
   'editor.openRecent': 'Edit {title}',
   'editor.percent': '{value}%',
 

@@ -32,9 +32,9 @@ import { MediaRail } from '@/components/editor/MediaRail';
 import { OutputInspector } from '@/components/editor/OutputInspector';
 import { PlayheadTime, createPlayhead } from '@/components/editor/playhead';
 import { PreviewStage } from '@/components/editor/PreviewStage';
-import { RecentDownloads } from '@/components/editor/RecentDownloads';
 import { SoundPreview } from '@/components/editor/SoundPreview';
 import { SOUND_LANE_ROOM, TimelineDock } from '@/components/editor/TimelineDock';
+import { RecentDownloads } from '@/components/history/RecentDownloads';
 import { Button } from '@/components/ui/Button';
 import { IconButton } from '@/components/ui/IconButton';
 import { InlineNotice } from '@/components/ui/InlineNotice';
@@ -44,7 +44,7 @@ import { Progress } from '@/components/ui/Progress';
 import { useFileActions } from '@/hooks/useFileActions';
 import { errorMessage, useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { VIDEO_EXTENSIONS } from '@/lib/editor/files';
+import { VIDEO_EXTENSIONS, isEditableDownload } from '@/lib/editor/files';
 import { cutAt, nextKeptPosition } from '@/lib/editor/segments';
 import { ZOOM_STEP } from '@/lib/editor/zoom';
 import { COLLAPSE, EDITOR, FADE, T } from '@/lib/motion';
@@ -1214,7 +1214,9 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
               )}
 
               <RecentDownloads
-                onOpen={openRecent}
+                accepts={isEditableDownload}
+                onPress={openRecent}
+                rowLabel="editor.openRecent"
                 disabled={picking || opening}
                 className="mt-6"
               />
@@ -1268,7 +1270,13 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
           </InlineNotice>
         )}
 
-        <RecentDownloads onOpen={openRecent} disabled={opening} className="mt-7" />
+        <RecentDownloads
+          accepts={isEditableDownload}
+          onPress={openRecent}
+          rowLabel="editor.openRecent"
+          disabled={opening}
+          className="mt-7"
+        />
 
         {linkSheet}
       </div>

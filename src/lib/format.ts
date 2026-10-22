@@ -218,6 +218,13 @@ export function basename(path: string): string {
   return parts[parts.length - 1] || path;
 }
 
+/** A file's extension, lower-cased and without its dot; empty when it has none. */
+export function fileExtension(path: string): string {
+  const name = basename(path);
+  const dot = name.lastIndexOf('.');
+  return dot > 0 ? name.slice(dot + 1).toLowerCase() : '';
+}
+
 export function dirname(path: string): string {
   const index = Math.max(path.lastIndexOf('\\'), path.lastIndexOf('/'));
   return index > 0 ? path.slice(0, index) : path;

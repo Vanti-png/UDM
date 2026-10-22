@@ -161,6 +161,7 @@ export const tr: Record<TranslationKey, string> = {
   'convert.resetFolder': 'Sıfırla',
   'convert.start': 'Dönüştür',
   'convert.startMany': '{n} dosyayı dönüştür',
+  'convert.pickRecent': 'Dönüştür: {title}',
   'convert.jobs': 'Dönüşümler',
   'convert.working': 'Dönüştürülüyor',
   'convert.remove': 'Kaldır',
@@ -205,6 +206,7 @@ export const tr: Record<TranslationKey, string> = {
   'convert.formatHint.jp2': 'JPEG 2000, arşiv için',
 
   'history.title': 'Geçmiş',
+  'history.recent': 'Son indirilenler',
   'history.emptyTitle': 'Henüz indirme yok',
   'history.emptyBody': 'Tamamlanan indirmelerin burada görünür.',
   'history.search': 'Geçmişte ara',
@@ -565,7 +567,6 @@ export const tr: Record<TranslationKey, string> = {
   'editor.pickTitle': 'Düzenlenecek bir video seç',
   'editor.pickBody': 'Bu telefondan ya da bir bağlantıdan.',
   'editor.chooseVideo': 'Video seç',
-  'editor.recent': 'Son indirilenler',
   'editor.openRecent': 'Düzenle: {title}',
   'editor.percent': '%{value}',
 

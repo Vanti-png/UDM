@@ -18,6 +18,12 @@ Everything is on the [releases page](https://github.com/unsalable/downloader/rel
 These links always point at the current build. Installing over an existing copy
 updates it in place; settings, history and the downloaded tools are kept.
 
+The app looks for a newer release when it starts, and again when its window is
+brought back six hours or more after the last look. When there is one it
+downloads the installer it was installed with in the background, checks it
+against the SHA-256 digest GitHub publishes for it, and installs it at the first
+moment nothing is downloading or converting.
+
 Windows 10/11, 64-bit. The installers are not code-signed, so SmartScreen warns on first
 run: choose **More info -> Run anyway**.
 
@@ -64,14 +70,28 @@ pick Universal Downloader.
 - **Queues** as many links as you like, with a configurable number running at
   once, and survives a restart.
 - **Keeps a history** with the file, its size, and a one-click re-download.
-- **Converts files you already have.** Drop in a video or an audio file and
-  write it out as MP4, MKV, WebM, MOV, AVI, MP3, M4A, AAC, WAV, FLAC, Opus or
-  Ogg. When the target container can already hold the streams it repackages
-  rather than re-encodes -- seconds instead of minutes, and nothing is lost.
+- **Converts files you already have.** Drop in a video, a sound or a photo --
+  or tick one of the recent downloads listed under the Convert button -- and
+  write it out as one of twelve video containers (MP4, MOV, MKV, WebM, AVI and
+  more), twelve audio formats (MP3, WAV, M4A, FLAC, Opus and more), an animated
+  GIF, or one of nine picture formats (JPG, PNG, WebP, AVIF and more). With the
+  "Original" quality, when the target container can already hold the streams,
+  it repackages rather than re-encodes -- seconds instead of minutes, and
+  nothing is lost.
+- **Cuts and joins.** The editor keeps several ranges of a video and joins
+  them into one file, cut against a waveform and a strip of frames. It can
+  fetch just the piece of a link that is wanted, and lay a sound under the
+  picture.
+- **Takes a video from the browser** (Windows). The Universal Downloader
+  Connector extension for Chrome and Firefox lists what a tab is playing and
+  hands one to the app, which opens it on Home. See
+  [`extension/README.md`](extension/README.md).
 
 Recognised sources include YouTube, TikTok, Instagram, X, Reddit, Facebook,
 Twitch, Pinterest, Vimeo, Dailymotion and SoundCloud, plus direct media files
-and any page that publishes its media in Open Graph tags.
+and any page that publishes its media in Open Graph tags. A song shared from
+Spotify is described by Spotify's public pages and downloaded as the same
+recording published on YouTube; Spotify's own encrypted audio is never touched.
 
 "Recognised" is the honest word. Whether a particular link yields anything is
 decided by the platform, not by this app: several now gate parts of their
@@ -96,11 +116,14 @@ src/                     React front end
   components/ui/         Design-system primitives
   components/home/       Analyse, preview and download options
   components/downloads/  Queue cards
-  components/settings/   Tool cards, hotkey recorder
+  components/history/    History rows, clearing it, recent downloads
+  components/editor/     The editor's preview, timeline and inspector
+  components/settings/   Tool cards, hotkey recorder, browser link
   components/convert/    Conversion job rows
   components/intro/      The phone's first-run film (Remotion)
-  pages/                 Home, Downloads, Convert, History, Settings, About
-  stores/                Zustand stores (settings, queue, convert, tools, analysis)
+  pages/                 Home, Downloads, Editor, Convert, History, Settings, About
+  stores/                Zustand stores (settings, queue, convert, editor,
+                         tools, analysis, update)
   services/ipc.ts        The only place that calls `invoke`
   lib/                   Pure helpers (formatting, URLs, option derivation)
   i18n/                  English source dictionary + Turkish translation;
@@ -112,9 +135,17 @@ src-tauri/src/           Rust core
   queue.rs               Scheduling, retries, persistence, progress events
   ffmpeg.rs              Merging and conversion during a download
   converter.rs           Probing and converting files already on disk
+  export.rs              The editor's cuts, joined into one file
+  range.rs               Fetching only a piece of a link for the editor
+  editor_media.rs        The editor timeline's waveform and frame strip
+  bridge/                The browser link: native messaging host, handoffs,
+                         lent sessions (bin/ud-bridge.rs is the host)
+  updater.rs             Finding and installing a newer build
   tools.rs               Discovery and installation of the external tools
   db.rs                  SQLite: settings, history, durable queue
   commands.rs            The IPC surface
+
+extension/               The browser extension (see its own README)
 ```
 
 ### Provider architecture
@@ -122,8 +153,9 @@ src-tauri/src/           Rust core
 Every source adapter implements the same three-method `MediaProvider` trait
 (`id`, `can_handle`, `analyze`) in `src-tauri/src/providers/mod.rs`. Adding a
 platform means adding a module and a branch in `analyze`. Resolution order is:
-a direct media file → a photo post → the engine → the generic page reader →
-unsupported.
+a service that encrypts its streams (refused at once) or a song shared from
+Spotify → a direct media file → a photo post → the engine → the generic page
+reader → unsupported.
 
 The engine is a video tool, and photo posts are where that shows. It is run
 with `--ignore-no-formats-error`, so a post with pictures and no stream is
@@ -189,9 +221,10 @@ handful of `IS_MOBILE` branches in the front end.
 
 ### Two external tools
 
-Neither is bundled. Both are fetched once, on request, into the app's own data
-directory — and a copy already on your `PATH` is preferred over downloading
-anything.
+On Windows neither is bundled. Both are fetched once, on request, into the
+app's own data directory — and a copy already on your `PATH` is preferred over
+downloading anything. (On Android FFmpeg ships inside the APK and only yt-dlp
+is fetched; see above.)
 
 - **yt-dlp** reads public metadata and stream URLs. It changes weekly, so a
   bundled copy would be stale the month after release.
@@ -224,10 +257,14 @@ Each job runs up to three passes, stopping at the first that produces a file:
 
 1. **Repackage.** Attempted when the target container can already hold the
    source codecs -- H.264 and AAC moving from MKV into MP4, say. No encoder is
-   named at all, so it is I/O bound and lossless. Asking for a smaller frame or
-   a specific bitrate rules this pass out, since a copy would ignore it.
-2. **GPU encode.** Attempted when hardware acceleration is enabled. It is absent
-   on most machines without an NVIDIA card, so it is only ever an attempt.
+   named at all, so it is I/O bound and lossless. Where a quality is offered,
+   only "Original" asks for it; High, Balanced and Small always re-encode, and
+   so does asking for a smaller frame, a lower frame rate or a specific
+   bitrate, since a copy would ignore them. A GIF is never a copy: its palette
+   is the conversion.
+2. **GPU encode.** Attempted for an H.264 video target when hardware
+   acceleration is enabled. It is absent on most machines without an NVIDIA
+   card, so it is only ever an attempt.
 3. **CPU encode.** Always last, and what actually guarantees a result.
 
 Conversions run one at a time: encoding saturates every core it is given, so a
@@ -241,7 +278,7 @@ resumable state, and re-running one nobody asked for would burn a CPU at sign-in
 
 ### Single source of truth
 
-Two rules the codebase holds to:
+Three rules the codebase holds to:
 
 - Platform detection lives only in `providers/detect.rs`. The front end asks
   over IPC rather than keeping a second copy of the host patterns.
@@ -255,7 +292,7 @@ Two rules the codebase holds to:
 
 ## Development
 
-Requirements: Node 20+, Rust 1.77+, and the MSVC build tools.
+Requirements: Node 22.12+, Rust 1.82+, and the MSVC build tools.
 
 ```bash
 npm install
@@ -269,9 +306,11 @@ npm run build          # type-check and build the front end
 npm run app:build      # production build + NSIS installer
 npm run android:build  # signed release APKs for arm64, armv7 and x86_64
 npm run android:dev    # run on a connected phone or emulator
+npm run test:web       # front-end unit tests (Vitest)
 npm run test:rust      # Rust unit and hermetic integration tests
 npm run test:python    # the DNS fallback the phone app loads into yt-dlp
 npm run test:online    # network tests (installs the engine, downloads real files)
+npm run test:all       # build, then the web, Rust and Python tests
 npm run lint:rust      # clippy, warnings denied
 ```
 
@@ -301,6 +340,12 @@ catches up.
 
 ### Tests
 
+- `src/**/*.test.ts` — front-end unit tests (Vitest) for the pure helpers and
+  stores: option derivation, the editor's segments and bitrates, settings,
+  hand-offs, recent downloads.
+- `scripts/extension/` — the browser extension's tests, `node --test
+  scripts/extension/`, kept outside `extension/` so the store package never
+  carries them.
 - `src-tauri/src/**` — unit tests next to the code they cover: URL
   classification, format selection, file naming, speed smoothing, pause/cancel
   signalling, engine output parsing, FFmpeg argument construction.
@@ -368,6 +413,8 @@ tools/         managed copies of yt-dlp and ffmpeg
 cache/         thumbnails, bounded by the configured cache limit
 temp/          in-flight downloads; a finished file is moved out
 logs/          app.log and error.log, rotated by size
+bridge/        the browser link's state and the sessions it lends, sealed
+               with DPAPI (Windows only)
 ```
 
 Downloads themselves go to your own Downloads folder by default.
@@ -378,7 +425,7 @@ No account, no ads, no analytics, no telemetry. Links are resolved by tools
 running on this machine, and the only network requests made are to the media
 source itself and — when you ask for it — to GitHub to fetch the two tools.
 
-The phone app also asks GitHub whether a newer build exists. And when the
+The app also asks GitHub whether a newer build exists. And when the
 phone's own DNS cannot find a site's address — a VPN or Private DNS server that
 does not answer, or a filter that refuses the name — the app asks a public
 DNS-over-HTTPS resolver (Cloudflare's 1.1.1.1 or Google's 8.8.8.8) instead.
