@@ -26,6 +26,7 @@
 
   "btnPick": { "message": "Sayfadan seç" },
   "pickHint": { "message": "Bir videoya, sese ya da resme tıklayın · Vazgeçmek için Esc" },
+  "btnPickAgain": { "message": "Yeniden seç" },
   "pickFailed": { "message": "Bu sayfada seçim yapılamıyor" },
   "pickUnavailable": { "message": "Bu öğe gönderilemiyor" },
   "pickClose": { "message": "Kapat" },

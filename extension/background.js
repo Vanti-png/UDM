@@ -783,7 +783,7 @@ async function scan(message) {
   const { frames, page } = await readPage(tabId, url, title);
   const list = rows(page, frames, { userAgent: navigator.userAgent });
   showCount(tabId, page, list.length);
-  return { ok: true, url, protectedService: null, rows: list };
+  return { ok: true, url, protectedService: null, rows: list, picked: await pickOn(tabId, url) };
 }
 
 // Shared by the popup's list and the picker's card.
@@ -1266,12 +1266,60 @@ async function picked(message, { tabId, frameId, held }) {
   const { frames, page } = await readPage(tabId, tab.url ?? '', tab.title ?? '');
   const { status, row } = pickedRow(page, frames, choice, { userAgent: navigator.userAgent });
   await changePick(tabId, (now) =>
-    now?.token === held.token ? { token: held.token, status, payload: row.payload, durationSec: row.durationSec } : undefined,
+    now?.token === held.token
+      ? { token: held.token, status, row, payload: row.payload, durationSec: row.durationSec, pageUrl: page.url }
+      : undefined,
   );
 
+  if (await openPopup(tab.windowId)) {
+    void tellFrames(tabId, { udPick: 'end', token: held.token });
+    return { ok: true };
+  }
   const word = { udPick: 'card', token: held.token, card: cardOf(status, row) };
   if (!(await tellFrames(tabId, word, 0)) && frameId !== 0) await tellFrames(tabId, word, frameId);
   return { ok: true };
+}
+
+// The popup shows the pick. Chrome before 127 will not open it for an
+// extension like this one, and no browser opens it in a window without focus;
+// the card on the page stands in then.
+async function openPopup(windowId) {
+  try {
+    await chrome.action.openPopup(Number.isInteger(windowId) ? { windowId } : {});
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// The pick the popup shows above the list, while the tab is still on the page
+// it was made on.
+async function pickOn(tabId, url) {
+  const held = await readPick(tabId);
+  if (!held?.status || !held.row) return null;
+  if (!samePage(held.pageUrl, url)) {
+    await changePick(tabId, (now) => (now?.token === held.token ? null : undefined));
+    return null;
+  }
+  return { status: held.status, row: held.row };
+}
+
+// The popup's × on a pick: back to the list.
+async function forgetPick(message) {
+  const tabId = message.tabId;
+  if (!Number.isInteger(tabId) || tabId < 0) return { ok: false };
+  const held = await readPick(tabId);
+  if (held?.status) {
+    await changePick(tabId, (now) => (now?.token === held.token ? null : undefined));
+    void tellFrames(tabId, { udPick: 'end', token: held.token });
+  }
+  return { ok: true };
+}
+
+// The card's Pick again, as the popup's button: a new pick on the same tab,
+// whose start clears the card.
+function pickAgain(_message, { tabId }) {
+  return pick({ tabId });
 }
 
 // As the popup's `apply`: the app's title and still also go with İndir.
@@ -1321,7 +1369,7 @@ async function pickEnd(_message, { tabId, held }) {
 }
 
 // What a picker may ask, and only about the pick it was started for.
-const PAGE_ACTIONS = { picked, pickProbe, pickGet, pickEnd };
+const PAGE_ACTIONS = { picked, pickProbe, pickGet, pickEnd, pickAgain };
 
 async function fromPage(action, message, sender) {
   const tabId = sender.tab?.id;
@@ -1338,6 +1386,7 @@ const ACTIONS = {
   download,
   probe,
   pick,
+  forgetPick,
   // <full>
   connect,
   forget,

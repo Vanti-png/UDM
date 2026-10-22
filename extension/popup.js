@@ -38,6 +38,7 @@ const PROBE_ROWS = 4;
 const PROBE_PARALLEL = 2;
 
 let problem = null;
+let tabId = null;
 
 // <full>
 // Whether this popup opened over one of YouTube's or TikTok's pages. Each
@@ -86,6 +87,8 @@ const checkGlyph = () =>
       'stroke-linejoin': 'round',
     },
   ]);
+const closeGlyph = () =>
+  glyph([{ d: 'M6 6l12 12M18 6 6 18', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.25', 'stroke-linecap': 'round' }]);
 
 // A picture over the play tile. A new one is laid over the old only once it
 // has loaded, so a sharper still replacing a blurry one never flashes the tile
@@ -210,6 +213,48 @@ function featureNode(row) {
   return drawn(row, node, picture, title, meta, button, true);
 }
 
+// What a pick's card says before the app has, by what the click found.
+function pickMeta(status, row) {
+  if (status === 'ready') return firstMeta(row.meta, t);
+  if (status === 'unlisted') return t('unlistedBody');
+  return t(status === 'protected' ? 'kindProtected' : 'pickUnavailable');
+}
+
+// The element picked on the page, which the popup opened itself to show: the
+// feature card, with Pick again beside İndir for a click that took the wrong
+// one, and × back to the list.
+function pickNode({ status, row }, onDismiss) {
+  const node = document.createElement('div');
+  node.className = 'feature picked';
+  const picture = pictureBox('poster', row.thumbnail);
+  const title = line('title', status === 'unlisted' ? t('unlistedTitle') : row.title, 'row-0');
+  const meta = line('meta', pickMeta(status, row));
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button';
+  dismiss.className = 'dismiss';
+  dismiss.title = t('pickClose');
+  dismiss.setAttribute('aria-label', t('pickClose'));
+  dismiss.append(closeGlyph());
+  dismiss.addEventListener('click', onDismiss);
+  const text = document.createElement('div');
+  text.className = 'text';
+  text.append(title, meta, dismiss);
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const again = document.createElement('button');
+  again.type = 'button';
+  again.className = 'again';
+  again.textContent = t('btnPickAgain');
+  again.addEventListener('click', () => startPick(again));
+  actions.append(again);
+  const button = status === 'ready' ? downloadButton(row, 'row-0') : null;
+  if (button) actions.append(button);
+
+  node.append(picture, text, actions);
+  return drawn(row, node, picture, title, meta, button, true);
+}
+
 function emptyNode(titleKey, bodyKey) {
   const box = document.createElement('div');
   box.className = 'empty';
@@ -273,7 +318,15 @@ function renderList(reply) {
   const list = el('list');
   list.classList.remove('single');
   let items = [];
-  if (reply?.protectedService) {
+  if (reply?.picked) {
+    list.classList.add('single');
+    const item = pickNode(reply.picked, async () => {
+      await ask('forgetPick', { tabId });
+      renderList({ ...reply, picked: null });
+    });
+    if (reply.picked.status === 'ready') items = [item];
+    list.replaceChildren(item.node);
+  } else if (reply?.protectedService) {
     list.replaceChildren(emptyNode('protectedTitle', 'protectedBody'));
   } else if (reply?.unlisted) {
     list.replaceChildren(emptyNode('unlistedTitle', 'unlistedBody'));
@@ -444,27 +497,28 @@ for (const [site, id] of Object.entries(SWITCHES)) {
 el('noticeAction').textContent = t('btnRetry');
 el('noticeAction').addEventListener('click', () => checkApp());
 
+el('pick').setAttribute('aria-label', t('btnPick'));
+
 // The popup closes only once the picker runs, so a page that refuses one can
 // say so here.
-el('pick').setAttribute('aria-label', t('btnPick'));
+async function startPick(button) {
+  button.disabled = true;
+  el('pickNotice').hidden = true;
+  const reply = await ask('pick', { tabId });
+  if (reply?.ok) {
+    window.close();
+    return;
+  }
+  button.disabled = false;
+  el('pickNoticeText').textContent = t('pickFailed');
+  el('pickNotice').hidden = false;
+}
 
 function offerPick(tab) {
   const button = el('pick');
   const url = tab?.url;
   button.hidden = !Number.isInteger(tab?.id) || !isHttpUrl(url) || Boolean(protectedService(url)) || unlisted(url);
-  if (button.hidden) return;
-  button.addEventListener('click', async () => {
-    button.disabled = true;
-    el('pickNotice').hidden = true;
-    const reply = await ask('pick', { tabId: tab.id });
-    if (reply?.ok) {
-      window.close();
-      return;
-    }
-    button.disabled = false;
-    el('pickNoticeText').textContent = t('pickFailed');
-    el('pickNotice').hidden = false;
-  });
+  if (!button.hidden) button.addEventListener('click', () => startPick(button));
 }
 
 async function start() {
@@ -474,6 +528,7 @@ async function start() {
   } catch {
     // No tab to speak of, as on a browser's own pages; the list says so.
   }
+  tabId = Number.isInteger(tab?.id) ? tab.id : null;
   const host = displayHost(tab?.url);
   el('host').textContent = host;
   el('host').hidden = host === '';

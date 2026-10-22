@@ -37,11 +37,12 @@ in the popup, the extension outlines the video, sound or picture under your
 pointer, in that tab only, until you click one or press Esc. Of the one you
 click it reads the address (for a picture, also the larger sizes the page
 offers of it, and its size), the poster, the length, whether DRM protects it,
-and the links around it on the page, to find the post it belongs to. A card
-on the page then shows it; the app is asked how it would download it, as for
-the popup's first rows, and it is handed over only when you press **Get** on
-the card. What the click found is kept in session storage until the card
-closes.
+and the links around it on the page, to find the post it belongs to. The
+popup then opens to show it (a card on the page, in a browser that will not
+open the popup); the app is asked how it would download it, as for the
+popup's first rows, and it is handed over only when you press **Get**. What
+the click found is kept in session storage until you close it, pick again or
+the tab leaves that page.
 
 ## What it sends, and where
 
@@ -78,9 +79,9 @@ In `chrome.storage.local`, on your own machine: a random identifier for this
 browser profile, so the app can tell one Chrome profile from another.
 
 In `chrome.storage.session`, in memory: the per-tab lists described above,
-the element you picked until its card closes, and the app's answers about how
-the last few listed videos would download. All of it is gone when the browser
-closes.
+the element you picked until you close it or the tab leaves that page, and the
+app's answers about how the last few listed videos would download. All of it
+is gone when the browser closes.
 
 No cookies are stored by the extension, and no browsing history is kept beyond
 the open tabs.
@@ -143,10 +144,12 @@ sesin ya da resmin çevresine, siz birine tıklayana ya da Esc'ye basana kadar
 bir çerçeve çizer. Tıkladığınızın adresini (resimse sayfanın onun için sunduğu
 daha büyük boyutları ve boyutunu da), kapak görselini, süresini, DRM ile
 korunup korunmadığını ve hangi gönderiye ait olduğunu bulmak için sayfada
-çevresindeki bağlantıları okur. Ardından sayfada bir kart onu gösterir:
-uygulamaya, açılır penceredeki ilk satırlar için olduğu gibi nasıl ineceği
-sorulur; uygulamaya ise yalnızca karttaki **İndir**'e bastığınızda verilir.
-Tıklamanın bulduğu, kart kapanana kadar oturum deposunda tutulur.
+çevresindeki bağlantıları okur. Ardından açılır pencere açılıp onu gösterir
+(açılır pencereyi açmayan bir tarayıcıda sayfada bir kart): uygulamaya,
+açılır penceredeki ilk satırlar için olduğu gibi nasıl ineceği sorulur;
+uygulamaya ise yalnızca **İndir**'e bastığınızda verilir. Tıklamanın bulduğu,
+siz kapatana, yeniden seçene ya da sekme o sayfadan ayrılana kadar oturum
+deposunda tutulur.
 
 ## Neyi, nereye gönderiyor
 
@@ -184,9 +187,9 @@ rastgele bir tanımlayıcı; uygulama bir Chrome profilini diğerinden ayırabil
 diye.
 
 `chrome.storage.session` içinde, bellekte: yukarıda anlatılan sekme
-listeleri, kartı kapanana kadar seçtiğiniz öğe ve uygulamanın listelenen son
-birkaç videonun nasıl ineceğine verdiği yanıtlar. Hepsi tarayıcı kapanınca
-gider.
+listeleri, siz kapatana ya da sekme o sayfadan ayrılana kadar seçtiğiniz öğe
+ve uygulamanın listelenen son birkaç videonun nasıl ineceğine verdiği
+yanıtlar. Hepsi tarayıcı kapanınca gider.
 
 Eklenti hiçbir çerezi saklamaz ve açık sekmelerin ötesinde bir gezinme geçmişi
 tutmaz.

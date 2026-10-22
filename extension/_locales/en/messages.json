@@ -66,6 +66,10 @@
     "message": "Click a video, sound or picture · Esc to cancel",
     "description": "Shown at the top of the page while picking."
   },
+  "btnPickAgain": {
+    "message": "Pick again",
+    "description": "Beside Get under a picked video, sound or picture, in the popup or on the page's card: starts the picker again, for a click that took the wrong one."
+  },
   "pickFailed": {
     "message": "This page doesn't allow picking",
     "description": "Under the popup's heading when the picker could not be put into the page, as on the browser's own pages and the Web Store."

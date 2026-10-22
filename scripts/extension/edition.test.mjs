@@ -301,7 +301,7 @@ describe('the Chrome Web Store build', () => {
     const { token } = fake.session.get('pick:7');
     const tab = { id: 'test', tab: { id: 7 }, frameId: 0 };
 
-    // Nothing from a page but the picker's four, and those only with the token.
+    // Nothing from a page but what the picker may ask, and that only with the token.
     assert.equal(await ask(fake, { action: 'download', payload: PAYLOAD }, tab), 'unanswered');
     assert.equal(await ask(fake, { action: 'pickGet', token: 'guess' }, tab), null);
     assert.equal(await ask(fake, { action: 'pickGet', token }, { ...tab, tab: { id: 8 } }), null);
@@ -322,11 +322,60 @@ describe('the Chrome Web Store build', () => {
     assert.equal(fake.sent[0].url, picture);
     assert.equal(fake.sent[0].kind, 'image');
 
+    // Pick again on the card starts a new pick, and the old token is spent.
+    assert.deepEqual(await ask(fake, { action: 'pickAgain', token }, tab), { ok: true });
+    const next = fake.session.get('pick:7').token;
+    assert.notEqual(next, token);
+    assert.equal(await ask(fake, { action: 'pickGet', token }, tab), null);
+
     // Closing the card ends the pick in every frame, and its token with it.
-    await ask(fake, { action: 'pickEnd', token }, tab);
+    await ask(fake, { action: 'pickEnd', token: next }, tab);
     assert.ok(!fake.session.has('pick:7'));
     assert.ok(fake.told.some((word) => word.message.udPick === 'end' && word.frameId === undefined));
-    assert.equal(await ask(fake, { action: 'pickGet', token }, tab), null);
+    assert.equal(await ask(fake, { action: 'pickGet', token: next }, tab), null);
+  });
+
+  test('a pick opens the popup, which shows it while the tab is on that page', async () => {
+    const fake = fakeChrome({ sessions: false, answer: () => ({ ok: true, status: { canDownload: true } }) });
+    let page = 'https://blog.example/post/7';
+    fake.chrome.tabs.get = async (id) => ({ id, url: page, title: 'Post', windowId: 3 });
+    fake.chrome.scripting.executeScript = async (details) =>
+      details.func?.name === 'startPicker' ? [{ frameId: 0, result: true }] : [];
+    const opened = [];
+    fake.chrome.action.openPopup = async (options) => {
+      opened.push(options);
+    };
+    globalThis.chrome = fake.chrome;
+    await import(pathToFileURL(join(unpacked(build), 'background.js')).href);
+
+    const tab = { id: 'test', tab: { id: 7 }, frameId: 0 };
+    const picture = 'https://blog.example/media/sunset.jpg';
+    const pickOnce = async () => {
+      await ask(fake, { action: 'pick', tabId: 7 });
+      const { token } = fake.session.get('pick:7');
+      const pick = { tag: 'image', href: page, src: picture, width: 1600, height: 900, links: [] };
+      assert.deepEqual(await ask(fake, { action: 'picked', token, pick }, tab), { ok: true });
+    };
+
+    // The popup opens over the page instead of a card, and the picker leaves it.
+    await pickOnce();
+    assert.deepEqual(opened, [{ windowId: 3 }]);
+    assert.ok(!fake.told.some((word) => word.message.udPick === 'card'));
+    assert.ok(fake.told.some((word) => word.message.udPick === 'end'));
+    const shown = (await ask(fake, { action: 'scan', tabId: 7 })).picked;
+    assert.equal(shown.status, 'ready');
+    assert.equal(shown.row.payload.url, picture);
+    assert.equal(shown.row.payload.kind, 'image');
+
+    // Its × goes back to the list.
+    await ask(fake, { action: 'forgetPick', tabId: 7 });
+    assert.equal((await ask(fake, { action: 'scan', tabId: 7 })).picked, null);
+
+    // A pick is not shown over another page, and is let go of there.
+    await pickOnce();
+    page = 'https://blog.example/post/8';
+    assert.equal((await ask(fake, { action: 'scan', tabId: 7 })).picked, null);
+    assert.ok(!fake.session.has('pick:7'));
   });
 });
 

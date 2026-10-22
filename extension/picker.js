@@ -31,6 +31,8 @@
       all: initial;
       --surface: #ffffff;
       --fill: rgb(0 0 0 / 0.05);
+      --fill-hover: rgb(0 0 0 / 0.08);
+      --fill-active: rgb(0 0 0 / 0.11);
       --surface-active: #e6e6e9;
       --border: rgb(0 0 0 / 0.08);
       --text-primary: #1d1d1f;
@@ -40,6 +42,8 @@
       --accent-hover: #933a08;
       --accent-fg: #ffffff;
       --accent-soft: rgb(172 68 11 / 0.12);
+      --accent-sheen: rgb(172 68 11 / 0.22);
+      --accent-glow: rgb(172 68 11 / 0.45);
       --success: #0e7046;
       --error: #b4271c;
       --ink: rgb(29 29 31 / 0.92);
@@ -51,6 +55,8 @@
       :host {
         --surface: #2c2c2e;
         --fill: rgb(255 255 255 / 0.08);
+        --fill-hover: rgb(255 255 255 / 0.12);
+        --fill-active: rgb(255 255 255 / 0.16);
         --surface-active: #3a3a3d;
         --border: rgb(255 255 255 / 0.1);
         --text-primary: #f5f5f7;
@@ -60,6 +66,8 @@
         --accent-hover: #ff9d69;
         --accent-fg: #1d0e05;
         --accent-soft: rgb(255 138 76 / 0.16);
+        --accent-sheen: rgb(255 138 76 / 0.26);
+        --accent-glow: rgb(255 138 76 / 0.55);
         --success: #58cd8e;
         --error: #ff857a;
         --ink: rgb(44 44 46 / 0.94);
@@ -78,14 +86,28 @@
       color: var(--text-primary);
       -webkit-font-smoothing: antialiased;
     }
+    /* The element under the pointer glows, breathing, so it reads as the one
+       a click would take; once taken, it holds still. The white rim keeps the
+       glow apart from whatever colours the picture has. */
     .box {
       position: fixed;
       border: 2px solid var(--accent);
-      border-radius: 4px;
+      border-radius: 6px;
       background: var(--accent-soft);
+      box-shadow: 0 0 0 1px rgb(255 255 255 / 0.7), 0 0 14px 3px var(--accent-glow);
+      animation: glow 1.1s ease-in-out infinite alternate;
       transition-property: left, top, width, height;
       transition-duration: 60ms;
       transition-timing-function: var(--ease-out);
+    }
+    .box.held {
+      animation: none;
+    }
+    @keyframes glow {
+      to {
+        background: var(--accent-sheen);
+        box-shadow: 0 0 0 1px rgb(255 255 255 / 0.8), 0 0 28px 8px var(--accent-glow);
+      }
     }
     /* Over the hovered element, so the click is the picker's: a native
        player's controls take a press before any listener hears it. */
@@ -298,6 +320,39 @@
       width: 15px;
       height: 15px;
     }
+    .actions {
+      display: flex;
+      gap: 8px;
+    }
+    .actions .get {
+      flex: 1;
+      width: auto;
+    }
+    /* The app's secondary button. */
+    .again {
+      flex: 1;
+      height: 34px;
+      padding: 0 12px;
+      border: 0;
+      border-radius: 10px;
+      background: var(--fill);
+      color: var(--text-primary);
+      font-size: 13px;
+      font-weight: 500;
+      cursor: pointer;
+      transition: transform 150ms var(--ease-out), background-color 150ms var(--ease-out);
+    }
+    .again:hover:not(:disabled) {
+      background: var(--fill-hover);
+    }
+    .again:active:not(:disabled) {
+      background: var(--fill-active);
+      transform: scale(0.98);
+    }
+    .again:disabled {
+      opacity: 0.45;
+      cursor: default;
+    }
     .close {
       position: absolute;
       top: -3px;
@@ -494,6 +549,7 @@
       each.style.height = `${rect.height}px`;
     }
     box.hidden = false;
+    box.classList.toggle('held', held !== null);
     catcher.hidden = !picking || held !== null;
     tag.hidden = false;
     tag.textContent = [t(KIND_WORDS[found.kind]), sizeOf(found)].filter(Boolean).join(' · ');
@@ -807,6 +863,13 @@
     notice.hidden = true;
     box.append(poster, text, notice);
 
+    const actions = node('div', 'actions');
+    const again = node('button', 'again', t('btnPickAgain'));
+    again.type = 'button';
+    again.addEventListener('click', (event) => {
+      if (event.isTrusted && !again.disabled) void pickAgain(again, notice);
+    });
+    actions.append(again);
     let button = null;
     if (card.canGet) {
       button = node('button', 'get', t('btnDownload'));
@@ -815,8 +878,9 @@
       button.addEventListener('click', (event) => {
         if (event.isTrusted && !button.dataset.state) void press(button, notice);
       });
-      box.append(button);
+      actions.append(button);
     }
+    box.append(actions);
     root.append(box);
     parts.card = box;
     (button ?? close).focus({ preventScroll: true });
@@ -830,6 +894,17 @@
     if (answer?.thumbnail) showPicture(poster, answer.thumbnail);
     if (answer?.meta) meta.textContent = answer.meta;
     if (answer?.canGet === false) button?.remove();
+  }
+
+  // The worker starts a new pick on this tab, whose start clears this card.
+  async function pickAgain(button, notice) {
+    button.disabled = true;
+    notice.hidden = true;
+    const reply = await send({ action: 'pickAgain' });
+    if (reply?.ok || !button.isConnected) return;
+    button.disabled = false;
+    notice.textContent = t('pickFailed');
+    notice.hidden = false;
   }
 
   function start(next) {
