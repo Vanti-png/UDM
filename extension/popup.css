@@ -13,8 +13,54 @@ body {
 }
 
 header {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
   padding: 2px 4px 0;
   min-width: 0;
+}
+
+.heading {
+  flex: 1;
+  min-width: 0;
+}
+
+/* The page picker's button, as the app's small IconButton. */
+.pick {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  margin: -1px -4px 0 0;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+  transition-property: background-color, color, transform;
+  transition-duration: var(--t-micro);
+  transition-timing-function: var(--ease-out);
+}
+
+.pick:hover:not(:disabled) {
+  background: var(--fill-hover);
+  color: var(--text-primary);
+}
+
+.pick:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.pick:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.pick svg {
+  width: 18px;
+  height: 18px;
 }
 
 h1 {
@@ -196,6 +242,79 @@ h1 {
   height: 34px;
   border-radius: var(--radius-control);
   font-size: 13px;
+}
+
+/* A pick from the page, its × beside the title. */
+.picked .text {
+  position: relative;
+  padding-right: 24px;
+}
+
+.dismiss {
+  position: absolute;
+  top: -3px;
+  right: -6px;
+  display: grid;
+  place-items: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: none;
+  color: var(--text-secondary);
+  cursor: pointer;
+}
+
+.dismiss:hover {
+  background: var(--fill);
+  color: var(--text-primary);
+}
+
+.dismiss svg {
+  width: 12px;
+  height: 12px;
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+}
+
+.actions .get {
+  flex: 1;
+  width: auto;
+}
+
+/* The app's secondary button. */
+.again {
+  flex: 1;
+  height: 34px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: var(--radius-control);
+  background: var(--fill);
+  color: var(--text-primary);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition-property: transform, background-color;
+  transition-duration: var(--t-micro);
+  transition-timing-function: var(--ease-out);
+}
+
+.again:hover:not(:disabled) {
+  background: var(--fill-hover);
+}
+
+.again:active:not(:disabled) {
+  background: var(--fill-active);
+  transform: scale(0.98);
+}
+
+.again:disabled {
+  opacity: 0.45;
+  cursor: default;
 }
 
 /* Waiting for the app to say what it would download: the app's skeleton, a

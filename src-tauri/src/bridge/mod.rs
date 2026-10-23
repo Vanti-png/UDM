@@ -25,12 +25,12 @@
 //!   lend or withdraw its session without touching the other's, and the engine
 //!   is only ever handed the cookies of the site it is reading.
 //! * `session-other.bin` -- one more site's, whichever the user last pressed
-//!   İndir on in the extension with its "Other sites" switch on: that site's
-//!   domain and its cookies alone, sealed the same way, replaced by the next
-//!   such press and deleted an hour after it was captured. Lent on the first
-//!   engine run of a link on that site, rather than after a refusal as the
-//!   two above are, because no wall the engine reports says "this site would
-//!   show it to you signed in" in words the app could tell apart.
+//!   İndir on in the extension with its "Session on other sites" switch on:
+//!   that site's domain and its cookies alone, sealed the same way, replaced
+//!   by the next such press and deleted an hour after it was captured. Lent on
+//!   the first engine run of a link on that site, rather than after a refusal
+//!   as the two above are, because no wall the engine reports says "this site
+//!   would show it to you signed in" in words the app could tell apart.
 //! * `entropy.bin` -- per-install random bytes mixed into that encryption, so
 //!   the blobs cannot be decrypted by another app running as the same user
 //!   without also stealing this file.

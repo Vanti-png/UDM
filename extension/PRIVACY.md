@@ -31,16 +31,28 @@ loaded it -- the same request the page made, often answered from the browser's
 cache. The popup shows the page's preview images, loaded from the site that
 serves them.
 
+**The element you pick on the page.** When you press **Pick from the page**
+in the popup, the extension outlines the video, sound or picture under your
+pointer, in that tab only, until you click one or press Esc. Of the one you
+click it reads the address (for a picture, also the larger sizes the page
+offers of it, and its size), the poster, the length, whether DRM protects it,
+and the links around it on the page, to find the post it belongs to. The
+popup then opens to show it (a card on the page, in a browser that will not
+open the popup); the app is asked how it would download it, as for the
+popup's first rows, and it is handed over only when you press **Get**. What
+the click found is kept in session storage until you close it, pick again or
+the tab leaves that page.
+
 **Your sign-ins, each only if you turn it on.** With the **YouTube session**
 switch on, the extension reads the cookies of **youtube.com**, so the app can
 download members-only videos your own membership gives you. With the **TikTok
 session** switch on, it reads the cookies of **tiktok.com**, so the app can
 download age-restricted posts your own TikTok account can see. With the
-**Other sites** switch on, and only at the moment you press **Get** on a page
-of some other site -- Instagram, X, Facebook, Vimeo, Reddit and so on -- it
-reads that one site's cookies (the page's own domain, such as instagram.com,
-and its subdomains), so the app can download a post your own account on that
-site can see. Nothing else is read: no cookies of a site you did not press
+**Session on other sites** switch on, and only at the moment you press **Get**
+on a page of some other site -- Instagram, X, Facebook, Vimeo, Reddit and so
+on -- it reads that one site's cookies (the page's own domain, such as
+instagram.com, and its subdomains), so the app can download a post your own
+account on that site can see. Nothing else is read: no cookies of a site you did not press
 Get on, and none in the background. Each switch is off until you turn it on,
 and turning one on does not turn on another.
 
@@ -51,14 +63,16 @@ desktop application, running on the same computer as your browser. Chrome starts
 that program itself, over its native messaging channel, and only for this
 extension.
 
-- **When the popup lists a video:** the same details as below, for each of the
-  first few items it lists, so the app can say what it would download -- the
-  title, the picture, the quality, the format and roughly the size. The app
+- **When the popup lists a video, or the picker's card shows one:** the same
+  details as below, for each of the first few items it lists and for the one
+  you picked, so the app can say what it would download -- the title, the
+  picture, the quality, the format and roughly the size. The app
   reads the video's page or stream from the site to answer, as it would before
   downloading; it downloads nothing and keeps nothing for this.
-- **When you press Get (İndir in Turkish):** that one item's address and kind, the
-  page's title and address, the referring address and origin the request was
-  made with, your browser's user-agent string and the preview image address.
+- **When you press Get (İndir in Turkish), in the popup or on the card:**
+  that one item's address and kind, the page's title and address, the
+  referring address and origin the request was made with, your browser's
+  user-agent string and the preview image address.
   The app opens the video, and when you have chosen the quality and the
   watermark and pressed download there, downloads it from the site, as your
   browser would.
@@ -81,13 +95,13 @@ extension.
   for a TikTok download that needs them, and deletes them when you turn the
   switch off, after seven days without a refresh, or when you sign out of
   TikTok.
-- **When you press Get with Other sites on:** the cookies of that page's site,
-  just before the item itself, and at no other time -- not when they change,
-  not when you open the popup, not once a day. The app keeps only that
-  site's, encrypted the same way, hands them to the download engine only for
-  a download from that site, and deletes them an hour after they were sent,
-  when you press Get on another site (which replaces them), or when you turn
-  the switch off. If the browser has no cookies for that site, nothing is
+- **When you press Get with Session on other sites on:** the cookies of that
+  page's site, just before the item itself, and at no other time -- not when
+  they change, not when you open the popup, not once a day. The app keeps only
+  that site's, encrypted the same way, hands them to the download engine only
+  for a download from that site, and deletes them an hour after they were
+  sent, when you press Get on another site (which replaces them), or when you
+  turn the switch off. If the browser has no cookies for that site, nothing is
   kept, and what was held for the site before goes.
 
 You can confirm all of this by reading `background.js`, which is not minified
@@ -98,10 +112,11 @@ or obfuscated.
 In `chrome.storage.local`, on your own machine: a random identifier for this
 browser profile (so the app can tell one Chrome profile from another), whether
 you turned the YouTube session off, whether you turned the TikTok session and
-Other sites on, and what the app last said about this profile's connection
-(connected, turned off in the app, or not connected).
+Session on other sites on, and what the app last said about this profile's
+connection (connected, turned off in the app, or not connected).
 
-In `chrome.storage.session`, in memory: the per-tab lists described above.
+In `chrome.storage.session`, in memory: the per-tab lists described above,
+and the element you picked, until you close it or the tab leaves that page.
 
 No cookies are stored by the extension, and no browsing history is kept beyond
 the open tabs.
@@ -110,8 +125,8 @@ the open tabs.
 
 - Nothing about the pages you visit leaves the browser until you press
   **Get**, and your cookies leave it only while the **YouTube session**,
-  **TikTok session** or **Other sites** switch is on -- and only that site's.
-  An other site's leave it only when you press Get on its page.
+  **TikTok session** or **Session on other sites** switch is on -- and only
+  that site's. An other site's leave it only when you press Get on its page.
 - Turning a switch off stops that site's cookies being sent and tells the app
   to delete what it holds of them, even if the app is closed at the time.
 - Removing the extension stops it entirely.
@@ -162,16 +177,30 @@ sayfanın içinden yeniden okuyabilir -- sayfanın yaptığı isteğin aynısı;
 zaman tarayıcının önbelleğinden yanıtlanır. Açılır pencere, sayfanın önizleme
 görsellerini onları sunan siteden yükleyerek gösterir.
 
+**Sayfada seçtiğiniz öğe.** Açılır penceredeki **Sayfadan seç**'e
+bastığınızda eklenti, yalnızca o sekmede, işaretçinizin altındaki videonun,
+sesin ya da resmin çevresine, siz birine tıklayana ya da Esc'ye basana kadar
+bir çerçeve çizer. Tıkladığınızın adresini (resimse sayfanın onun için sunduğu
+daha büyük boyutları ve boyutunu da), kapak görselini, süresini, DRM ile
+korunup korunmadığını ve hangi gönderiye ait olduğunu bulmak için sayfada
+çevresindeki bağlantıları okur. Ardından açılır pencere açılıp onu gösterir
+(açılır pencereyi açmayan bir tarayıcıda sayfada bir kart): uygulamaya,
+açılır penceredeki ilk satırlar için olduğu gibi nasıl ineceği sorulur;
+uygulamaya ise yalnızca **İndir**'e bastığınızda verilir. Tıklamanın bulduğu,
+siz kapatana, yeniden seçene ya da sekme o sayfadan ayrılana kadar oturum
+deposunda tutulur.
+
 **Oturumlarınız, her biri yalnızca siz açarsanız.** **YouTube oturumu**
 anahtarı açıkken eklenti **youtube.com** çerezlerini okur; böylece uygulama
 kendi üyeliğinizin erişim verdiği üyelere özel videoları indirebilir.
 **TikTok oturumu** anahtarı açıkken **tiktok.com** çerezlerini okur; böylece
 uygulama kendi TikTok hesabınızın görebildiği yaş sınırlı gönderileri
-indirebilir. **Diğer siteler** anahtarı açıkken, yalnızca başka bir sitenin
--- Instagram, X, Facebook, Vimeo, Reddit gibi -- sayfasında **İndir**'e
-bastığınız anda, o tek sitenin çerezlerini (sayfanın kendi alan adının,
-örneğin instagram.com'un, ve alt alan adlarının çerezlerini) okur; böylece
-uygulama o sitedeki kendi hesabınızın görebildiği bir gönderiyi indirebilir.
+indirebilir. **Diğer sitelerde oturum** anahtarı açıkken, yalnızca başka bir
+sitenin -- Instagram, X, Facebook, Vimeo, Reddit gibi -- sayfasında
+**İndir**'e bastığınız anda, o tek sitenin çerezlerini (sayfanın kendi alan
+adının, örneğin instagram.com'un, ve alt alan adlarının çerezlerini) okur;
+böylece uygulama o sitedeki kendi hesabınızın görebildiği bir gönderiyi
+indirebilir.
 Başka hiçbir şey okunmaz: İndir'e basmadığınız bir sitenin çerezleri de,
 arka planda hiçbir çerez de. Her anahtar siz açana kadar kapalıdır ve birini
 açmak diğerlerini açmaz.
@@ -183,14 +212,15 @@ uygulamasının parçası olan `ud-bridge.exe` adlı programa. O programı Chrom
 kendisi başlatır, kendi yerel mesajlaşma kanalı üzerinden, yalnızca bu eklenti
 için.
 
-- **Açılır pencere bir video listelediğinde:** listelediği ilk birkaç öğenin
-  her biri için aşağıdakiyle aynı bilgiler; böylece uygulama ne indireceğini
+- **Açılır pencere bir video listelediğinde ya da seçicinin kartı birini
+  gösterdiğinde:** listelediği ilk birkaç öğenin ve seçtiğiniz öğenin her biri
+  için aşağıdakiyle aynı bilgiler; böylece uygulama ne indireceğini
   söyleyebilir -- başlığı, görseli, kaliteyi, biçimi ve yaklaşık boyutu.
   Uygulama bunu yanıtlamak için videonun sayfasını ya da akışını, indirmeden
   önce yapacağı gibi siteden okur; bunun için hiçbir şey indirmez, hiçbir şey
   saklamaz.
-- **İndir'e bastığınızda:** yalnızca o öğenin adresi ve türü, sayfanın başlığı
-  ve adresi, isteğin yapıldığı yönlendiren adres ve köken, tarayıcınızın
+- **Açılır pencerede ya da kartta İndir'e bastığınızda:** yalnızca o öğenin
+  adresi ve türü, sayfanın başlığı ve adresi, isteğin yapıldığı yönlendiren adres ve köken, tarayıcınızın
   kullanıcı aracısı dizesi ve önizleme görselinin adresi. Uygulama videoyu
   açar; kaliteyi ve filigranı seçip indirmeyi seçtiğinizde, tarayıcınızın
   yapacağı gibi siteden indirir. Basmadığınız öğeler indirilmez.
@@ -211,8 +241,8 @@ için.
   saklar, indirme motoruna yalnızca onlara ihtiyaç duyan bir TikTok indirmesi
   için verir; anahtarı kapattığınızda, yedi gün yenilenmezse ya da TikTok'tan
   çıkış yaparsanız siler.
-- **Diğer siteler açıkken İndir'e bastığınızda:** o sayfanın sitesinin
-  çerezleri, öğenin kendisinden hemen önce ve başka hiçbir zaman --
+- **Diğer sitelerde oturum açıkken İndir'e bastığınızda:** o sayfanın
+  sitesinin çerezleri, öğenin kendisinden hemen önce ve başka hiçbir zaman --
   değiştiklerinde de, açılır pencereyi açtığınızda da, günde bir kez de
   gönderilmez. Uygulama yalnızca o siteye ait olanları tutar, onları aynı
   şekilde şifreli saklar, indirme motoruna yalnızca o siteden bir indirme için
@@ -229,10 +259,12 @@ okuyarak doğrulayabilirsiniz.
 Kendi makinenizdeki `chrome.storage.local` içinde: bu tarayıcı profili için
 rastgele bir tanımlayıcı (uygulama bir Chrome profilini diğerinden ayırabilsin
 diye), YouTube oturumunu kapatıp kapatmadığınız, TikTok oturumunu ve Diğer
-siteler anahtarını açıp açmadığınız ve uygulamanın bu profilin bağlantısı
-hakkında en son ne dediği (bağlı, uygulamada kapalı ya da bağlı değil).
+sitelerde oturum anahtarını açıp açmadığınız ve uygulamanın bu profilin
+bağlantısı hakkında en son ne dediği (bağlı, uygulamada kapalı ya da bağlı
+değil).
 
-`chrome.storage.session` içinde, bellekte: yukarıda anlatılan sekme listeleri.
+`chrome.storage.session` içinde, bellekte: yukarıda anlatılan sekme listeleri
+ve siz kapatana ya da sekme o sayfadan ayrılana kadar seçtiğiniz öğe.
 
 Eklenti hiçbir çerezi saklamaz ve açık sekmelerin ötesinde bir gezinme geçmişi
 tutmaz.
@@ -241,8 +273,8 @@ tutmaz.
 
 - Ziyaret ettiğiniz sayfalarla ilgili hiçbir şey, İndir'e basana kadar
   tarayıcıdan çıkmaz; çerezleriniz yalnızca **YouTube oturumu**, **TikTok
-  oturumu** ya da **Diğer siteler** anahtarı açıkken ve yalnızca o sitenin
-  olanları çıkar. Diğer bir sitenin çerezleri yalnızca onun sayfasında
+  oturumu** ya da **Diğer sitelerde oturum** anahtarı açıkken ve yalnızca o
+  sitenin olanları çıkar. Diğer bir sitenin çerezleri yalnızca onun sayfasında
   İndir'e bastığınızda çıkar.
 - Bir anahtarı kapatmak o sitenin çerezlerinin gönderilmesini durdurur ve
   uygulamaya o siteden elindekini silmesini söyler; uygulama o sırada kapalı

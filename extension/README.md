@@ -14,11 +14,12 @@ native messaging channel to the app on the same computer:
   and age-restricted posts the user's own TikTok account can see can be
   downloaded. Chrome 127 encrypts its cookie database against other programs on
   the same machine, which is what stopped the download engine reading it
-  directly. A third switch, **Diğer siteler** (Other sites), lends one more:
-  the sign-in of the site whose page **İndir** is pressed on, read at that
-  press for that site's registrable domain alone and sent just before the
-  download as a `pushSite` with `site: "other"` and the `domain`. Never in the
-  background, never YouTube's or TikTok's, and the app keeps it an hour.
+  directly. A third switch, **Diğer sitelerde oturum** (Session on other
+  sites), lends one more: the sign-in of the site whose page **İndir** is
+  pressed on, read at that press for that site's registrable domain alone and
+  sent just before the download as a `pushSite` with `site: "other"` and the
+  `domain`. Never in the background, never YouTube's or TikTok's, and the app
+  keeps it an hour.
 
 Nothing here listens on a port. Chrome starts `ud-bridge.exe` itself, only for
 this extension's ids, and only because the app wrote a registry value under the
@@ -30,10 +31,12 @@ from there. No host reply ever carries cookie material.
 
 | File | What it does |
 |---|---|
-| `media.js` | Pure helpers, no `chrome.*`: what a response is (`classify`), HLS and DASH manifests (`parseHls`, `parseDash`), and the popup's list (`rows`). Shared by the worker and the popup. |
+| `media.js` | Pure helpers, no `chrome.*`: what a response is (`classify`), HLS and DASH manifests (`parseHls`, `parseDash`), the popup's list (`rows`) and what a click of the page picker stands for (`pickedRow`). Shared by the worker and the popup. |
+| `describe.js` | The words a row is described in (`firstMeta`, `detailMeta`) and what the app's answer means for the user (`problemOf`). Pure; the popup's list and the picker's card say a row alike. |
 | `sessions.js` | Pure helpers for the lent sessions: which domain each site's cookies are read from, which of them mean a sign-in, which changes are worth a push, the push's wire head (`push` for YouTube, `pushSite` for any other site), and for the other sites' switch which site a page is (`registrableDomain`, `otherSiteOf`). |
 | `background.js` | The service worker (an ES module). Watches `webRequest`, keeps a list per tab in `chrome.storage.session`, draws the badge, answers the popup, talks to the host. |
-| `popup.*` | The list, the **İndir** buttons and the session switches (TikTok's only on TikTok pages, the other sites' only on other sites' pages, each also while it is on). |
+| `popup.*` | The list, the **İndir** buttons, the page picker's button and the session switches (TikTok's only on TikTok pages, the other sites' only on other sites' pages, each also while it is on). |
+| `picker.js` | The page picker, the only script this extension puts into a page, and only when its button is pressed: makes the video, sound or picture under the pointer glow in every frame and reports the one clicked; where the browser will not open the popup to show it, draws a card with **İndir** in the top frame instead. A plain script, since that is what `executeScript` injects. |
 | `welcome.*` | Opened once, on install. |
 | `theme.css`, `fonts/` | The app's tokens and its typeface (Inter, OFL; the licence ships beside it). |
 
@@ -52,6 +55,22 @@ from there. No host reply ever carries cookie material.
 4. **İndir** sends `{ type: "download", …peer, url, kind, title, pageUrl,
    referer, origin, userAgent, thumbnail }` (Contract A). The host writes it to
    the app's inbox and starts the app with `--handoff`.
+5. **Pick from the page** (the button beside the popup's heading) injects
+   `picker.js` into every frame of the tab and starts it with a fresh token,
+   kept in session storage as `pick:<id>`. A click reports the element -- its
+   source, the widest picture its `srcset` offers, its size, and the links
+   around it, nearest first -- and `media.pickedRow` decides what it stands
+   for: the post it is part of on a site the app reads by address (a tweet in a
+   timeline), the file it plays, the stream its frame fetched, or the page.
+   Pictures go as a fifth kind, `image`, which an app from before it reads as
+   `page`. The worker then opens the popup (`action.openPopup`), which shows
+   the pick above the list with **İndir**, **Pick again** and × back to the
+   list, for as long as the tab stays on that page. Chrome before 127 will not
+   open it for an extension like this one; there the top frame draws a card
+   with the same buttons. The worker keeps the payload; the card only names
+   the pick by its token, and a message from a tab is answered only for
+   `picked`, `pickProbe`, `pickGet`, `pickEnd` and `pickAgain` with that tab's
+   token.
 
 On YouTube and the other sites the app reads by address (`PAGE_SITES` in
 `media.js`), the popup offers the page itself rather than the pieces the player
@@ -130,9 +149,10 @@ against a `chrome` with only the store's permissions.
 `node scripts/pack-extension.mjs` writes `extension-upload.zip` at the
 repository root: the store build, for the Chrome Web Store, and the only zip
 that ever goes there. `--full` writes `extension-full.zip`, the full build for
-Chrome, published beside the app for loading unpacked. Both remove the `key`
-from the manifest -- Google's guidance is
-to strip it -- and leaves out `key.pem` (which must never leave the machine that
+Chrome, published beside the app for loading unpacked. The store build removes
+the `key` from the manifest -- Google's guidance is to strip it -- while the
+full build keeps it, since an unpacked copy without it gets an id from its
+folder that the host refuses. Both leave out `key.pem` (which must never leave the machine that
 publishes), `make-icons.mjs`, `.gitignore`, these notes, `PRIVACY.md`,
 `PRIVACY-CHROME.md`, `STORE-LISTING.md` and any test file; the store build
 also leaves out `sessions.js`. Everything else ships, `media.js` and
@@ -168,11 +188,13 @@ The permissions map onto it:
 - `webRequest` with `<all_urls>` -- seeing which videos a tab plays. There is
   no narrower pattern: the videos come from whatever server the site uses.
 - `scripting` -- reading the page's video elements and title when the popup
-  opens, and re-reading a stream's playlist inside the page for its quality.
+  opens, and re-reading a stream's playlist inside the page for its quality;
+  and, when the user presses **Pick from the page**, drawing the picker in that
+  tab and reading the element clicked.
 - `nativeMessaging` -- the only channel out. No remote endpoint, no analytics.
 - `cookies` -- youtube.com and tiktok.com, each only while its switch is on;
-  and with Other sites on, the site of the page İndir is pressed on, at that
-  press only.
+  and with Session on other sites on, the site of the page İndir is pressed
+  on, at that press only.
 - `storage` -- a profile id, the three switches, the host's last word on the
   link, and the per-tab lists (session storage, gone when the browser closes).
 - `alarms` -- a daily refresh, so a lent session does not go stale unnoticed.

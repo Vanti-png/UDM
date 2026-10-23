@@ -161,6 +161,7 @@ export const tr: Record<TranslationKey, string> = {
   'convert.resetFolder': 'Sıfırla',
   'convert.start': 'Dönüştür',
   'convert.startMany': '{n} dosyayı dönüştür',
+  'convert.pickRecent': 'Dönüştür: {title}',
   'convert.jobs': 'Dönüşümler',
   'convert.working': 'Dönüştürülüyor',
   'convert.remove': 'Kaldır',
@@ -205,6 +206,7 @@ export const tr: Record<TranslationKey, string> = {
   'convert.formatHint.jp2': 'JPEG 2000, arşiv için',
 
   'history.title': 'Geçmiş',
+  'history.recent': 'Son indirilenler',
   'history.emptyTitle': 'Henüz indirme yok',
   'history.emptyBody': 'Tamamlanan indirmelerin burada görünür.',
   'history.search': 'Geçmişte ara',
@@ -290,7 +292,7 @@ export const tr: Record<TranslationKey, string> = {
     'Tarayıcında oynayan videoları tek tıkla bu uygulamaya gönderir.',
   'settings.browserLink': 'Tarayıcı oturumları',
   'settings.browserLinkHint':
-    "Yalnızca hesabının görebildiği videolar için tarayıcındaki YouTube ve TikTok oturumlarını, uzantıda Diğer siteler açıksa İndir'e bastığın sitenin oturumunu da kullanır. Oturumlar bu bilgisayarda şifreli durur; diğer sitelerinki bir saat sonra silinir. Oturumlar uzantının tam sürümünde var (Firefox ve GitHub); Chrome Web Mağazası sürümünde yok.",
+    "Yalnızca hesabının görebildiği videolar için tarayıcındaki YouTube ve TikTok oturumlarını, uzantıda Diğer sitelerde oturum açıksa İndir'e bastığın sitenin oturumunu da kullanır. Oturumlar bu bilgisayarda şifreli durur; diğer sitelerinki bir saat sonra silinir. Oturumlar uzantının tam sürümünde var (Firefox ve GitHub); Chrome Web Mağazası sürümünde yok.",
   'settings.linkBroken': 'Tarayıcılar yardımcıyı başlatamıyor',
   'settings.linkBrokenHint':
     'Uzantının bu uygulamaya ulaşmasını sağlayan kayıt eksik ya da başka bir yeri gösteriyor. Bunu bir tarayıcı güncellemesi, bir temizlik aracı veya uygulamanın ikinci bir kopyası yapmış olabilir. Onar, kaydı geri yazar.',
@@ -565,7 +567,6 @@ export const tr: Record<TranslationKey, string> = {
   'editor.pickTitle': 'Düzenlenecek bir video seç',
   'editor.pickBody': 'Bu telefondan ya da bir bağlantıdan.',
   'editor.chooseVideo': 'Video seç',
-  'editor.recent': 'Son indirilenler',
   'editor.openRecent': 'Düzenle: {title}',
   'editor.percent': '%{value}',
 

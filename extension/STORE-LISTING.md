@@ -8,7 +8,7 @@ switches, carries none of their code and does not ask for `cookies` or `alarms`.
 strips the development `key` from the manifest, as Google's guidance says, and leaves out
 `key.pem`, `sessions.js`, the icon generator, the notes and any test file. Bump `version` in
 `extension/manifest.json` before every upload; Chrome refuses a package whose version has not
-increased. This one is **1.0.7** (1.0.6 was built but never uploaded).
+increased. This one is **1.0.8**.
 
 **Images:** `store-assets/`, from `node scripts/build-store-assets.mjs` (rerun it whenever the
 popup or the mark changes). They are photographs of the store build's real popup, rendered with
@@ -173,7 +173,7 @@ Bir sekmenin hangi videoları ve sesleri oynattığını görmek için. Eklenti,
 **İzin: scripting**
 
 ```
-Kullanıcı araç çubuğundaki simgeye tıkladığında, yalnızca o anki sekmede iki küçük işlev çalıştırmak için: biri sayfanın başlığını, önizleme görselini ve <video>/<audio> öğelerini (adres, kapak, süre, çözünürlük, DRM kullanılıp kullanılmadığı) okur; diğeri bir akışın oynatma listesini, onu ilk yükleyen çerçevenin içinden yeniden okuyarak kalitesini ve süresini öğrenir. Bu işlevler sayfayı değiştirmez, kalıcı bir betik bırakmaz ve kullanıcı tıklamadan hiç çalışmaz.
+Kullanıcı araç çubuğundaki simgeye tıkladığında, yalnızca o anki sekmede iki küçük işlev çalıştırmak için: biri sayfanın başlığını, önizleme görselini ve <video>/<audio> öğelerini (adres, kapak, süre, çözünürlük, DRM kullanılıp kullanılmadığı) okur; diğeri bir akışın oynatma listesini, onu ilk yükleyen çerçevenin içinden yeniden okuyarak kalitesini ve süresini öğrenir. Bu işlevler sayfayı değiştirmez, kalıcı bir betik bırakmaz ve kullanıcı tıklamadan hiç çalışmaz. Kullanıcı açılır penceredeki "Sayfadan seç" düğmesine bastığında da, yalnızca o sekmede, paketteki picker.js'i çalıştırmak için: işaretçinin altındaki videoyu, sesi ya da resmi bir çerçeveyle parlatır, tıklanan öğenin adresini, boyutunu ve hangi gönderiye ait olduğunu bulmak için çevresindeki bağlantıları okur; öğe eklentinin açılır penceresinde gösterilir (açılır pencereyi açmayan tarayıcıda sayfada bir kartta). Betik, öğe açılır pencerede gösterilince, kartı kapanınca ya da Esc'ye basılınca kendini tümüyle kaldırır.
 ```
 
 **Ana makine izni: <all_urls>**
@@ -197,7 +197,7 @@ chrome.storage.local içinde tek bir değer: bu tarayıcı profili için rastgel
 **Uzaktan kod:** Hayır, uzaktan kod kullanmıyorum.
 
 ```
-Tüm mantık yüklenen paketin içindedir. Eklenti hiçbir yerden betik yüklemez, çalışma zamanında hiçbir kod değerlendirmez ve küçültülmemiş ya da gizlenmemiştir; background.js ve media.js yayınlandığı haliyle okunabilir. scripting ile çalıştırılan iki işlev de pakettedir.
+Tüm mantık yüklenen paketin içindedir. Eklenti hiçbir yerden betik yüklemez, çalışma zamanında hiçbir kod değerlendirmez ve küçültülmemiş ya da gizlenmemiştir; background.js ve media.js yayınlandığı haliyle okunabilir. scripting ile çalıştırılan iki işlev ve picker.js de pakettedir.
 ```
 
 **Veri kullanımı**
@@ -286,11 +286,11 @@ app knows, …" / "YouTube, Vimeo, X, Instagram, TikTok, Dailymotion ve uygulama
 sitelerde …"), and the "It reads no cookies" line is replaced with this paragraph:
 
 ```
-For members-only YouTube videos you already pay for, turn on "YouTube session" in the popup, which it shows on YouTube; for age-restricted TikTok posts your own account can see, "TikTok session", which it shows on TikTok; for posts on any other site that only your account can see, "Other sites", which lends the sign-in of the site you press Get on, for that download. Each lends only to the app on this computer, and is off until you turn it on.
+For members-only YouTube videos you already pay for, turn on "YouTube session" in the popup, which it shows on YouTube; for age-restricted TikTok posts your own account can see, "TikTok session", which it shows on TikTok; for posts on any other site that only your account can see, "Session on other sites", which lends the sign-in of the site you press Get on, for that download. Each lends only to the app on this computer, and is off until you turn it on.
 ```
 
 ```
-Zaten ödediğiniz, üyelere özel YouTube videoları için YouTube'dayken görünen "YouTube oturumu" anahtarını; kendi hesabınızın görebildiği yaş sınırlı TikTok gönderileri için TikTok'tayken görünen "TikTok oturumu" anahtarını; başka bir sitede yalnızca hesabınızın görebildiği gönderiler için de "Diğer siteler" anahtarını açın. Diğer siteler, İndir'e bastığınız sitenin oturumunu yalnızca o indirme için verir. Her anahtar oturumu yalnızca bu bilgisayardaki uygulamaya verir ve siz açana kadar kapalıdır.
+Zaten ödediğiniz, üyelere özel YouTube videoları için YouTube'dayken görünen "YouTube oturumu" anahtarını; kendi hesabınızın görebildiği yaş sınırlı TikTok gönderileri için TikTok'tayken görünen "TikTok oturumu" anahtarını; başka bir sitede yalnızca hesabınızın görebildiği gönderiler için de "Diğer sitelerde oturum" anahtarını açın. Bu anahtar, İndir'e bastığınız sitenin oturumunu yalnızca o indirme için verir. Her anahtar oturumu yalnızca bu bilgisayardaki uygulamaya verir ve siz açana kadar kapalıdır.
 ```
 
 **Data collection.** The Firefox manifest declares `data_collection_permissions: { required:
@@ -304,12 +304,16 @@ nothing is read until the user turns a switch on. The declaration lives in `forF
 **Notes to reviewer**
 
 ```
-The extension has no server and sends nothing over the network. It talks only to com.universaldownloader.bridge, a native messaging host installed by the Universal Downloader desktop application on the same computer (free, open source: https://github.com/unsalable/downloader/releases/tag/latest). No site account is needed to test it: play a video on any site, click the toolbar icon, press Get. Three switches in the popup, "YouTube session", "TikTok session" and "Other sites", are off until the user turns them on. The first two each let the extension read that one site's cookies (youtube.com or tiktok.com) and pass them to that application, so it can download members-only YouTube videos the user pays for and age-restricted TikTok posts the user's own account can see. "Other sites" reads the cookies of one site only when the user presses Get on that site's page -- the page's registrable domain, never YouTube's or TikTok's -- and the application keeps them, encrypted, for at most an hour. Turning a switch off tells the application to delete what it holds. No source file is minified or generated.
+The extension has no server and sends nothing over the network. It talks only to com.universaldownloader.bridge, a native messaging host installed by the Universal Downloader desktop application on the same computer (free, open source: https://github.com/unsalable/downloader/releases/tag/latest). No site account is needed to test it: play a video on any site, click the toolbar icon, press Get. Three switches in the popup, "YouTube session", "TikTok session" and "Session on other sites", are off until the user turns them on. The first two each let the extension read that one site's cookies (youtube.com or tiktok.com) and pass them to that application, so it can download members-only YouTube videos the user pays for and age-restricted TikTok posts the user's own account can see. "Session on other sites" reads the cookies of one site only when the user presses Get on that site's page -- the page's registrable domain, never YouTube's or TikTok's -- and the application keeps them, encrypted, for at most an hour. Turning a switch off tells the application to delete what it holds. No source file is minified or generated.
 ```
 
-**Version notes.** 1.0.7 changes nothing in the Firefox package's behaviour; if
-addons.mozilla.org already has 1.0.6, say so in a line ("No change in what it does."). If it does
-not, use these:
+**Version notes.** For addons.mozilla.org, which has 1.0.7:
+
+```
+1.0.8: Pick from the page: the button beside the popup's heading lets you click the video, sound or picture on the page itself, and the popup then shows what the app would download from it, with Get and Pick again. The third session switch is now called "Session on other sites", and its lines say what it is for and what Get does with it.
+```
+
+The notes 1.0.7 went out with:
 
 ```
 1.0.7: Get opens the video in the app, where the quality is chosen before it downloads. "TikTok session" lends the browser's TikTok sign-in for age-restricted posts, and "Other sites" lends the sign-in of the site Get is pressed on, for that download. YouTube's and TikTok's switches show on their own sites. Each sends only to the Universal Downloader application on this computer.
@@ -337,7 +341,7 @@ To see which videos and sounds a tab plays. The extension looks at the response 
 **Permission: scripting**
 
 ```
-When the user clicks the toolbar icon, and only in that tab, to run two small functions: one reads the page's title, preview image and <video>/<audio> elements (address, poster, length, resolution, whether DRM is in use); the other reads a stream's playlist again from inside the frame that first loaded it, to learn its quality and length. Neither changes the page, neither leaves a script behind, and neither runs without the user's click.
+When the user clicks the toolbar icon, and only in that tab, to run two small functions: one reads the page's title, preview image and <video>/<audio> elements (address, poster, length, resolution, whether DRM is in use); the other reads a stream's playlist again from inside the frame that first loaded it, to learn its quality and length. Neither changes the page, neither leaves a script behind, and neither runs without the user's click. And when the user presses "Pick from the page" in the popup, and only in that tab, to run picker.js from the package: it makes the video, sound or picture under the pointer glow, and reads the clicked element's address and size and the links around it to find the post it belongs to; the element is then shown in the extension's popup (in a card on the page, where the browser will not open the popup). The script removes itself entirely once the popup shows the element, its card closes, or Esc is pressed.
 ```
 
 **Host permission: <all_urls>**
@@ -361,7 +365,7 @@ One value in chrome.storage.local: a random identifier for this browser profile,
 **Remote code:** No, I am not using remote code.
 
 ```
-All logic is contained in the uploaded package. The extension loads no scripts from anywhere, evaluates nothing at runtime, and is not minified or obfuscated — background.js and media.js can be read as shipped. Both functions run with scripting are in the package.
+All logic is contained in the uploaded package. The extension loads no scripts from anywhere, evaluates nothing at runtime, and is not minified or obfuscated — background.js and media.js can be read as shipped. Both functions run with scripting, and picker.js, are in the package.
 ```
 
 **Data usage**

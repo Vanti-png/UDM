@@ -1,5 +1,6 @@
 // The popup: what this tab is playing, and a button to hand each one to the
-// app.
+// app -- or, beside its heading, one to pick the video, sound or picture on
+// the page itself (picker.js).
 // <full>
 //
 // And the session switches -- YouTube's on YouTube's own pages, TikTok's on
@@ -16,7 +17,8 @@
 // into the DOM as text through textContent, and images load only from http
 // and https addresses; nothing here assigns HTML.
 
-import { displayHost, formatDuration, formatEstimate, isHttpUrl } from './media.js';
+import { NOTICES, detailMeta, firstMeta, problemOf } from './describe.js';
+import { displayHost, isHttpUrl, protectedService, unlisted } from './media.js';
 // <full>
 import { onTikTok, onYouTube } from './sessions.js';
 // </full>
@@ -25,15 +27,6 @@ const t = (key) => chrome.i18n.getMessage(key);
 const el = (id) => document.getElementById(id);
 
 const SVG = 'http://www.w3.org/2000/svg';
-
-// The kind of each row, in the words the meta line uses for it.
-const LABELS = {
-  stream: 'kindStream',
-  video: 'kindVideo',
-  audio: 'kindAudio',
-  page: 'kindPage',
-  protected: 'kindProtected',
-};
 
 // Long enough to register as "it is doing something", short enough that a
 // helper which answers at once does not look slow.
@@ -44,36 +37,8 @@ const MIN_SENDING_MS = 300;
 const PROBE_ROWS = 4;
 const PROBE_PARALLEL = 2;
 
-// The labels a plan falls back on when the source named no quality. They say
-// nothing the kind of the row does not already say.
-const VAGUE_QUALITY = new Set(['video', 'audio', 'image']);
-
-// What the app's answer means for this popup, as one of three sentences.
-// `forbidden`, `version` and `malformed` all come down to an app older than
-// this extension: one that does not know the store copy's id, speaks an older
-// wire, or does not know what a download request is.
-function problemOf(result) {
-  if (!result) return 'unreachable';
-  if (result.ok) return result.status?.canDownload === true ? null : 'update';
-  switch (result.code) {
-    case 'notInstalled':
-      return 'notInstalled';
-    case 'forbidden':
-    case 'version':
-    case 'malformed':
-      return 'update';
-    default:
-      return 'unreachable';
-  }
-}
-
-const NOTICES = {
-  notInstalled: { text: 'noticeNotInstalled', retry: true },
-  update: { text: 'noticeUpdate', retry: false },
-  unreachable: { text: 'noticeUnreachable', retry: true },
-};
-
 let problem = null;
+let tabId = null;
 
 // <full>
 // Whether this popup opened over one of YouTube's or TikTok's pages. Each
@@ -122,6 +87,8 @@ const checkGlyph = () =>
       'stroke-linejoin': 'round',
     },
   ]);
+const closeGlyph = () =>
+  glyph([{ d: 'M6 6l12 12M18 6 6 18', fill: 'none', stroke: 'currentColor', 'stroke-width': '2.25', 'stroke-linecap': 'round' }]);
 
 // A picture over the play tile. A new one is laid over the old only once it
 // has loaded, so a sharper still replacing a blurry one never flashes the tile
@@ -160,35 +127,6 @@ function line(className, text, id) {
   p.textContent = text;
   if (id) p.id = id;
   return p;
-}
-
-// What the row knows before the app has said anything: its kind, and the
-// quality, size or length the page gave away.
-function firstMeta(meta) {
-  const label = meta.label === 'site' ? meta.site : t(LABELS[meta.label] ?? 'kindVideo');
-  return [label, ...(meta.parts ?? [])].filter(Boolean).join(' · ');
-}
-
-// What the app said it would download, in the order its own Home screen
-// says it -- "1080p - MKV" there, "1080p · MKV · ~82 MB" here. The length
-// is added on the large card, where there is room for it; in a row of the
-// list it would push the size out of sight.
-function detailMeta(preview, row, { withLength = false } = {}) {
-  const quality = preview.qualityLabel && !VAGUE_QUALITY.has(preview.qualityLabel.toLowerCase())
-    ? preview.qualityLabel
-    : null;
-  const length = withLength && !preview.isLive
-    ? formatDuration(preview.durationSec ?? row.durationSec ?? 0)
-    : '';
-  return [
-    preview.isLive ? t('kindLive') : null,
-    quality,
-    preview.container ? preview.container.toUpperCase() : null,
-    formatEstimate(preview.estimatedBytes) || null,
-    length || null,
-  ]
-    .filter(Boolean)
-    .join(' · ');
 }
 
 async function send(button, row) {
@@ -247,7 +185,7 @@ function rowNode(row, index) {
   text.className = 'text';
   const titleId = `row-${index}`;
   const title = line('title', row.title, titleId);
-  const meta = line('meta', row.protected ? t('kindProtected') : firstMeta(row.meta));
+  const meta = line('meta', row.protected ? t('kindProtected') : firstMeta(row.meta, t));
   text.append(title, meta);
   const picture = pictureBox('thumb', row.thumbnail);
   node.append(picture, text);
@@ -265,13 +203,53 @@ function featureNode(row) {
   node.className = 'feature';
   const picture = pictureBox('poster', row.thumbnail);
   const title = line('title', row.title, 'row-0');
-  const meta = line('meta', row.protected ? t('kindProtected') : firstMeta(row.meta));
+  const meta = line('meta', row.protected ? t('kindProtected') : firstMeta(row.meta, t));
   const text = document.createElement('div');
   text.className = 'text';
   text.append(title, meta);
   node.append(picture, text);
   const button = row.protected ? null : downloadButton(row, 'row-0');
   if (button) node.append(button);
+  return drawn(row, node, picture, title, meta, button, true);
+}
+
+// Before the app has said anything.
+function pickMeta(status, row) {
+  if (status === 'ready') return firstMeta(row.meta, t);
+  if (status === 'unlisted') return t('unlistedBody');
+  return t(status === 'protected' ? 'kindProtected' : 'pickUnavailable');
+}
+
+// The pick the popup opened itself to show, as the feature card.
+function pickNode({ status, row }, onDismiss) {
+  const node = document.createElement('div');
+  node.className = 'feature picked';
+  const picture = pictureBox('poster', row.thumbnail);
+  const title = line('title', status === 'unlisted' ? t('unlistedTitle') : row.title, 'row-0');
+  const meta = line('meta', pickMeta(status, row));
+  const dismiss = document.createElement('button');
+  dismiss.type = 'button';
+  dismiss.className = 'dismiss';
+  dismiss.title = t('pickClose');
+  dismiss.setAttribute('aria-label', t('pickClose'));
+  dismiss.append(closeGlyph());
+  dismiss.addEventListener('click', onDismiss);
+  const text = document.createElement('div');
+  text.className = 'text';
+  text.append(title, meta, dismiss);
+
+  const actions = document.createElement('div');
+  actions.className = 'actions';
+  const again = document.createElement('button');
+  again.type = 'button';
+  again.className = 'again';
+  again.textContent = t('btnPickAgain');
+  again.addEventListener('click', () => startPick(again));
+  actions.append(again);
+  const button = status === 'ready' ? downloadButton(row, 'row-0') : null;
+  if (button) actions.append(button);
+
+  node.append(picture, text, actions);
   return drawn(row, node, picture, title, meta, button, true);
 }
 
@@ -305,7 +283,7 @@ function apply(item, answer) {
   // </full>
   const preview = answer?.preview;
   if (!preview) {
-    item.meta.textContent = firstMeta(row.meta);
+    item.meta.textContent = firstMeta(row.meta, t);
     return;
   }
   if (preview.title) {
@@ -316,7 +294,7 @@ function apply(item, answer) {
     showPicture(item.picture, preview.thumbnail);
     row.payload.thumbnail = preview.thumbnail;
   }
-  item.meta.textContent = detailMeta(preview, row, { withLength: item.feature }) || firstMeta(row.meta);
+  item.meta.textContent = detailMeta(preview, row, t, { withLength: item.feature }) || firstMeta(row.meta, t);
 }
 
 // Ask about the rows at the top, a couple at a time, and fill each in as its
@@ -338,7 +316,15 @@ function renderList(reply) {
   const list = el('list');
   list.classList.remove('single');
   let items = [];
-  if (reply?.protectedService) {
+  if (reply?.picked) {
+    list.classList.add('single');
+    const item = pickNode(reply.picked, async () => {
+      await ask('forgetPick', { tabId });
+      renderList({ ...reply, picked: null });
+    });
+    if (reply.picked.status === 'ready') items = [item];
+    list.replaceChildren(item.node);
+  } else if (reply?.protectedService) {
     list.replaceChildren(emptyNode('protectedTitle', 'protectedBody'));
   } else if (reply?.unlisted) {
     list.replaceChildren(emptyNode('unlistedTitle', 'unlistedBody'));
@@ -509,6 +495,30 @@ for (const [site, id] of Object.entries(SWITCHES)) {
 el('noticeAction').textContent = t('btnRetry');
 el('noticeAction').addEventListener('click', () => checkApp());
 
+el('pick').setAttribute('aria-label', t('btnPick'));
+
+// The popup closes only once the picker runs, so a page that refuses one can
+// say so here.
+async function startPick(button) {
+  button.disabled = true;
+  el('pickNotice').hidden = true;
+  const reply = await ask('pick', { tabId });
+  if (reply?.ok) {
+    window.close();
+    return;
+  }
+  button.disabled = false;
+  el('pickNoticeText').textContent = t('pickFailed');
+  el('pickNotice').hidden = false;
+}
+
+function offerPick(tab) {
+  const button = el('pick');
+  const url = tab?.url;
+  button.hidden = !Number.isInteger(tab?.id) || !isHttpUrl(url) || Boolean(protectedService(url)) || unlisted(url);
+  if (!button.hidden) button.addEventListener('click', () => startPick(button));
+}
+
 async function start() {
   let tab = null;
   try {
@@ -516,9 +526,11 @@ async function start() {
   } catch {
     // No tab to speak of, as on a browser's own pages; the list says so.
   }
+  tabId = Number.isInteger(tab?.id) ? tab.id : null;
   const host = displayHost(tab?.url);
   el('host').textContent = host;
   el('host').hidden = host === '';
+  offerPick(tab);
   // <full>
   // Shown before the app answers, so the card does not grow under the pointer.
   onYouTubeTab = onYouTube(tab?.url);

@@ -154,11 +154,11 @@ impl Browser {
 /// answers `malformed` -- it can never store a TikTok jar as YouTube's.
 ///
 /// `Other` is not one site but a slot for whichever site the user last pressed
-/// İndir on with the extension's "Other sites" switch on: Instagram one minute,
-/// Vimeo the next. Its push names the site in `domain`, its jar holds that
-/// domain's cookies alone, and it lapses an hour after it was captured
-/// (`OTHER_SESSION_TTL_SECS`), because it is lent for one download rather than
-/// kept fresh the way YouTube's and TikTok's are.
+/// İndir on with the extension's "Session on other sites" switch on: Instagram
+/// one minute, Vimeo the next. Its push names the site in `domain`, its jar
+/// holds that domain's cookies alone, and it lapses an hour after it was
+/// captured (`OTHER_SESSION_TTL_SECS`), because it is lent for one download
+/// rather than kept fresh the way YouTube's and TikTok's are.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum Site {
@@ -324,8 +324,9 @@ pub enum Request {
     Probe(Download),
 }
 
-/// A video or sound the extension saw a page play, as it arrives on the wire,
-/// whether to be downloaded or only probed.
+/// A video or sound the extension saw a page play, or a picture the user
+/// picked on one, as it arrives on the wire, whether to be downloaded or only
+/// probed.
 ///
 /// Everything but the address is optional and everything is untrusted: it is
 /// checked and cut down by `handoff::validate` before any of it is written
@@ -336,8 +337,9 @@ pub struct Download {
     #[serde(flatten)]
     pub peer: Peer,
     pub url: String,
-    /// `page`, `stream`, `video` or `audio`. Anything else, or nothing, is
-    /// read as `page`: the app analyses a page the most carefully.
+    /// `page`, `stream`, `video`, `audio` or `image` -- a picture the page
+    /// picker handed over. Anything else, or nothing, is read as `page`: the
+    /// app analyses a page the most carefully.
     #[serde(default)]
     pub kind: Option<String>,
     #[serde(default)]

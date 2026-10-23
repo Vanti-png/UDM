@@ -198,9 +198,10 @@ export interface Handoff {
 
 /**
  * 'page' is a site the app knows, handed over by its address; 'stream' an HLS
- * or DASH manifest; 'video' and 'audio' a file the page played.
+ * or DASH manifest; 'video' and 'audio' a file the page played; 'image' a
+ * picture the user picked on the page.
  */
-export type HandoffKind = 'page' | 'stream' | 'video' | 'audio';
+export type HandoffKind = 'page' | 'stream' | 'video' | 'audio' | 'image';
 
 export type DownloadStatus =
   | 'queued'

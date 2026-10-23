@@ -66,7 +66,9 @@ function fakeChrome({ sessions, answer }) {
     },
   });
   const local = new Map();
+  const session = new Map();
   const sent = [];
+  const told = [];
   const chrome = {
     runtime: {
       id: 'test',
@@ -80,7 +82,8 @@ function fakeChrome({ sessions, answer }) {
       onStartup: event('onStartup'),
       onMessage: event('onMessage'),
     },
-    storage: { local: area(local), session: area(new Map()) },
+    storage: { local: area(local), session: area(session) },
+    i18n: { getMessage: (key) => key },
     webRequest: { onHeadersReceived: event('onHeadersReceived') },
     tabs: {
       onUpdated: event('onUpdated'),
@@ -88,6 +91,11 @@ function fakeChrome({ sessions, answer }) {
       onReplaced: event('onReplaced'),
       create: async () => {},
       get: async () => ({}),
+      // The page picker in every frame, acknowledging what the worker says.
+      sendMessage: async (tabId, message, options) => {
+        told.push({ tabId, message, frameId: options?.frameId });
+        return true;
+      },
     },
     scripting: { executeScript: async () => [] },
     action: { setBadgeBackgroundColor: async () => {}, setBadgeTextColor: async () => {}, setBadgeText: async () => {} },
@@ -96,14 +104,14 @@ function fakeChrome({ sessions, answer }) {
     chrome.alarms = { create: () => {}, onAlarm: event('onAlarm') };
     chrome.cookies = { getAll: async () => [], onChanged: event('onChanged') };
   }
-  return { chrome, listeners, local, sent };
+  return { chrome, listeners, local, session, sent, told };
 }
 
 /** A message from the extension's own popup: the answer, or `unanswered`. */
-function ask(fake, message) {
+function ask(fake, message, sender = { id: 'test' }) {
   globalThis.chrome = fake.chrome;
   return new Promise((resolve) => {
-    const answering = fake.listeners.onMessage[0](message, { id: 'test' }, resolve);
+    const answering = fake.listeners.onMessage[0](message, sender, resolve);
     if (!answering) resolve('unanswered');
   });
 }
@@ -195,8 +203,10 @@ describe('the Chrome Web Store build', () => {
           assert.ok(Object.hasOwn(messages, key), `${locale} ${page}: ${key}`);
         }
       }
-      for (const [, key] of build.get('popup.js').matchAll(/\bt\('([^']+)'\)/g)) {
-        assert.ok(Object.hasOwn(messages, key), `${locale} popup.js: ${key}`);
+      for (const script of ['popup.js', 'picker.js', 'background.js']) {
+        for (const [, key] of build.get(script).matchAll(/\bt\('([^']+)'\)/g)) {
+          assert.ok(Object.hasOwn(messages, key), `${locale} ${script}: ${key}`);
+        }
       }
     }
   });
@@ -272,6 +282,100 @@ describe('the Chrome Web Store build', () => {
     await settle();
     assert.deepEqual(fake.sent.map((request) => request.type), ['forget']);
     assert.ok(!fake.local.has('link') && !fake.local.has('tiktokOn'));
+  });
+
+  test("its page picker sends what the worker chose, and only for the pick's own token", async () => {
+    const fake = fakeChrome({ sessions: false, answer: () => ({ ok: true, status: { canDownload: true } }) });
+    const PAGE = 'https://blog.example/post/7';
+    fake.chrome.tabs.get = async (id) => ({ id, url: PAGE, title: 'Post' });
+    const injected = [];
+    fake.chrome.scripting.executeScript = async (details) => {
+      injected.push(details.files ?? details.func.name);
+      return details.func?.name === 'startPicker' ? [{ frameId: 0, result: true }] : [];
+    };
+    globalThis.chrome = fake.chrome;
+    await import(pathToFileURL(join(unpacked(build), 'background.js')).href);
+
+    assert.deepEqual(await ask(fake, { action: 'pick', tabId: 7 }), { ok: true });
+    assert.deepEqual(injected, [['picker.js'], 'startPicker']);
+    const { token } = fake.session.get('pick:7');
+    const tab = { id: 'test', tab: { id: 7 }, frameId: 0 };
+
+    // Nothing from a page but what the picker may ask, and that only with the token.
+    assert.equal(await ask(fake, { action: 'download', payload: PAYLOAD }, tab), 'unanswered');
+    assert.equal(await ask(fake, { action: 'pickGet', token: 'guess' }, tab), null);
+    assert.equal(await ask(fake, { action: 'pickGet', token }, { ...tab, tab: { id: 8 } }), null);
+    assert.equal(fake.sent.length, 0);
+
+    const picture = 'https://blog.example/media/sunset.jpg';
+    const pick = { tag: 'image', href: PAGE, src: picture, width: 1600, height: 900, links: [] };
+    assert.deepEqual(await ask(fake, { action: 'picked', token, pick }, tab), { ok: true });
+    const card = fake.told.find((word) => word.message.udPick === 'card');
+    assert.equal(card.frameId, 0);
+    assert.equal(card.message.card.canGet, true);
+    assert.equal(card.message.card.thumbnail, picture);
+
+    // İndir sends the picture the worker kept, whatever the page says with it.
+    const got = await ask(fake, { action: 'pickGet', token, payload: PAYLOAD }, tab);
+    assert.deepEqual(got, { sent: true });
+    assert.deepEqual(fake.sent.map((request) => request.type), ['download']);
+    assert.equal(fake.sent[0].url, picture);
+    assert.equal(fake.sent[0].kind, 'image');
+
+    // Pick again on the card starts a new pick, and the old token is spent.
+    assert.deepEqual(await ask(fake, { action: 'pickAgain', token }, tab), { ok: true });
+    const next = fake.session.get('pick:7').token;
+    assert.notEqual(next, token);
+    assert.equal(await ask(fake, { action: 'pickGet', token }, tab), null);
+
+    // Closing the card ends the pick in every frame, and its token with it.
+    await ask(fake, { action: 'pickEnd', token: next }, tab);
+    assert.ok(!fake.session.has('pick:7'));
+    assert.ok(fake.told.some((word) => word.message.udPick === 'end' && word.frameId === undefined));
+    assert.equal(await ask(fake, { action: 'pickGet', token: next }, tab), null);
+  });
+
+  test('a pick opens the popup, which shows it while the tab is on that page', async () => {
+    const fake = fakeChrome({ sessions: false, answer: () => ({ ok: true, status: { canDownload: true } }) });
+    let page = 'https://blog.example/post/7';
+    fake.chrome.tabs.get = async (id) => ({ id, url: page, title: 'Post', windowId: 3 });
+    fake.chrome.scripting.executeScript = async (details) =>
+      details.func?.name === 'startPicker' ? [{ frameId: 0, result: true }] : [];
+    const opened = [];
+    fake.chrome.action.openPopup = async (options) => {
+      opened.push(options);
+    };
+    globalThis.chrome = fake.chrome;
+    await import(pathToFileURL(join(unpacked(build), 'background.js')).href);
+
+    const tab = { id: 'test', tab: { id: 7 }, frameId: 0 };
+    const picture = 'https://blog.example/media/sunset.jpg';
+    const pickOnce = async () => {
+      await ask(fake, { action: 'pick', tabId: 7 });
+      const { token } = fake.session.get('pick:7');
+      const pick = { tag: 'image', href: page, src: picture, width: 1600, height: 900, links: [] };
+      assert.deepEqual(await ask(fake, { action: 'picked', token, pick }, tab), { ok: true });
+    };
+
+    // The popup opens over the page instead of a card, and the picker leaves it.
+    await pickOnce();
+    assert.deepEqual(opened, [{ windowId: 3 }]);
+    assert.ok(!fake.told.some((word) => word.message.udPick === 'card'));
+    assert.ok(fake.told.some((word) => word.message.udPick === 'end'));
+    const shown = (await ask(fake, { action: 'scan', tabId: 7 })).picked;
+    assert.equal(shown.status, 'ready');
+    assert.equal(shown.row.payload.url, picture);
+    assert.equal(shown.row.payload.kind, 'image');
+
+    // Its × goes back to the list.
+    await ask(fake, { action: 'forgetPick', tabId: 7 });
+    assert.equal((await ask(fake, { action: 'scan', tabId: 7 })).picked, null);
+
+    // A pick is not shown over another page, and is let go of there.
+    await pickOnce();
+    page = 'https://blog.example/post/8';
+    assert.equal((await ask(fake, { action: 'scan', tabId: 7 })).picked, null);
+    assert.ok(!fake.session.has('pick:7'));
   });
 });
 

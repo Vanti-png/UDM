@@ -60,6 +60,25 @@ struct StatusAddress {
 
 /// The post an X or Twitter address points at.
 fn status_address(url: &str) -> Option<StatusAddress> {
+    let (id, rest) = post_path(url)?;
+
+    let photo = match (rest.first().map(String::as_str), rest.get(1)) {
+        (Some("photo"), Some(number)) => number.parse::<usize>().ok().filter(|n| *n >= 1),
+        // A video number is the engine's to follow.
+        (Some("video"), _) => return None,
+        _ => None,
+    };
+
+    Some(StatusAddress { id, photo })
+}
+
+/// Whether `url` is an X post, a link to one of its photos or videos included.
+pub fn is_post(url: &str) -> bool {
+    post_path(url).is_some()
+}
+
+/// The id in an X or Twitter post's address, and the segments after it.
+fn post_path(url: &str) -> Option<(String, Vec<String>)> {
     let info = detect::classify(url)?;
     let host = info.host.trim_start_matches("www.").trim_start_matches("mobile.");
     if host != "x.com" && host != "twitter.com" {
@@ -76,21 +95,17 @@ fn status_address(url: &str) -> Option<StatusAddress> {
         return None;
     }
 
-    let photo = match (segments.get(marker + 2).copied(), segments.get(marker + 3)) {
-        (Some("photo"), Some(number)) => number.parse::<usize>().ok().filter(|n| *n >= 1),
-        // A video number is the engine's to follow.
-        (Some("video"), _) => return None,
-        _ => None,
-    };
-
-    Some(StatusAddress {
-        id: id.to_string(),
-        photo,
-    })
+    let rest = segments[marker + 2..].iter().map(|segment| segment.to_string()).collect();
+    Some((id.to_string(), rest))
 }
 
 /// What the post's photos make of it.
 fn parse_post(post: &Value, requested_url: &str, photo: Option<usize>) -> Reading {
+    // What the widget is given, rather than a 404, for a post X shows only to
+    // a signed-in viewer: one marked sensitive is answered this way.
+    if post.get("__typename").and_then(Value::as_str) == Some("TweetTombstone") {
+        return Reading::Hidden;
+    }
     let Some(id) = post.get("id_str").and_then(Value::as_str) else {
         return Reading::Elsewhere;
     };
@@ -437,7 +452,25 @@ mod tests {
         let elsewhere = |reading: Reading| matches!(reading, Reading::Elsewhere);
         assert!(elsewhere(parse_post(&post(serde_json::json!([video()])), "https://x.com/a/status/1", None)));
         assert!(elsewhere(parse_post(&post(serde_json::json!([])), "https://x.com/a/status/1", None)));
-        assert!(elsewhere(parse_post(&serde_json::json!({ "__typename": "TweetTombstone" }), "https://x.com/a/status/1", None)));
+    }
+
+    #[test]
+    fn a_post_shown_only_to_signed_in_viewers_is_marked_hidden() {
+        // The whole of what the endpoint answered for a post marked sensitive.
+        let tombstone = serde_json::json!({ "__typename": "TweetTombstone", "tombstone": {} });
+        assert!(matches!(parse_post(&tombstone, "https://x.com/a/status/1", None), Reading::Hidden));
+    }
+
+    #[test]
+    fn every_link_into_a_post_is_a_post() {
+        assert!(is_post("https://x.com/a/status/123"));
+        assert!(is_post("https://twitter.com/a/status/123/video/1"));
+        assert!(is_post("https://mobile.x.com/a/status/123/photo/2"));
+        assert!(is_post("https://x.com/i/web/status/123?s=20"));
+        assert!(!is_post("https://x.com/a"));
+        assert!(!is_post("https://x.com/home"));
+        assert!(!is_post("https://x.com/a/status/abc"));
+        assert!(!is_post("https://notx.com/a/status/123"));
     }
 
     #[test]

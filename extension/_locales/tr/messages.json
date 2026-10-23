@@ -12,6 +12,7 @@
   "kindStream": { "message": "Akış" },
   "kindVideo": { "message": "Video" },
   "kindAudio": { "message": "Ses" },
+  "kindImage": { "message": "Resim" },
   "kindPage": { "message": "Sayfa" },
   "kindLive": { "message": "Canlı" },
   "kindProtected": { "message": "Korumalı" },
@@ -22,6 +23,13 @@
   "protectedBody": { "message": "Universal Downloader bunları indiremez." },
   "unlistedTitle": { "message": "Bu sitede kullanılamaz" },
   "unlistedBody": { "message": "Bu sitedeki videolar burada listelenmez." },
+
+  "btnPick": { "message": "Sayfadan seç" },
+  "pickHint": { "message": "Bir videoya, sese ya da resme tıklayın · Vazgeçmek için Esc" },
+  "btnPickAgain": { "message": "Yeniden seç" },
+  "pickFailed": { "message": "Bu sayfada seçim yapılamıyor" },
+  "pickUnavailable": { "message": "Bu öğe gönderilemiyor" },
+  "pickClose": { "message": "Kapat" },
 
   "noticeNotInstalled": { "message": "Universal Downloader'ı bir kez açın" },
   "noticeUpdate": { "message": "Universal Downloader'ı güncelleyin" },
@@ -39,9 +47,9 @@
   "tiktokOn": { "message": "Yaş sınırlı gönderiler için bağlı" },
   "tiktokSignedOut": { "message": "TikTok'ta oturum açık değil" },
   "tiktokOffHint": { "message": "Yaş sınırlı gönderileri indirmek için" },
-  "otherTitle": { "message": "Diğer siteler" },
-  "otherOn": { "message": "Yalnızca İndir'e bastığınız site için" },
-  "otherOffHint": { "message": "Instagram, X ve diğerleri için" },
+  "otherTitle": { "message": "Diğer sitelerde oturum" },
+  "otherOn": { "message": "İndir'e basınca o sitenin oturumu verilir" },
+  "otherOffHint": { "message": "Oturum isteyen X, Instagram gönderileri" },
   "rowSignIn": { "message": "TikTok oturumu gerekiyor" },
   "rowWithSession": { "message": "TikTok oturumunuzla iner" },
   "sessionsTitle": { "message": "Oturumlar" },
@@ -56,7 +64,7 @@
     "message": "Universal Downloader video açık olarak öne gelir; kaliteyi ve filigranı orada seçip indirirsiniz."
   },
   "welcomeSession": {
-    "message": "Üyelere özel YouTube videoları için açılır penceredeki YouTube oturumu anahtarını, yaş sınırlı TikTok gönderileri için TikTok'tayken görünen TikTok oturumu anahtarını, başka sitelerde yalnızca hesabınızın görebildiği gönderiler için de Diğer siteler anahtarını açın. Diğer siteler, İndir'e bastığınız sitenin oturumunu yalnızca o indirme için verir. Her anahtar oturumu yalnızca bu bilgisayardaki uygulamaya verir ve siz açana kadar kapalı kalır."
+    "message": "Üyelere özel YouTube videoları için açılır penceredeki YouTube oturumu anahtarını, yaş sınırlı TikTok gönderileri için TikTok'tayken görünen TikTok oturumu anahtarını, başka sitelerde yalnızca hesabınızın görebildiği gönderiler için de Diğer sitelerde oturum anahtarını açın. Bu anahtar, İndir'e bastığınız sitenin oturumunu yalnızca o indirme için verir. Her anahtar oturumu yalnızca bu bilgisayardaki uygulamaya verir ve siz açana kadar kapalı kalır."
   },
   "pinTitle": { "message": "Elinizin altında dursun" },
   "pinBody": {
