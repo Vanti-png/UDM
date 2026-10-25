@@ -701,7 +701,7 @@
   const update = {
     commit: 'f00dfeedf00dfeedf00dfeedf00dfeedf00dfeed',
     assetUrl:
-      'https://github.com/unsalable/downloader/releases/download/latest/UniversalDownloader_x64-setup.exe',
+      'https://github.com/Vanti-png/UDM/releases/download/latest/UniversalDownloader_x64-setup.exe',
     assetSize: 3_772_494,
     digest: 'sha256:ec068ea0bf5a95ab1fecdd560395d22ddb6295e3cf43f1b3b6894aafd6992adc',
     publishedAt: new Date(now - 3_600_000).toISOString(),

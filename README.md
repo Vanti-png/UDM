@@ -15,10 +15,10 @@ Built with Tauri 2, React 19, TypeScript and Rust. A fork of
 This fork publishes no installers yet; build it from source (see
 [Development](#development)). Windows 10/11, 64-bit.
 
-The app's updater still looks for new builds in the upstream repository
-(`REPOSITORY` in `src-tauri/src/updater.rs`). Until this fork publishes its
-own releases, a build made here can be offered the upstream one, which does
-not have the download-manager features below.
+The app updates itself from this fork's own releases (`REPOSITORY` in
+`src-tauri/src/updater.rs` is `Vanti-png/UDM`), never from the upstream
+project, whose builds lack the features below. Until a release is published
+the check simply finds nothing newer. See [Publishing a release](#publishing-a-release).
 
 ---
 
@@ -252,6 +252,27 @@ npm run test:online    # network tests (installs the engine, downloads real file
 npm run lint:rust      # clippy, warnings denied
 node --test scripts/extension/   # the browser extension's tests
 ```
+
+### Publishing a release
+
+Releases have no version numbers: there is one rolling release on the `latest`
+tag of this repository. A build knows the commit it was made from, and an
+installed copy updates when the tag points at a later commit.
+
+1. Commit and push everything, then build from that clean tree:
+   `npm run app:build`.
+2. Rename the installers Tauri wrote -- `bundle/nsis/Universal
+   Downloader_<version>_x64-setup.exe` and `bundle/msi/Universal
+   Downloader_<version>_x64_en-US.msi` under `src-tauri/target/release/` -- to
+   `UniversalDownloader_x64-setup.exe` and `UniversalDownloader_x64.msi`, the
+   names the updater looks for, and upload them to the release tagged `latest`,
+   replacing the files already there (create the release the first time).
+3. Only then move the `latest` tag to the commit they were built from:
+   `git tag -f latest && git push -f origin latest`.
+
+An installed copy downloads the installer it was installed with, checks it
+against the SHA-256 digest GitHub publishes for the file, and installs it once
+nothing is downloading or converting.
 
 ### The browser extension during development
 

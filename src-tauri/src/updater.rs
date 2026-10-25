@@ -21,7 +21,9 @@ use crate::error::{AppError, AppResult};
 use crate::settings::Settings;
 use crate::{log_info, net, tools};
 
-const REPOSITORY: &str = "unsalable/downloader";
+/// This fork's own releases. The upstream project's builds lack what the
+/// fork added, so an installed copy is never offered one of them.
+const REPOSITORY: &str = "Vanti-png/UDM";
 const RELEASE_TAG: &str = "latest";
 const API: &str = "https://api.github.com";
 
@@ -226,7 +228,13 @@ pub async fn check(settings: &Settings) -> AppResult<Option<AppUpdate>> {
     }
 
     let client = net::client(settings)?;
-    let tagged = tagged_commit(&client).await?;
+    let tagged = match tagged_commit(&client).await {
+        Ok(tagged) => tagged,
+        // No release has been published yet: there is nothing newer to have,
+        // which is not something to report as a failure.
+        Err(AppError::NotFound { .. }) => return Ok(None),
+        Err(err) => return Err(err),
+    };
     if tagged.eq_ignore_ascii_case(current) {
         return Ok(None);
     }
@@ -240,7 +248,12 @@ pub async fn check(settings: &Settings) -> AppResult<Option<AppUpdate>> {
     }
 
     let release: Release =
-        get_json(&client, &format!("/repos/{REPOSITORY}/releases/tags/{RELEASE_TAG}")).await?;
+        match get_json(&client, &format!("/repos/{REPOSITORY}/releases/tags/{RELEASE_TAG}")).await {
+            Ok(release) => release,
+            // The tag is there but its release is not, yet: still nothing to have.
+            Err(AppError::NotFound { .. }) => return Ok(None),
+            Err(err) => return Err(err),
+        };
     let Some(asset) = release.assets.into_iter().find(|asset| asset.name == wanted) else {
         return Ok(None);
     };
@@ -522,9 +535,7 @@ mod tests {
     fn desktop_update() -> AppUpdate {
         AppUpdate {
             commit: "05b60a1c2b1b5d97eaf1e60eda459987c70f717b".into(),
-            asset_url: format!(
-                "https://github.com/unsalable/downloader/releases/download/latest/{NSIS_ASSET}"
-            ),
+            asset_url: format!("https://github.com/{REPOSITORY}/releases/download/latest/{NSIS_ASSET}"),
             asset_size: 5,
             digest: Some(GOOD_DIGEST.into()),
             published_at: None,
@@ -698,17 +709,19 @@ mod tests {
         let file = NSIS_ASSET;
         for url in [
             format!("https://example.com/{file}"),
-            format!("http://github.com/unsalable/downloader/releases/download/latest/{file}"),
+            format!("http://github.com/{REPOSITORY}/releases/download/latest/{file}"),
             format!("https://github.com/someone/else/releases/download/latest/{file}"),
-            format!("https://github.com/unsalable/downloader/releases/download/../../../../someone/else/releases/download/latest/{file}"),
-            format!("https://github.com/unsalable/downloader/releases/download/../{file}"),
-            format!("https://github.com/unsalable/downloader/releases/download/{file}"),
+            // The upstream project's build: it lacks what this fork added.
+            format!("https://github.com/unsalable/downloader/releases/download/latest/{file}"),
+            format!("https://github.com/{REPOSITORY}/releases/download/../../../../someone/else/releases/download/latest/{file}"),
+            format!("https://github.com/{REPOSITORY}/releases/download/../{file}"),
+            format!("https://github.com/{REPOSITORY}/releases/download/{file}"),
             // There is one release, and it is not this one.
-            format!("https://github.com/unsalable/downloader/releases/download/nightly/{file}"),
-            format!("https://github.com/unsalable/downloader/releases/download/latest/{file}?x=1"),
-            "https://github.com/unsalable/downloader/releases/download/latest/evil.exe".to_string(),
+            format!("https://github.com/{REPOSITORY}/releases/download/nightly/{file}"),
+            format!("https://github.com/{REPOSITORY}/releases/download/latest/{file}?x=1"),
+            format!("https://github.com/{REPOSITORY}/releases/download/latest/evil.exe"),
             // The other installer kind is not what this copy was installed with.
-            format!("https://github.com/unsalable/downloader/releases/download/latest/{MSI_ASSET}"),
+            format!("https://github.com/{REPOSITORY}/releases/download/latest/{MSI_ASSET}"),
         ] {
             let update = AppUpdate {
                 asset_url: url.clone(),
