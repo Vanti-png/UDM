@@ -20,3 +20,15 @@ export const IS_MOBILE: boolean = (() => {
     return false;
   }
 })();
+
+/**
+ * Whether this is the Windows build, where the backend watches the clipboard
+ * itself (`clipboard.rs`) and the browser extension can hand downloads over.
+ */
+export const IS_WINDOWS: boolean = (() => {
+  try {
+    return platform() === 'windows';
+  } catch {
+    return false;
+  }
+})();

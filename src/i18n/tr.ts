@@ -121,10 +121,29 @@ export const tr: Record<TranslationKey, string> = {
   'stage.video': 'Video indiriliyor',
   'stage.audio': 'Ses indiriliyor',
   'stage.image': 'Görsel indiriliyor',
+  'stage.file': 'Dosya indiriliyor',
   'stage.merging': 'Akışlar birleştiriliyor',
   'stage.converting': 'Dönüştürülüyor',
   'stage.finalizing': 'Tamamlanıyor',
   'stage.done': 'Bitti',
+
+  'newDownload.title': 'Yeni indirme',
+  'newDownload.fromBrowser': 'Tarayıcıdan yakalandı',
+  'newDownload.fromClipboard': 'Panoya kopyalandı',
+  'newDownload.queueCount': '{index}/{count}',
+  'newDownload.fileName': 'Dosya adı',
+  'newDownload.size': 'Boyut',
+  'newDownload.sizeUnknown': 'Bilinmiyor',
+  'newDownload.reading': 'Okunuyor…',
+  'newDownload.resume': 'Devam ettirme',
+  'newDownload.resumable': 'Destekleniyor',
+  'newDownload.notResumable': 'Desteklenmiyor',
+  'newDownload.saveTo': 'Kaydedilecek yer',
+  'newDownload.change': 'Değiştir',
+  'newDownload.isPage':
+    'Bu adres bir dosya değil, bir web sayfası açıyor. İnen şey beklediğin dosya olmayabilir.',
+  'newDownload.start': 'İndir',
+  'newDownload.cancel': 'İptal',
 
   'convert.title': 'Dönüştür',
   'convert.dropTitle': 'Dosyaları buraya bırak',
@@ -263,7 +282,8 @@ export const tr: Record<TranslationKey, string> = {
   'settings.closeToTrayHint':
     'Pencereyi kapatmak uygulamadan çıkmaz; indirmeler arka planda sürer.',
   'settings.clipboard': 'Pano izleme',
-  'settings.clipboardHint': 'Kopyaladığın medya bağlantılarını analiz etmeyi öner.',
+  'settings.clipboardHint':
+    'Başka yerde kopyaladığın dosya bağlantısı yeni bir indirme açar; medya bağlantısı Ana sayfada önerilir.',
   'settings.notifications': 'Bildirimler',
   'settings.notificationsHint': 'İndirmeler bitince sistem bildirimi göster.',
   'settings.notifyComplete': 'Tamamlanınca bildir',
@@ -279,6 +299,12 @@ export const tr: Record<TranslationKey, string> = {
   'settings.maxConcurrent': 'Eşzamanlı indirme',
   'settings.maxConcurrentHint':
     'Aynı anda kaç indirme çalışsın. Diğerleri kuyrukta bekler.',
+  'settings.connections': 'İndirme başına bağlantı',
+  'settings.connectionsHint':
+    'Sunucu izin verirse büyük dosyalar parçalara bölünüp aynı anda indirilir. Daha çok bağlantı genelde daha hızlıdır.',
+  'settings.speedLimit': 'Hız sınırı',
+  'settings.speedLimitHint': 'Uygulamanın toplam indirme hızını sınırlar.',
+  'settings.speedLimitOff': 'Sınırsız',
   'settings.autoRetry': 'Otomatik yeniden deneme',
   'settings.autoRetryHint':
     'Başarısız bir indirme vazgeçilmeden önce kaç kez tekrar denensin.',

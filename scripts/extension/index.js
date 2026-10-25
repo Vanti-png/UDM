@@ -5,4 +5,5 @@
 import './media.test.mjs';
 import './describe.test.mjs';
 import './sessions.test.mjs';
+import './capture.test.mjs';
 import './edition.test.mjs';

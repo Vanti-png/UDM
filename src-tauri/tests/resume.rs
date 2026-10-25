@@ -171,6 +171,9 @@ where
             // Smaller chunks keep the fixture small while still exercising the
             // multi-request path.
             low_resource: true,
+            // The single-connection path is what these tests are about; the
+            // split one has tests/segmented.rs.
+            connections: 1,
         },
         control,
         &mut sink,

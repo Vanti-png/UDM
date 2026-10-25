@@ -139,7 +139,9 @@ async fn attempt(
     }
     clear_stale_part(options);
 
-    let args = download_args(options, engine::base_args(settings), cookies);
+    let mut base = engine::base_args(settings);
+    base.extend(transfer_args(settings, options.section.is_some()));
+    let args = download_args(options, base, cookies);
     engine::log_engine_invocation(&args);
 
     let mut tree = process::spawn_tree(
@@ -248,6 +250,30 @@ async fn attempt(
     let written = resolve_output(options.target)?;
     let size = std::fs::metadata(&written).map(|m| m.len()).unwrap_or(0);
     Ok(size)
+}
+
+/// The connection count and speed cap from Settings, in the engine's terms.
+///
+/// The engine fetches a fragmented stream's pieces this many at a time, which
+/// is the same gain the native path gets from splitting a file. A section is
+/// fetched by FFmpeg, which takes neither option. The cap is the engine's own,
+/// per process: it holds for one engine download, and the native transfers
+/// running beside it are counted separately.
+fn transfer_args(settings: &Settings, sectioned: bool) -> Vec<String> {
+    let mut args = Vec::new();
+    if sectioned {
+        return args;
+    }
+    if settings.connections_per_download > 1 && !settings.low_resource_mode {
+        args.push("--concurrent-fragments".into());
+        args.push(settings.connections_per_download.to_string());
+    }
+    if settings.speed_limit_kbps > 0 {
+        // The engine's K is 1024 bytes, as Settings' is.
+        args.push("--limit-rate".into());
+        args.push(format!("{}K", settings.speed_limit_kbps));
+    }
+    args
 }
 
 /// Everything after the shared arguments: what to fetch, how much of it, and
@@ -1035,5 +1061,29 @@ mod tests {
     fn percent_is_clamped_when_the_total_was_underestimated() {
         let sample = parse_progress("@P 1200 1000 NA 1.0 0").unwrap();
         assert_eq!(sample.percent, Some(100.0));
+    }
+
+    #[test]
+    fn connections_and_the_speed_cap_reach_the_engine() {
+        let settings = Settings {
+            connections_per_download: 8,
+            speed_limit_kbps: 750,
+            low_resource_mode: false,
+            ..Settings::default()
+        };
+        let args = transfer_args(&settings, false);
+        assert_eq!(value_after(&args, "--concurrent-fragments").as_deref(), Some("8"));
+        assert_eq!(value_after(&args, "--limit-rate").as_deref(), Some("750K"));
+
+        // A section is FFmpeg's to fetch, and FFmpeg takes neither.
+        assert!(transfer_args(&settings, true).is_empty());
+
+        // One connection and no cap say nothing at all.
+        let plain = Settings {
+            connections_per_download: 1,
+            speed_limit_kbps: 0,
+            ..Settings::default()
+        };
+        assert!(transfer_args(&plain, false).is_empty());
     }
 }

@@ -88,6 +88,8 @@ pub async fn save_settings(
     state.db.save_settings(&settings)?;
 
     logging::set_debug_enabled(settings.debug_logging);
+    // Running transfers feel it on their next chunk.
+    crate::downloader::limiter::global().set_kbps(settings.speed_limit_kbps);
 
     // Anything that changes how requests are made invalidates the pooled client.
     if previous.proxy_url != settings.proxy_url
@@ -332,6 +334,28 @@ pub async fn analyze_url(
     };
     providers::remember_analysis(trimmed, &settings, &metadata);
     Ok(metadata)
+}
+
+/// What the New download dialog shows for a plain file before it is queued:
+/// the name the server gives it, its size and whether it can be resumed.
+#[tauri::command]
+pub async fn probe_file(
+    app: AppHandle,
+    state: State<'_, AppState>,
+    url: String,
+    source: Option<SourceContext>,
+) -> AppResult<crate::downloader::file::FileInfo> {
+    let settings = state.settings();
+    let trimmed = url.trim();
+    if trimmed.is_empty() {
+        return Err(AppError::InvalidUrl("no address was given".into()));
+    }
+    let headers = source.as_ref().map(SourceContext::headers).unwrap_or_default();
+    let client = net::client(&settings)?;
+    match crate::downloader::file::probe(&client, trimmed, &headers).await {
+        Ok(info) => Ok(info),
+        Err(err) => Err(net::explain_failure(&app, err).await),
+    }
 }
 
 #[tauri::command]

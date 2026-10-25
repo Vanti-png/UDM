@@ -1,6 +1,6 @@
 # Privacy policy — Universal Downloader Connector (Chrome Web Store)
 
-_Last updated: 18 October 2026_
+_Last updated: 25 October 2026_
 
 This policy is for the copy of the extension installed from the Chrome Web
 Store.
@@ -44,6 +44,15 @@ popup's first rows, and it is handed over only when you press **Get**. What
 the click found is kept in session storage until you close it, pick again or
 the tab leaves that page.
 
+**The downloads your browser starts.** While **Capture browser downloads** is
+on in the popup (it is by default), the extension looks at each download the
+browser starts in a normal window: its address, the page it was started from,
+and the file's name, size and type as the browser was told them. It pauses the
+download while the app checks it can fetch the same file, then either hands it
+to the app -- cancelling the browser's copy and removing it from the downloads
+list -- or lets the browser carry on. Downloads in private windows, downloads
+other extensions started, and files a page made itself are never looked at.
+
 ## What it sends, and where
 
 To one place: a program called `ud-bridge.exe`, part of the Universal Downloader
@@ -69,14 +78,21 @@ extension.
   The app opens the video, and only when you have chosen the quality and
   pressed download there does it download it from the site, as your browser
   would. Nothing is downloaded for items you do not press.
+- **When the browser starts a download, with capture on:** the download's
+  address, the page it was started from, your browser's user-agent string, and
+  the file's name (never its folder on your computer), size and type. The app
+  first asks the site for the file's first byte, without cookies, to check it
+  is served the same file; only then is the download handed over, and the app
+  asks you in its New download dialog before fetching it.
 
-You can confirm all of this by reading `background.js`, which is not minified
-or obfuscated.
+You can confirm all of this by reading `background.js` and `capture.js`, which
+are not minified or obfuscated.
 
 ## What the extension stores by itself
 
 In `chrome.storage.local`, on your own machine: a random identifier for this
-browser profile, so the app can tell one Chrome profile from another.
+browser profile, so the app can tell one Chrome profile from another, and
+whether you turned download capture off.
 
 In `chrome.storage.session`, in memory: the per-tab lists described above,
 the element you picked until you close it or the tab leaves that page, and the
@@ -91,6 +107,8 @@ the open tabs.
 - Nothing about the pages you visit leaves the browser until you open the popup
   on them, and nothing is downloaded until you press **Get** and then choose to
   download in the app.
+- **Capture browser downloads** in the popup turns download capture off; your
+  browser then keeps every download, as without the extension.
 - Removing the extension stops it entirely.
 
 ## What is never done
@@ -108,7 +126,7 @@ Questions and reports: https://github.com/unsalable/downloader/issues
 
 # Gizlilik politikası — Universal Downloader Connector (Chrome Web Mağazası)
 
-_Son güncelleme: 18 Ekim 2026_
+_Son güncelleme: 25 Ekim 2026_
 
 Bu politika, eklentinin Chrome Web Mağazası'ndan kurulan kopyası içindir.
 
@@ -151,6 +169,16 @@ uygulamaya ise yalnızca **İndir**'e bastığınızda verilir. Tıklamanın bul
 siz kapatana, yeniden seçene ya da sekme o sayfadan ayrılana kadar oturum
 deposunda tutulur.
 
+**Tarayıcınızın başlattığı indirmeler.** Açılır penceredeki **Tarayıcı
+indirmelerini yakala** açıkken (varsayılan olarak açıktır), eklenti tarayıcının
+normal bir pencerede başlattığı her indirmeye bakar: adresine, başlatıldığı
+sayfaya ve tarayıcıya bildirildiği haliyle dosyanın adına, boyutuna ve türüne.
+Uygulama aynı dosyaya ulaşabildiğini doğrularken indirmeyi duraklatır; sonra
+ya uygulamaya verir -- tarayıcıdaki kopyayı iptal edip indirme listesinden
+kaldırır -- ya da tarayıcının devam etmesine izin verir. Gizli pencerelerdeki
+indirmelere, başka eklentilerin başlattığı indirmelere ve sayfanın kendi
+oluşturduğu dosyalara hiç bakılmaz.
+
 ## Neyi, nereye gönderiyor
 
 Tek bir yere: Universal Downloader masaüstü uygulamasının parçası olan ve
@@ -176,15 +204,21 @@ eklenti için başlatır.
   siteden, tarayıcınızın yapacağı gibi, ancak siz orada kaliteyi seçip
   indirmeye bastığınızda indirir. Basmadığınız öğeler için hiçbir şey
   indirilmez.
+- **Yakalama açıkken tarayıcı bir indirme başlattığında:** indirmenin adresi,
+  başlatıldığı sayfa, tarayıcınızın kullanıcı aracısı dizesi ve dosyanın adı
+  (bilgisayarınızdaki klasörü asla), boyutu ve türü. Uygulama önce aynı dosyanın
+  kendisine sunulduğunu doğrulamak için siteden dosyanın ilk baytını çerezsiz
+  ister; indirme ancak ondan sonra devredilir ve uygulama dosyayı indirmeden
+  önce Yeni indirme penceresinde size sorar.
 
-Bunların hepsini, küçültülmemiş ve gizlenmemiş olan `background.js` dosyasını
-okuyarak doğrulayabilirsiniz.
+Bunların hepsini, küçültülmemiş ve gizlenmemiş olan `background.js` ve
+`capture.js` dosyalarını okuyarak doğrulayabilirsiniz.
 
 ## Eklentinin kendi sakladıkları
 
 Kendi makinenizdeki `chrome.storage.local` içinde: bu tarayıcı profili için
-rastgele bir tanımlayıcı; uygulama bir Chrome profilini diğerinden ayırabilsin
-diye.
+rastgele bir tanımlayıcı, uygulama bir Chrome profilini diğerinden ayırabilsin
+diye; ve indirme yakalamayı kapatıp kapatmadığınız.
 
 `chrome.storage.session` içinde, bellekte: yukarıda anlatılan sekme
 listeleri, siz kapatana ya da sekme o sayfadan ayrılana kadar seçtiğiniz öğe
@@ -199,6 +233,9 @@ tutmaz.
 - Ziyaret ettiğiniz sayfalar hakkında hiçbir şey, siz o sayfada açılır
   pencereyi açana kadar tarayıcıdan çıkmaz; siz **İndir**'e basıp ardından
   uygulamada indirmeyi seçene kadar da hiçbir şey indirilmez.
+- Açılır penceredeki **Tarayıcı indirmelerini yakala** indirme yakalamayı
+  kapatır; tarayıcınız o zaman her indirmeyi, eklenti yokmuş gibi kendisi
+  tutar.
 - Eklentiyi kaldırmak onu tamamen durdurur.
 
 ## Asla yapılmayanlar

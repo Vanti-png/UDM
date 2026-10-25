@@ -69,6 +69,14 @@ pub struct Settings {
     pub max_concurrent_downloads: u32,
     pub auto_retry_count: u32,
     pub filename_template: String,
+    /// Connections one download may open on a host that allows it. See
+    /// `downloader::segmented`. `serde(default)` for the reason given on
+    /// `browser_link_enabled`.
+    #[serde(default = "default_connections")]
+    pub connections_per_download: u32,
+    /// The whole app's download speed cap in KB/s; zero is no cap.
+    #[serde(default)]
+    pub speed_limit_kbps: u64,
 
     // Appearance
     pub theme: ThemePreference,
@@ -132,6 +140,8 @@ impl Default for Settings {
             max_concurrent_downloads: 3,
             auto_retry_count: 2,
             filename_template: DEFAULT_FILENAME_TEMPLATE.to_string(),
+            connections_per_download: default_connections(),
+            speed_limit_kbps: 0,
 
             // A phone opens in the phone's own theme, so a light phone's first
             // run is not a dark film. The desktop keeps the dark it has had.
@@ -174,6 +184,12 @@ impl Settings {
     pub fn sanitize(&mut self) {
         self.max_concurrent_downloads = self.max_concurrent_downloads.clamp(1, 10);
         self.auto_retry_count = self.auto_retry_count.min(10);
+        self.connections_per_download = self
+            .connections_per_download
+            .clamp(1, crate::downloader::segmented::MAX_CONNECTIONS);
+        // A hundred gigabytes a second is no cap at all; past it the figure
+        // could only overflow the conversion to bytes.
+        self.speed_limit_kbps = self.speed_limit_kbps.min(100 * 1024 * 1024);
         self.network_timeout_sec = self.network_timeout_sec.clamp(5, 600);
         self.cache_limit_mb = self.cache_limit_mb.clamp(32, 8192);
 
@@ -206,6 +222,17 @@ impl Settings {
 /// rather than a preference that could never take effect.
 fn default_browser_link() -> bool {
     cfg!(windows)
+}
+
+/// Eight is what download managers have long settled on: enough to fill most
+/// lines, few enough that hosts rarely object. A phone's radio gains little
+/// past four.
+fn default_connections() -> u32 {
+    if cfg!(target_os = "android") {
+        4
+    } else {
+        8
+    }
 }
 
 fn normalize_optional(value: &mut Option<String>) {

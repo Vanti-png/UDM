@@ -1,6 +1,7 @@
 // The popup: what this tab is playing, and a button to hand each one to the
 // app -- or, beside its heading, one to pick the video, sound or picture on
-// the page itself (picker.js).
+// the page itself (picker.js). Below the list, the switch that sends the
+// browser's own downloads to the app (capture.js).
 // <full>
 //
 // And the session switches -- YouTube's on YouTube's own pages, TikTok's on
@@ -462,10 +463,35 @@ async function ask(action, fields = {}) {
 async function checkApp() {
   const reply = await ask('status');
   showProblem(problemOf(reply?.result));
+  renderCapture({ appCanCapture: reply?.result?.ok ? reply.result.status?.canCapture === true : null });
   // <full>
   renderSessions(reply);
   // </full>
 }
+
+// The capture switch: whether the browser's downloads go to the app. Its own
+// state is this extension's and needs no app to draw; the line under it says
+// when the app on this computer is too old to take one.
+const capture = { on: null, appCanCapture: null };
+
+function renderCapture(next) {
+  Object.assign(capture, next);
+  const toggle = el('captureSwitch');
+  toggle.setAttribute('aria-checked', String(capture.on === true));
+  toggle.disabled = capture.on === null;
+  let key = capture.on ? 'captureOn' : 'captureOffHint';
+  if (capture.on && capture.appCanCapture === false) key = 'captureUpdate';
+  el('captureLine').textContent = t(key);
+}
+
+el('captureSwitch').addEventListener('click', async () => {
+  const toggle = el('captureSwitch');
+  const turningOn = toggle.getAttribute('aria-checked') !== 'true';
+  toggle.setAttribute('aria-checked', String(turningOn));
+  toggle.disabled = true;
+  const reply = await ask('setCapture', { on: turningOn });
+  renderCapture({ on: typeof reply?.on === 'boolean' ? reply.on : !turningOn });
+});
 
 // <full>
 const SWITCHES = { youtube: 'linkSwitch', tiktok: 'tiktokSwitch', other: 'otherSwitch' };
@@ -539,6 +565,7 @@ async function start() {
   el('tiktokRow').hidden = !onTikTokTab;
   // </full>
 
+  void ask('captureState').then((state) => renderCapture({ on: state?.on === true }));
   void checkApp();
   const reply = Number.isInteger(tab?.id) ? await ask('scan', { tabId: tab.id }) : null;
   renderList(reply);

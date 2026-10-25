@@ -28,14 +28,14 @@ use std::time::Duration;
 
 use universal_downloader_lib::bridge::handoff;
 use universal_downloader_lib::bridge::protocol::{
-    self, Download, ErrorCode, HostStatus, Peer, Push, Request, Response, SessionState, Site,
+    self, Download, ErrorCode, FilePreview, HostStatus, Peer, Push, Request, Response, SessionState, Site,
 };
 use universal_downloader_lib::bridge::LinkState;
 use universal_downloader_lib::downloader::{self, DownloadPreview};
 use universal_downloader_lib::error::{AppError, AppResult};
-use universal_downloader_lib::model::DownloadRequest;
+use universal_downloader_lib::model::{DownloadRequest, SourceContext};
 use universal_downloader_lib::settings::Settings;
-use universal_downloader_lib::{db, log_debug, log_warn, logging, paths, tools};
+use universal_downloader_lib::{db, log_debug, log_warn, logging, net, paths, tools};
 
 fn main() {
     // The browser names the calling extension in the arguments: Chrome its
@@ -368,6 +368,9 @@ fn probe(state: &LinkState, download: &Download) -> Response {
     // The pipeline logs what it does where the app would, when the user has
     // asked the app to.
     logging::set_debug_enabled(settings.debug_logging);
+    if handoff.is_file() {
+        return probe_file(state, download, &handoff, &settings);
+    }
     let request = handoff.to_request(&settings);
 
     let Some(runtime) = runtime() else {
@@ -384,6 +387,62 @@ fn probe(state: &LinkState, download: &Download) -> Response {
         Err(_) => {
             log_debug!("bridge-host", "a preview ran out of time");
             Response::err(ErrorCode::Unavailable, "the link took too long to read")
+        }
+    }
+}
+
+/// How long a captured download may wait on the app's look at it. The browser
+/// holds the download paused meanwhile, so this is short: a server that has
+/// not answered one request by then is one the browser is better left to.
+const FILE_PROBE_TIMEOUT: Duration = Duration::from_secs(10);
+
+/// Whether the app can fetch a download the browser started, asked before the
+/// extension takes it from the browser.
+///
+/// One ranged request, made the way the app would make the download's: with
+/// the page as Referer and no cookies. A server that answers it with the file
+/// the browser was getting is one the app can download from; one that answers
+/// with a sign-in page, an error or a file of another size is not, and the
+/// extension lets the browser carry on instead -- a capture must never turn a
+/// working download into a broken one.
+fn probe_file(state: &LinkState, download: &Download, handoff: &handoff::Handoff, settings: &Settings) -> Response {
+    let Some(runtime) = runtime() else {
+        log_warn!("bridge-host", "could not start the runtime a probe runs on");
+        return Response::err(ErrorCode::Internal, "the app could not look at the file");
+    };
+    let request = handoff.to_request(settings);
+    let headers = request
+        .source
+        .as_ref()
+        .map(SourceContext::headers)
+        .unwrap_or_default();
+    let outcome = runtime.block_on(async {
+        tokio::time::timeout(FILE_PROBE_TIMEOUT, async {
+            let client = net::client(settings)?;
+            downloader::file::probe(&client, &handoff.url, &headers).await
+        })
+        .await
+    });
+
+    match outcome {
+        Ok(Ok(info)) if downloader::file::same_as_captured(&info, download.mime.as_deref(), handoff.file_size) => {
+            Response::file(
+                status(state, &download.peer),
+                FilePreview {
+                    file_name: handoff.file_name.clone().unwrap_or(info.file_name),
+                    size: info.size,
+                    resumable: info.resumable,
+                },
+            )
+        }
+        Ok(Ok(_)) => {
+            log_debug!("bridge-host", "the app is served something other than the browser's download");
+            Response::err(ErrorCode::Unavailable, "the app is not served the same file")
+        }
+        Ok(Err(err)) => refused(&err),
+        Err(_) => {
+            log_debug!("bridge-host", "a file probe ran out of time");
+            Response::err(ErrorCode::Unavailable, "the file took too long to answer")
         }
     }
 }
@@ -483,6 +542,7 @@ fn status(state: &LinkState, peer: &Peer) -> HostStatus {
             None
         },
         other_session,
+        can_capture: true,
     }
 }
 

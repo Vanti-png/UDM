@@ -11,8 +11,11 @@
 
 pub mod control;
 pub mod engine_dl;
+pub mod file;
 pub mod http;
+pub mod limiter;
 pub mod plan;
+pub mod segmented;
 pub mod speed;
 
 use std::path::{Path, PathBuf};
@@ -147,6 +150,11 @@ pub async fn execute(
     control: Arc<TaskControl>,
     on_update: UpdateSink<'_>,
 ) -> AppResult<DownloadOutcome> {
+    // A plain file has nothing to analyse and nothing to choose between.
+    if request.file.is_some() {
+        return file::execute(task_id, request, settings, control, on_update).await;
+    }
+
     let temp_dir = paths::temp_dir()?;
 
     on_update(DownloadProgress {
@@ -735,6 +743,10 @@ async fn fetch_format(
         on_update(progress);
     };
 
+    // Settings saved since start-up already reached it; this covers the first
+    // download after a launch.
+    limiter::global().set_kbps(settings.speed_limit_kbps);
+
     http::fetch(
         client,
         http::FetchOptions {
@@ -742,6 +754,7 @@ async fn fetch_format(
             headers: &headers,
             target,
             low_resource: settings.low_resource_mode,
+            connections: settings.connections_per_download,
         },
         Arc::clone(control),
         &mut sink,
@@ -979,6 +992,9 @@ pub fn cleanup_task_files(task_id: &str) {
 
 /// Label used on the queue card before a plan exists.
 pub fn provisional_label(request: &DownloadRequest) -> String {
+    if request.file.is_some() {
+        return file::provisional_label(request);
+    }
     let quality = match request.quality {
         crate::model::QualityPreference::Best => "Best".to_string(),
         crate::model::QualityPreference::Auto => "Auto".to_string(),
@@ -992,6 +1008,9 @@ pub fn provisional_label(request: &DownloadRequest) -> String {
 }
 
 pub fn platform_of(request: &DownloadRequest) -> PlatformId {
+    if request.file.is_some() {
+        return PlatformId::Direct;
+    }
     request
         .platform
         .unwrap_or_else(|| providers::detect::detect_platform(&request.url))
@@ -1036,6 +1055,7 @@ mod tests {
             entry: None,
             audio_language: None,
             source,
+            file: None,
         }
     }
 

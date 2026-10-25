@@ -1,6 +1,8 @@
 // The browser half of Universal Downloader. It notices the videos and sounds
 // the open tabs play, so the popup can list them, and hands the one the user
-// picks to the app.
+// picks to the app. And, as a download manager does, it takes the files the
+// browser starts downloading and hands those over too, whenever the app can
+// fetch the same file itself (capture.js).
 // <full>
 //
 // It also lends the app this profile's YouTube and TikTok sessions, each only
@@ -33,6 +35,7 @@
 // The wire format is src-tauri/src/bridge/protocol.rs. Field names come from
 // there, not from taste.
 
+import { CAPTURE_OFF_KEY, appCanTake, captureCandidate, filePayload } from './capture.js';
 import { NOTICES, detailMeta, firstMeta, problemOf } from './describe.js';
 import { STORE } from './edition.js';
 import {
@@ -179,7 +182,12 @@ function sendNative(request) {
           return;
         }
         if (response.ok === true) {
-          resolve({ ok: true, status: response.status ?? null, preview: response.preview ?? null });
+          resolve({
+            ok: true,
+            status: response.status ?? null,
+            preview: response.preview ?? null,
+            file: response.file ?? null,
+          });
           return;
         }
         resolve({
@@ -1377,6 +1385,67 @@ async function fromPage(action, message, sender) {
   return PAGE_ACTIONS[action](message, { tabId, frameId, held });
 }
 
+// The downloads the browser starts (capture.js). Each is paused while the app
+// is asked whether it can fetch the same file, then either handed over -- and
+// cancelled and taken off the browser's list -- or resumed where it was.
+async function captureOn() {
+  try {
+    return (await chrome.storage.local.get(CAPTURE_OFF_KEY))[CAPTURE_OFF_KEY] !== true;
+  } catch {
+    return false;
+  }
+}
+
+async function onDownloadCreated(item) {
+  if (!captureCandidate(item) || !(await captureOn())) return;
+  try {
+    await chrome.downloads.pause(item.id);
+  } catch {
+    // Already over -- a small file can finish before the pause -- or never
+    // started: nothing to take.
+    return;
+  }
+  let taken = false;
+  try {
+    taken = await handOverFile(item);
+  } catch {
+    taken = false;
+  }
+  if (taken) {
+    await chrome.downloads.cancel(item.id).catch(() => {});
+    // Off the browser's list too: the file is the app's now, and a cancelled
+    // row there would read as a download that failed.
+    await chrome.downloads.erase({ id: item.id }).catch(() => {});
+  } else {
+    await chrome.downloads.resume(item.id).catch(() => {});
+  }
+}
+
+// True once the app has the file. An app too old to take one says so in its
+// status (`canCapture`), and is asked nothing more: it would read the file as
+// a page to analyse, with the browser's download held paused meanwhile.
+async function handOverFile(item) {
+  const fields = filePayload(item, navigator.userAgent);
+  if (!fields) return false;
+  const asked = await callHost({ type: 'status', ...(await peer()) });
+  if (!asked.ok || asked.status?.canCapture !== true) return false;
+  const probed = await callHost({ type: 'probe', ...(await peer()), ...fields });
+  if (!appCanTake(probed)) return false;
+  const sent = await callHost({ type: 'download', ...(await peer()), ...fields });
+  return sent.ok === true;
+}
+
+// The popup's switch for it.
+async function captureState() {
+  return { on: await captureOn() };
+}
+
+async function setCapture(message) {
+  const on = message?.on === true;
+  await chrome.storage.local.set({ [CAPTURE_OFF_KEY]: !on });
+  return captureState();
+}
+
 const ACTIONS = {
   scan,
   status,
@@ -1384,6 +1453,8 @@ const ACTIONS = {
   probe,
   pick,
   forgetPick,
+  captureState,
+  setCapture,
   // <full>
   connect,
   forget,
@@ -1434,6 +1505,8 @@ chrome.tabs.onUpdated.addListener((tabId, change, tab) => {
 });
 
 chrome.tabs.onRemoved.addListener((tabId) => dropTab(tabId));
+
+chrome.downloads.onCreated.addListener((item) => void onDownloadCreated(item));
 
 // Prerendering and instant pages swap one tab for another under the same
 // window position; what was recorded for the hidden one is not what is shown.

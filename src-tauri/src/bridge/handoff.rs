@@ -23,7 +23,7 @@ use serde::{Deserialize, Serialize};
 
 use super::protocol::Download;
 use crate::error::AppResult;
-use crate::model::{DownloadMode, DownloadRequest, SourceContext, WatermarkPreference};
+use crate::model::{DownloadMode, DownloadRequest, FileDownload, SourceContext, WatermarkPreference};
 use crate::settings::Settings;
 
 /// The argument the host starts the app with. The running copy receives it
@@ -44,7 +44,13 @@ const MAX_ORIGIN_BYTES: usize = 512;
 const MAX_USER_AGENT_BYTES: usize = 512;
 const MAX_TITLE_CHARS: usize = 300;
 
-const KINDS: &[&str] = &["page", "stream", "video", "audio", "image"];
+/// `file` is a download the browser started and the extension captured: saved
+/// as it is, with no analysis.
+const KINDS: &[&str] = &["page", "stream", "video", "audio", "image", "file"];
+
+/// A file the browser was told is bigger than this is still a file, but a
+/// size this far out is not one a server sent.
+const MAX_FILE_SIZE: u64 = 1 << 50;
 
 /// One link waiting for the app, exactly as the inbox file holds it.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -65,6 +71,13 @@ pub struct Handoff {
     pub user_agent: Option<String>,
     #[serde(default)]
     pub thumbnail: Option<String>,
+    /// For a `file`: the name the browser would have saved it under, made
+    /// safe for a file system. The New download dialog opens on it.
+    #[serde(default)]
+    pub file_name: Option<String>,
+    /// For a `file`: the size the browser was told.
+    #[serde(default)]
+    pub file_size: Option<u64>,
     /// Unix seconds, stamped by the host when it accepted the link.
     pub received_at: i64,
 }
@@ -79,13 +92,42 @@ impl Handoff {
     /// the popup's preview is worked out from, and a preview of any other
     /// request would describe a file Home does not open on.
     pub fn to_request(&self, settings: &Settings) -> DownloadRequest {
+        // `value || null` on the other side: an empty string is no value.
+        let given = |value: &Option<String>| value.clone().filter(|value| !value.is_empty());
+        let source = Some(SourceContext {
+            page_url: given(&self.page_url),
+            referer: given(&self.referer),
+            origin: given(&self.origin),
+            user_agent: given(&self.user_agent),
+        });
+
+        if self.is_file() {
+            return DownloadRequest {
+                url: self.url.clone(),
+                mode: settings.default_mode,
+                quality: settings.default_quality,
+                video_format_id: None,
+                audio_format_id: None,
+                container: None,
+                watermark: WatermarkPreference::Any,
+                output_dir: None,
+                title: None,
+                thumbnail_url: None,
+                platform: None,
+                entry: None,
+                audio_language: None,
+                source,
+                file: Some(FileDownload {
+                    file_name: self.file_name.clone(),
+                }),
+            };
+        }
+
         let mode = if self.kind == "audio" {
             DownloadMode::Audio
         } else {
             settings.default_mode
         };
-        // `value || null` on the other side: an empty string is no value.
-        let given = |value: &Option<String>| value.clone().filter(|value| !value.is_empty());
 
         DownloadRequest {
             url: self.url.clone(),
@@ -117,13 +159,14 @@ impl Handoff {
             // Present even when every part of it is empty, as it is on the
             // other side. Its presence is what marks a link as handed over,
             // and that decides how it is analysed and what it is called.
-            source: Some(SourceContext {
-                page_url: given(&self.page_url),
-                referer: given(&self.referer),
-                origin: given(&self.origin),
-                user_agent: given(&self.user_agent),
-            }),
+            source,
+            file: None,
         }
+    }
+
+    /// A download the browser started, to be saved as it is.
+    pub fn is_file(&self) -> bool {
+        self.kind == "file"
     }
 }
 
@@ -164,6 +207,22 @@ pub fn validate(download: &Download, received_at: i64) -> Result<Handoff, &'stat
         .filter(|kind| KINDS.contains(&kind.as_str()))
         .unwrap_or_else(|| "page".to_string());
 
+    // Only a file has a name and a size of its own; on anything else they
+    // would be a page's say-so about something the analysis decides.
+    let is_file = kind == "file";
+    let file_name = download
+        .file_name
+        .as_deref()
+        .filter(|_| is_file)
+        // The browser knows the file by its full path on this computer; only
+        // the name is the app's business.
+        .and_then(|name| name.rsplit(['/', '\\']).next())
+        .map(crate::downloader::file::clean_name)
+        .filter(|name| !name.is_empty());
+    let file_size = download
+        .file_size
+        .filter(|size| is_file && *size > 0 && *size < MAX_FILE_SIZE);
+
     Ok(Handoff {
         url,
         kind,
@@ -173,6 +232,8 @@ pub fn validate(download: &Download, received_at: i64) -> Result<Handoff, &'stat
         origin,
         user_agent,
         thumbnail,
+        file_name,
+        file_size,
         received_at,
     })
 }
@@ -368,6 +429,8 @@ mod tests {
             origin: None,
             user_agent: None,
             thumbnail: None,
+            file_name: None,
+            file_size: None,
             received_at,
         }
     }
@@ -585,6 +648,8 @@ mod tests {
             origin: Some("https://player.example.com".into()),
             user_agent: Some("Mozilla/5.0".into()),
             thumbnail: Some("https://cdn.example.com/poster.jpg".into()),
+            file_name: None,
+            file_size: None,
             received_at: 1_790_000_000,
         }
     }
@@ -680,5 +745,52 @@ mod tests {
 
         let bare = handoff("https://a.example/v.mp4", 0);
         assert_eq!(bare.to_request(&defaults()).source, Some(SourceContext::default()));
+    }
+
+    #[test]
+    fn a_captured_browser_download_keeps_its_name_and_size() {
+        let download = wire(serde_json::json!({
+            "url": "https://github.com/x/y/releases/download/v1/app.msi",
+            "kind": "file",
+            "fileName": "C:\\Users\\me\\Downloads\\app<1>.msi",
+            "fileSize": 1_234_567,
+            "mime": "application/x-msi",
+            "pageUrl": "https://github.com/x/y/releases",
+        }));
+        assert_eq!(download.mime.as_deref(), Some("application/x-msi"));
+        let handoff = validate(&download, 0).unwrap();
+        assert!(handoff.is_file());
+        // A name, never a path, and one a file system takes.
+        assert_eq!(handoff.file_name.as_deref(), Some("app-1-.msi"));
+        assert_eq!(handoff.file_size, Some(1_234_567));
+
+        let request = handoff.to_request(&defaults());
+        assert_eq!(
+            request.file,
+            Some(FileDownload {
+                file_name: Some("app-1-.msi".into())
+            })
+        );
+        // The page goes along as the Referer, as for any handed-over link.
+        assert_eq!(
+            request.source.as_ref().and_then(|source| source.page_url.as_deref()),
+            Some("https://github.com/x/y/releases")
+        );
+        assert_eq!(request.container, None);
+    }
+
+    #[test]
+    fn only_a_file_carries_a_name_and_a_size() {
+        let download = wire(serde_json::json!({
+            "kind": "video", "fileName": "x.mp4", "fileSize": 10,
+        }));
+        let handoff = validate(&download, 0).unwrap();
+        assert_eq!(handoff.file_name, None);
+        assert_eq!(handoff.file_size, None);
+        assert_eq!(handoff.to_request(&defaults()).file, None);
+
+        // A size no server sent is no size.
+        let download = wire(serde_json::json!({ "kind": "file", "fileSize": 0 }));
+        assert_eq!(validate(&download, 0).unwrap().file_size, None);
     }
 }

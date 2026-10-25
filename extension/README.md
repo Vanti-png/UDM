@@ -34,7 +34,8 @@ from there. No host reply ever carries cookie material.
 | `media.js` | Pure helpers, no `chrome.*`: what a response is (`classify`), HLS and DASH manifests (`parseHls`, `parseDash`), the popup's list (`rows`) and what a click of the page picker stands for (`pickedRow`). Shared by the worker and the popup. |
 | `describe.js` | The words a row is described in (`firstMeta`, `detailMeta`) and what the app's answer means for the user (`problemOf`). Pure; the popup's list and the picker's card say a row alike. |
 | `sessions.js` | Pure helpers for the lent sessions: which domain each site's cookies are read from, which of them mean a sign-in, which changes are worth a push, the push's wire head (`push` for YouTube, `pushSite` for any other site), and for the other sites' switch which site a page is (`registrableDomain`, `otherSiteOf`). |
-| `background.js` | The service worker (an ES module). Watches `webRequest`, keeps a list per tab in `chrome.storage.session`, draws the badge, answers the popup, talks to the host. |
+| `background.js` | The service worker (an ES module). Watches `webRequest`, keeps a list per tab in `chrome.storage.session`, draws the badge, answers the popup, talks to the host, and captures the browser's own downloads. |
+| `capture.js` | Pure helpers for capturing downloads: which a browser starts are worth offering the app (`captureCandidate`), and what is sent for one (`filePayload`: the address, the page, and the name, size and type the browser knew). In every build. |
 | `popup.*` | The list, the **İndir** buttons, the page picker's button and the session switches (TikTok's only on TikTok pages, the other sites' only on other sites' pages, each also while it is on). |
 | `picker.js` | The page picker, the only script this extension puts into a page, and only when its button is pressed: makes the video, sound or picture under the pointer glow in every frame and reports the one clicked; where the browser will not open the popup to show it, draws a card with **İndir** in the top frame instead. A plain script, since that is what `executeScript` injects. |
 | `welcome.*` | Opened once, on install. |
@@ -71,6 +72,19 @@ from there. No host reply ever carries cookie material.
    the pick by its token, and a message from a tab is answered only for
    `picked`, `pickProbe`, `pickGet`, `pickEnd` and `pickAgain` with that tab's
    token.
+
+6. **Capture browser downloads** (the popup's switch, on by default, in both
+   builds) takes the files the browser starts saving, as a download manager
+   does. `downloads.onCreated` pauses the download and asks the host for its
+   `status`; only a host that says `canCapture` is sent a `probe` with
+   `kind: "file"`, which it answers with one ranged request, made as the app's
+   download would be -- the page as Referer, no cookies. If that is served the
+   file the browser was getting (not a sign-in page, not another size), the
+   download goes to the app as a `download` of kind `file`, and the browser's
+   copy is cancelled and erased; the app opens its New download dialog on it.
+   Anything else, the browser's download is resumed where it was. Private
+   windows, other extensions' downloads, `blob:`/`data:` addresses and saved
+   web pages are never touched.
 
 On YouTube and the other sites the app reads by address (`PAGE_SITES` in
 `media.js`), the popup offers the page itself rather than the pieces the player
@@ -192,11 +206,16 @@ The permissions map onto it:
   and, when the user presses **Pick from the page**, drawing the picker in that
   tab and reading the element clicked.
 - `nativeMessaging` -- the only channel out. No remote endpoint, no analytics.
+- `downloads` -- taking a download the browser starts (`downloads.onCreated`),
+  pausing it while the app checks it can fetch the same file, then cancelling
+  and erasing it once handed over, or resuming it if not. Only while
+  **Capture browser downloads** is on; never in a private window.
 - `cookies` -- youtube.com and tiktok.com, each only while its switch is on;
   and with Session on other sites on, the site of the page İndir is pressed
   on, at that press only.
-- `storage` -- a profile id, the three switches, the host's last word on the
-  link, and the per-tab lists (session storage, gone when the browser closes).
+- `storage` -- a profile id, the three switches and the capture switch, the
+  host's last word on the link, and the per-tab lists (session storage, gone
+  when the browser closes).
 - `alarms` -- a daily refresh, so a lent session does not go stale unnoticed.
 
 Two things to know before every upload:

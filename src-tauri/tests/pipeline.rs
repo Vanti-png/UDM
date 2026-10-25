@@ -139,6 +139,7 @@ async fn downloads_a_direct_file_and_writes_it_whole() {
             headers: &format.http_headers,
             target: &target,
             low_resource: false,
+            connections: 8,
         },
         TaskControl::shared(),
         &mut sink,
@@ -201,6 +202,7 @@ async fn recovers_from_an_interruption_against_a_live_host() {
                 headers: &format.http_headers,
                 target: &target,
                 low_resource: false,
+                connections: 1,
             },
             Arc::clone(&control),
             &mut sink,
@@ -230,6 +232,7 @@ async fn recovers_from_an_interruption_against_a_live_host() {
             headers: &format.http_headers,
             target: &target,
             low_resource: false,
+            connections: 1,
         },
         TaskControl::shared(),
         &mut sink,
@@ -362,6 +365,7 @@ async fn downloads_a_spotify_song_as_that_song() {
         entry: Some(2),
         audio_language: None,
         source: None,
+        file: None,
     };
     providers::remember_analysis(&request.url, &settings, &album);
     let mut sink = |_progress| {};
@@ -504,6 +508,7 @@ async fn a_tiktok_video_whose_best_picture_is_silent_downloads_with_its_sound() 
             entry: None,
             audio_language: None,
             source: None,
+            file: None,
         };
         let mut last_received = 0u64;
         let mut sink = |progress: universal_downloader_lib::model::DownloadProgress| {

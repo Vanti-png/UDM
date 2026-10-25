@@ -87,6 +87,11 @@
   },
   "noticeUnreachable": { "message": "Universal Downloader didn't respond" },
 
+  "captureTitle": { "message": "Capture browser downloads" },
+  "captureOn": { "message": "Downloads go to Universal Downloader" },
+  "captureOffHint": { "message": "Downloads stay in the browser" },
+  "captureUpdate": { "message": "Update Universal Downloader for this" },
+
   "linkTitle": {
     "message": "YouTube session",
     "description": "Title of the switch that lends this profile's YouTube sign-in to the app."

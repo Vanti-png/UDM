@@ -125,6 +125,7 @@ fn request(url: String, output_dir: &Path, source: Option<SourceContext>) -> Dow
         entry: None,
         audio_language: None,
         source,
+        file: None,
     }
 }
 

@@ -76,6 +76,7 @@ fn request(url: &str, entry: Option<u32>, mode: DownloadMode) -> DownloadRequest
         entry,
         audio_language: None,
         source: None,
+        file: None,
     }
 }
 

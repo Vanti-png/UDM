@@ -82,7 +82,9 @@ fn build(settings: &Settings) -> AppResult<reqwest::Client> {
         .connect_timeout(Duration::from_secs(settings.network_timeout_sec.min(60)))
         .read_timeout(Duration::from_secs(settings.network_timeout_sec))
         .pool_idle_timeout(Duration::from_secs(90))
-        .pool_max_idle_per_host(6)
+        // Room for every connection of a split download to be reused for its
+        // next ranged request rather than reopened.
+        .pool_max_idle_per_host(crate::downloader::segmented::MAX_CONNECTIONS as usize)
         .redirect(reqwest::redirect::Policy::limited(10))
         .tcp_keepalive(Duration::from_secs(60));
 

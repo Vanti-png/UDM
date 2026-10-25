@@ -28,7 +28,7 @@ interface DownloadCardProps {
 }
 
 /** Stages that are simply "downloading"; the bar already says that. */
-const TRANSFER_STAGES: ReadonlySet<DownloadStage> = new Set(['video', 'audio', 'image']);
+const TRANSFER_STAGES: ReadonlySet<DownloadStage> = new Set(['video', 'audio', 'image', 'file']);
 
 /** 30px under a pointer, 36px under a fingertip. */
 const ACTION_SIZE = IS_MOBILE ? 'sm' : 'md';

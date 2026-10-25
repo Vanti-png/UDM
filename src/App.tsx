@@ -5,6 +5,7 @@ import { flushSync } from 'react-dom';
 import { DesktopUpdater } from '@/components/DesktopUpdater';
 import { UpdatePrompt } from '@/components/UpdatePrompt';
 import { WelcomeScreen } from '@/components/WelcomeScreen';
+import { NewDownloadDialog } from '@/components/downloads/NewDownloadDialog';
 import { IntroBoundary } from '@/components/intro/IntroBoundary';
 import { Background } from '@/components/layout/Background';
 import { BottomNav, PHONE_TABS } from '@/components/layout/BottomNav';
@@ -23,7 +24,7 @@ import {
   SCREEN,
   type PhoneMove,
 } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
+import { IS_MOBILE, IS_WINDOWS } from '@/lib/platform';
 import { extractFirstUrl } from '@/lib/url';
 import { AboutPage } from '@/pages/AboutPage';
 import { ConvertPage } from '@/pages/ConvertPage';
@@ -35,6 +36,7 @@ import { SettingsPage, type SettingsSection } from '@/pages/SettingsPage';
 import * as ipc from '@/services/ipc';
 import { useAnalysisStore } from '@/stores/useAnalysisStore';
 import { selectConvertInFlight, useConvertStore } from '@/stores/useConvertStore';
+import { useNewDownloadStore } from '@/stores/useNewDownloadStore';
 import { selectEditing, useEditorStore } from '@/stores/useEditorStore';
 import { selectInFlightCount, useQueueStore } from '@/stores/useQueueStore';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -590,7 +592,27 @@ export function App() {
     const state = handoffPull.current;
 
     const show = (handoffs: Handoff[]) => {
-      const latest = handoffs[handoffs.length - 1];
+      // A download the browser started is a file, asked about in the New
+      // download dialog -- each of them, in the order they came. It leaves
+      // whatever is on Home where it is.
+      const offer = useNewDownloadStore.getState().offer;
+      for (const captured of handoffs.filter((handoff) => handoff.kind === 'file')) {
+        offer({
+          url: captured.url,
+          origin: 'browser',
+          source: {
+            pageUrl: captured.pageUrl || null,
+            referer: captured.referer || null,
+            origin: captured.origin || null,
+            userAgent: captured.userAgent || null,
+          },
+          fileName: captured.fileName || null,
+          fileSize: captured.fileSize ?? null,
+        });
+      }
+
+      const media = handoffs.filter((handoff) => handoff.kind !== 'file');
+      const latest = media[media.length - 1];
       const current = useSettingsStore.getState().settings;
       if (!latest || !current) return;
       const { url, options, context } = homeFromHandoff(latest, current);
@@ -637,10 +659,40 @@ export function App() {
     };
   }, [analyze, setRoute, setUrl, settingsReady]);
 
-  // A link on the clipboard is only offered, under the empty field on Home.
-  // It takes the user nowhere: they may be in the middle of something else.
+  // A media link on the clipboard is only offered, under the empty field on
+  // Home. It takes the user nowhere: they may be in the middle of something
+  // else. On Windows the backend watches the clipboard as links are copied
+  // (`clipboard.rs`), so the window's own look when it regains focus is left
+  // to the other platforms.
   const clipboardOn = settings?.clipboardMonitoring ?? false;
-  useClipboardMonitor(clipboardOn, setClipboardSuggestion);
+  useClipboardMonitor(clipboardOn && !IS_WINDOWS, setClipboardSuggestion);
+
+  // A file link copied elsewhere is what a download manager is for: the
+  // backend has already brought the window forward, and the New download
+  // dialog asks about it. Anything else is offered on Home, as above.
+  useEffect(() => {
+    if (!IS_WINDOWS) return;
+    const unlisten = ipc.onClipboardCopied((link) => {
+      if (!useSettingsStore.getState().settings?.clipboardMonitoring) return;
+      if (link.file) {
+        useNewDownloadStore.getState().offer({
+          url: link.url,
+          origin: 'clipboard',
+          source: null,
+          fileName: null,
+          fileSize: null,
+        });
+      } else {
+        setClipboardSuggestion(link.url);
+      }
+    });
+    return () => {
+      void unlisten.then(
+        (off) => off(),
+        () => {},
+      );
+    };
+  }, [setClipboardSuggestion]);
 
   // Turning the setting off takes the standing offer away with it, instead of
   // leaving a live one on Home for a feature that is no longer on.
@@ -766,6 +818,7 @@ export function App() {
   // cut off.
   return (
     <div className="flex h-full overflow-clip bg-bg">
+      {!IS_MOBILE && <NewDownloadDialog onQueued={goToDownloads} />}
       {!IS_MOBILE && (
         <Sidebar
           route={route}

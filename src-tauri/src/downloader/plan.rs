@@ -1512,6 +1512,7 @@ mod tests {
             entry: None,
             audio_language: audio_language.map(str::to_string),
             source: None,
+            file: None,
         }
     }
 

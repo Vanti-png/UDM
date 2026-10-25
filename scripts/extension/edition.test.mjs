@@ -69,6 +69,7 @@ function fakeChrome({ sessions, answer }) {
   const session = new Map();
   const sent = [];
   const told = [];
+  const downloaded = [];
   const chrome = {
     runtime: {
       id: 'test',
@@ -99,12 +100,21 @@ function fakeChrome({ sessions, answer }) {
     },
     scripting: { executeScript: async () => [] },
     action: { setBadgeBackgroundColor: async () => {}, setBadgeTextColor: async () => {}, setBadgeText: async () => {} },
+    // Every build captures the browser's own downloads. What the worker did
+    // to each is kept in order, as `[verb, id]`.
+    downloads: {
+      onCreated: event('onCreated'),
+      pause: async (id) => void downloaded.push(['pause', id]),
+      resume: async (id) => void downloaded.push(['resume', id]),
+      cancel: async (id) => void downloaded.push(['cancel', id]),
+      erase: async (query) => void downloaded.push(['erase', query.id]),
+    },
   };
   if (sessions) {
     chrome.alarms = { create: () => {}, onAlarm: event('onAlarm') };
     chrome.cookies = { getAll: async () => [], onChanged: event('onChanged') };
   }
-  return { chrome, listeners, local, session, sent, told };
+  return { chrome, listeners, local, session, sent, told, downloaded };
 }
 
 /** A message from the extension's own popup: the answer, or `unanswered`. */
@@ -174,15 +184,18 @@ describe('the Chrome Web Store build', () => {
     assert.match(build.get('media.js'), /^export const UNLISTED_SITES = STORE \? \[.*'youtube\.com'.*'spotify\.com'.*\]/m);
   });
 
-  test('shows no switch, and no word about sessions, in the popup or the welcome page', () => {
+  test('shows no session switch, and no word about sessions, in the popup or the welcome page', () => {
     for (const page of ['popup.html', 'welcome.html']) {
       const html = build.get(page);
-      assert.doesNotMatch(html, /Switch"|sessionsTitle|welcomeSession|youtubeRow|tiktokRow|otherRow/, page);
+      assert.doesNotMatch(html, /linkSwitch|tiktokSwitch|otherSwitch|sessionsTitle|welcomeSession|youtubeRow|tiktokRow|otherRow/, page);
     }
-    // The fence takes only the sessions: the list and the welcome's steps stay.
+    // The fence takes only the sessions: the list, the capture switch every
+    // build has, and the welcome's steps stay.
     assert.match(build.get('popup.html'), /id="list"/);
+    assert.match(build.get('popup.html'), /id="captureSwitch"/);
     assert.match(build.get('welcome.html'), /step3Title/);
-    assert.doesNotMatch(build.get('popup.css'), /\.switch|\.setting/);
+    // The divider between switches sharing a card is the sessions' alone.
+    assert.doesNotMatch(build.get('popup.css'), /\.setting:not\(\[hidden\]\) ~/);
   });
 
   test("keeps no session's message in either language", () => {
@@ -333,6 +346,88 @@ describe('the Chrome Web Store build', () => {
     assert.ok(!fake.session.has('pick:7'));
     assert.ok(fake.told.some((word) => word.message.udPick === 'end' && word.frameId === undefined));
     assert.equal(await ask(fake, { action: 'pickGet', token: next }, tab), null);
+  });
+
+  test("captures the browser's downloads the app can fetch, and leaves the rest to the browser", async () => {
+    // The helper: an app that captures, served the file for anything but a
+    // `/login` address, where it gets a sign-in page instead.
+    let canCapture = true;
+    const fake = fakeChrome({
+      sessions: false,
+      answer: (request) => {
+        if (request.type === 'probe') {
+          return request.url.includes('/login')
+            ? { ok: false, error: { code: 'unavailable', message: '' } }
+            : { ok: true, status: { canCapture }, file: { fileName: 'app.msi', size: 10, resumable: true } };
+        }
+        return { ok: true, status: { canCapture, canDownload: true } };
+      },
+    });
+    globalThis.chrome = fake.chrome;
+    await import(pathToFileURL(join(unpacked(build), 'background.js')).href);
+    assert.equal(fake.listeners.onCreated.length, 1);
+
+    const started = (id, url, extra = {}) => ({
+      id,
+      url,
+      state: 'in_progress',
+      referrer: 'https://github.com/x/y/releases',
+      filename: 'C:\\Users\\me\\Downloads\\app.msi',
+      totalBytes: 10,
+      mime: 'application/x-msi',
+      ...extra,
+    });
+    const created = async (item) => {
+      fake.sent.length = 0;
+      fake.downloaded.length = 0;
+      fake.listeners.onCreated[0](item);
+      await settle();
+    };
+
+    // Taken: paused, looked at, handed over, then cancelled and erased.
+    await created(started(1, 'https://github.com/x/y/releases/download/v1/app.msi'));
+    assert.deepEqual(fake.sent.map((request) => request.type), ['status', 'probe', 'download']);
+    const handed = fake.sent[2];
+    assert.equal(handed.kind, 'file');
+    assert.equal(handed.fileName, 'app.msi', 'the name, never the path');
+    assert.equal(handed.fileSize, 10);
+    assert.equal(handed.mime, 'application/x-msi');
+    assert.equal(handed.pageUrl, 'https://github.com/x/y/releases');
+    assert.equal(handed.cookies, undefined);
+    assert.deepEqual(fake.downloaded, [['pause', 1], ['cancel', 1], ['erase', 1]]);
+
+    // The app is served something else: the browser carries on.
+    await created(started(2, 'https://site.example/login/report.pdf'));
+    assert.deepEqual(fake.sent.map((request) => request.type), ['status', 'probe']);
+    assert.deepEqual(fake.downloaded, [['pause', 2], ['resume', 2]]);
+
+    // An app too old to take one is not asked to look at all.
+    canCapture = false;
+    await created(started(3, 'https://cdn.example/a.zip'));
+    assert.deepEqual(fake.sent.map((request) => request.type), ['status']);
+    assert.deepEqual(fake.downloaded, [['pause', 3], ['resume', 3]]);
+    canCapture = true;
+
+    // What is never a candidate is never touched.
+    for (const item of [
+      started(4, 'blob:https://site.example/1234'),
+      started(5, 'https://cdn.example/a.zip', { incognito: true }),
+      started(6, 'https://cdn.example/a.zip', { byExtensionId: 'other' }),
+      started(7, 'https://cdn.example/page', { mime: 'text/html' }),
+      started(8, 'https://cdn.example/a.zip', { state: 'complete' }),
+    ]) {
+      await created(item);
+      assert.deepEqual(fake.downloaded, [], String(item.id));
+      assert.deepEqual(fake.sent, [], String(item.id));
+    }
+
+    // The popup's switch turns it off, and the browser keeps its downloads.
+    assert.deepEqual(await ask(fake, { action: 'captureState' }), { on: true });
+    assert.deepEqual(await ask(fake, { action: 'setCapture', on: false }), { on: false });
+    await created(started(9, 'https://cdn.example/a.zip'));
+    assert.deepEqual(fake.downloaded, []);
+    assert.deepEqual(fake.sent, []);
+    assert.deepEqual(await ask(fake, { action: 'setCapture', on: true }), { on: true });
   });
 
   test('a pick opens the popup, which shows it while the tab is on that page', async () => {

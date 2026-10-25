@@ -35,6 +35,11 @@
   "noticeUpdate": { "message": "Universal Downloader'ı güncelleyin" },
   "noticeUnreachable": { "message": "Universal Downloader yanıt vermedi" },
 
+  "captureTitle": { "message": "Tarayıcı indirmelerini yakala" },
+  "captureOn": { "message": "İndirmeler Universal Downloader'a gider" },
+  "captureOffHint": { "message": "İndirmeler tarayıcıda kalır" },
+  "captureUpdate": { "message": "Bunun için Universal Downloader'ı güncelleyin" },
+
   "linkTitle": { "message": "YouTube oturumu" },
   "linkOn": { "message": "Üyelere özel videolar için bağlı" },
   "linkSignedOut": { "message": "YouTube'da oturum açık değil" },

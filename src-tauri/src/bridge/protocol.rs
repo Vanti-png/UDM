@@ -359,6 +359,19 @@ pub struct Download {
     pub user_agent: Option<String>,
     #[serde(default)]
     pub thumbnail: Option<String>,
+    /// For a `file` -- a download the browser started and the extension
+    /// captured -- the name the browser was going to save it under, when it
+    /// knew one yet.
+    #[serde(default)]
+    pub file_name: Option<String>,
+    /// The size the browser was told, when it was told one.
+    #[serde(default)]
+    pub file_size: Option<u64>,
+    /// The type the browser was told, which a probe compares with what the
+    /// app is answered: a file the browser was getting and a sign-in page the
+    /// app gets instead are not the same download.
+    #[serde(default)]
+    pub mime: Option<String>,
 }
 
 /// Who is speaking. Present on every request so the host can bind, and check,
@@ -451,6 +464,10 @@ pub struct Response {
     pub error: Option<WireError>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub preview: Option<Preview>,
+    /// The answer to a probe of a `file`: what the app would save, found
+    /// with one request and no analysis.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<FilePreview>,
 }
 
 impl Response {
@@ -461,6 +478,15 @@ impl Response {
             status: Some(status),
             error: None,
             preview: None,
+            file: None,
+        }
+    }
+
+    /// The answer to a probe of a file the app can fetch.
+    pub fn file(status: HostStatus, file: FilePreview) -> Self {
+        Self {
+            file: Some(file),
+            ..Self::ok(status)
         }
     }
 
@@ -482,8 +508,18 @@ impl Response {
                 message: message.into(),
             }),
             preview: None,
+            file: None,
         }
     }
+}
+
+/// What the app would save for a captured browser download.
+#[derive(Debug, Clone, PartialEq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct FilePreview {
+    pub file_name: String,
+    pub size: Option<u64>,
+    pub resumable: bool,
 }
 
 #[derive(Debug, Clone, Serialize)]
@@ -577,6 +613,13 @@ pub struct HostStatus {
     /// unchanged.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub other_domain: Option<String>,
+    /// Whether this host takes `file` downloads the browser started: probes
+    /// them with one request, and hands them over to be saved as they are.
+    /// Absent from an older host, which would read a `file` as a page to
+    /// analyse -- and that absence is how the extension knows to leave the
+    /// browser's downloads alone.
+    #[serde(default)]
+    pub can_capture: bool,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default, Serialize, Deserialize)]
@@ -687,6 +730,7 @@ mod tests {
             tiktok_session: SessionState::None,
             other_session: SessionState::None,
             other_domain: None,
+            can_capture: true,
         }
     }
 
@@ -742,6 +786,38 @@ mod tests {
                 "audioOnly": false,
             })
         );
+    }
+
+    #[test]
+    fn the_answer_to_a_file_probe_carries_the_file_and_nothing_else() {
+        let answer = serde_json::to_value(Response::file(
+            status(),
+            FilePreview {
+                file_name: "app.msi".into(),
+                size: Some(1_234_567),
+                resumable: true,
+            },
+        ))
+        .unwrap();
+        assert_eq!(answer["ok"], true);
+        assert_eq!(answer["status"]["canCapture"], true);
+        assert_eq!(
+            answer["file"],
+            serde_json::json!({ "fileName": "app.msi", "size": 1_234_567, "resumable": true })
+        );
+        assert!(answer.get("preview").is_none(), "{answer}");
+
+        // Nothing else carries one.
+        let plain = serde_json::to_value(Response::ok(status())).unwrap();
+        assert!(plain.get("file").is_none(), "{plain}");
+
+        // A status from a host older than captures says it takes none.
+        let older: HostStatus = serde_json::from_value(serde_json::json!({
+            "appVersion": "1.0.0", "hostPath": "C:\\ud-bridge.exe", "enabled": true,
+            "bound": false, "session": "none",
+        }))
+        .unwrap();
+        assert!(!older.can_capture);
     }
 
     #[test]

@@ -620,6 +620,7 @@ mod tests {
             entry: None,
             audio_language: None,
             source: None,
+            file: None,
         }
     }
 

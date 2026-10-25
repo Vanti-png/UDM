@@ -188,10 +188,16 @@ Videolar, sitenin kullandığı her türlü sunucudan gelir (CDN'ler, oynatıcı
 Bu eklentinin iletişim kurduğu tek kanaldır. Açılır pencerede listelenen ilk birkaç videonun adresini (uygulama her birinin hangi kalitede, hangi biçimde ve yaklaşık ne boyutta ineceğini söylesin diye) ve kullanıcının İndir'e bastığı videonun adresini, Universal Downloader masaüstü uygulamasının kurduğu com.universaldownloader.bridge adlı yerel mesajlaşma sunucusuna Chrome'un stdio kanalı üzerinden gönderir. O sunucuyu Chrome'un kendisi başlatır ve yalnızca bu eklentinin kimliği için başlatır. Hiçbir ağ portu dinlenmez; eklentinin bir sunucusu yoktur.
 ```
 
+**İzin: downloads**
+
+```
+"Tarayıcı indirmelerini yakala" anahtarı açıkken (varsayılan olarak açık), tarayıcının başlattığı bir indirmeyi Universal Downloader'a devretmek için. Eklenti indirmeyi duraklatır ve aynı bilgisayardaki uygulamaya, aynı dosyayı çerezsiz olarak kendisinin indirip indiremeyeceğini sorar. Uygulama aynı dosyaya ulaşabiliyorsa indirme ona verilir; tarayıcıdaki kopya iptal edilip indirme listesinden kaldırılır. Ulaşamıyorsa tarayıcıdaki indirme kaldığı yerden sürer. Gizli pencerelerdeki indirmelere, başka eklentilerin indirmelerine ve sayfanın kendi oluşturduğu (blob:, data:) dosyalara hiç dokunulmaz. Eklenti hiçbir şeyi kendisi indirmez.
+```
+
 **İzin: storage**
 
 ```
-chrome.storage.local içinde tek bir değer: bu tarayıcı profili için rastgele bir tanımlayıcı, masaüstü uygulaması bir Chrome profilini diğerinden ayırabilsin diye. chrome.storage.session içinde, bellekte, her sekmenin oynattığı medyanın listesi ve uygulamanın son birkaç videonun nasıl ineceğine verdiği yanıtlar; sekme kapanınca ve tarayıcı kapanınca silinir.
+chrome.storage.local içinde iki değer: bu tarayıcı profili için rastgele bir tanımlayıcı, masaüstü uygulaması bir Chrome profilini diğerinden ayırabilsin diye; ve indirme yakalama anahtarının kapalı olup olmadığı. chrome.storage.session içinde, bellekte, her sekmenin oynattığı medyanın listesi ve uygulamanın son birkaç videonun nasıl ineceğine verdiği yanıtlar; sekme kapanınca ve tarayıcı kapanınca silinir.
 ```
 
 **Uzaktan kod:** Hayır, uzaktan kod kullanmıyorum.
@@ -356,10 +362,16 @@ Videos come from whatever servers a site uses (CDNs, player domains), so seeing 
 The only channel this extension communicates over. It sends the addresses of the first few videos listed in the popup (so the application can say at what quality, in what format and at roughly what size each would download) and the address of the video the user pressed Get on to com.universaldownloader.bridge, a native messaging host installed by the Universal Downloader desktop application, using Chrome's stdio channel. Chrome starts that host itself and only for this extension's ID. Nothing listens on a network port; the extension has no server.
 ```
 
+**Permission: downloads**
+
+```
+While the "Capture browser downloads" switch is on (it is by default), to hand a download the browser starts over to Universal Downloader. The extension pauses the download and asks the application on the same computer whether it can fetch the same file itself, without cookies. If it can, the download is handed over and the browser's copy is cancelled and removed from the downloads list; if it cannot, the browser's download resumes where it was. Downloads in private windows, downloads other extensions started and files a page made itself (blob:, data:) are never touched. The extension downloads nothing itself.
+```
+
 **Permission: storage**
 
 ```
-One value in chrome.storage.local: a random identifier for this browser profile, so the desktop application can tell one Chrome profile from another. In chrome.storage.session, in memory, each tab's list of the media it played and the application's answers about how the last few videos would download, dropped when the tab or the browser closes.
+Two values in chrome.storage.local: a random identifier for this browser profile, so the desktop application can tell one Chrome profile from another, and whether the download capture switch is off. In chrome.storage.session, in memory, each tab's list of the media it played and the application's answers about how the last few videos would download, dropped when the tab or the browser closes.
 ```
 
 **Remote code:** No, I am not using remote code.

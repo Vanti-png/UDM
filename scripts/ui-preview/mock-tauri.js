@@ -34,7 +34,9 @@
  * From the console, `__UD_MOCK__.emit(event, payload)` delivers a backend
  * event and `__UD_MOCK__.calls` lists every command the app has invoked.
  * `__UD_MOCK__.handoff(item?)` hands over a video as the extension's İndir
- * does, the sample stream with `item`'s fields over it.
+ * does, the sample stream with `item`'s fields over it; with
+ * `{ kind: 'file', url, fileName, fileSize }` it is a captured browser download.
+ * `__UD_MOCK__.copy(url?)` is a link copied in another program.
  * `__UD_MOCK__.picked` is what the phone's file picker returns next, and
  * `__UD_MOCK__.clipboard` the last text the app wrote to the clipboard.
  * `__UD_MOCK__.files` is how the next open, reveal or share goes: 'ok',
@@ -75,6 +77,8 @@
     maxConcurrentDownloads: 3,
     autoRetryCount: 2,
     filenameTemplate: '{creator} - {title}',
+    connectionsPerDownload: 8,
+    speedLimitKbps: 0,
     theme: params.get('theme') ?? 'dark',
     language: params.get('lang') ?? 'tr',
     reduceMotion: false,
@@ -981,6 +985,22 @@
     bridge_diagnostics: () => 'bridge: ok',
     // Empties the inbox, as the real one deletes each file it read.
     take_handoffs: () => inbox.splice(0),
+    // A plain file: named by its address, a size made up from its length, and
+    // a page instead for anything with "login" in it.
+    probe_file: async ({ url }) => {
+      await new Promise((resolve) => setTimeout(resolve, 400));
+      if (url.includes('fail')) {
+        throw { code: 'notFound', title: 'Not found', message: 'The server has no such file.', technical: 'HTTP 404', retryable: false };
+      }
+      const name = decodeURIComponent(new URL(url).pathname.split('/').pop() || 'download');
+      return {
+        fileName: url.includes('login') ? 'login.html' : name,
+        size: url.includes('login') ? 2_048 : 48_000_000 + url.length * 1_337,
+        mime: url.includes('login') ? 'text/html' : 'application/octet-stream',
+        resumable: !url.includes('noresume'),
+        finalUrl: url,
+      };
+    },
 
     detect_platform: ({ url }) => detect(url),
     analyze_url: async ({ url }) => {
@@ -1565,6 +1585,11 @@
     handoff(item = {}) {
       inbox.push(handoffItem(item));
       emit('bridge://handoff', null);
+    },
+    /** A link copied in another program, as the clipboard watcher reports it. */
+    copy(url = 'https://github.com/example/app/releases/download/v2.1.0/App-Setup-2.1.0.exe') {
+      const file = /\.(zip|rar|7z|exe|msi|iso|pdf|mp4|mkv|mp3|apk|dmg)([?#]|$)/i.test(url);
+      emit('clipboard://copied', { url, file });
     },
     get tasks() { return tasks; },
     get picked() { return picker.picked; },

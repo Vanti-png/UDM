@@ -157,6 +157,35 @@ export interface DownloadRequest {
    * over. Null for everything else: a link pasted into Home needs no headers.
    */
   source?: SourceContext | null;
+  /**
+   * Set to fetch the link as a plain file, byte for byte, with no analysis:
+   * a download the browser started, or a file link copied to the clipboard.
+   * Mode, quality and container mean nothing then.
+   */
+  file?: FileDownload | null;
+}
+
+/** How a plain file is saved. See `DownloadRequest.file`. */
+export interface FileDownload {
+  /** The name chosen in the New download dialog; null keeps the server's. */
+  fileName: string | null;
+}
+
+/** What a server says about a plain file before any of it is fetched. */
+export interface FileInfo {
+  fileName: string;
+  size: number | null;
+  mime: string | null;
+  /** The server answers ranged requests: it can be paused, resumed and split. */
+  resumable: boolean;
+  finalUrl: string;
+}
+
+/** A link copied in another program, as the clipboard watcher saw it. */
+export interface CopiedLink {
+  url: string;
+  /** It points straight at a file; the New download dialog opens on it. */
+  file: boolean;
 }
 
 /**
@@ -192,6 +221,10 @@ export interface Handoff {
   origin: string | null;
   userAgent: string | null;
   thumbnail: string | null;
+  /** For a 'file': the name the browser would have saved it under. */
+  fileName?: string | null;
+  /** For a 'file': the size the browser was told. */
+  fileSize?: number | null;
   /** Seconds since the epoch, stamped by the host. */
   receivedAt: number;
 }
@@ -199,9 +232,10 @@ export interface Handoff {
 /**
  * 'page' is a site the app knows, handed over by its address; 'stream' an HLS
  * or DASH manifest; 'video' and 'audio' a file the page played; 'image' a
- * picture the user picked on the page.
+ * picture the user picked on the page; 'file' a download the browser started,
+ * which the extension captured.
  */
-export type HandoffKind = 'page' | 'stream' | 'video' | 'audio' | 'image';
+export type HandoffKind = 'page' | 'stream' | 'video' | 'audio' | 'image' | 'file';
 
 export type DownloadStatus =
   | 'queued'
@@ -219,6 +253,7 @@ export type DownloadStage =
   | 'video'
   | 'audio'
   | 'image'
+  | 'file'
   | 'merging'
   | 'converting'
   | 'finalizing'
@@ -602,6 +637,10 @@ export interface Settings {
   maxConcurrentDownloads: number;
   autoRetryCount: number;
   filenameTemplate: string;
+  /** Connections one download may open on a host that allows splitting. */
+  connectionsPerDownload: number;
+  /** The whole app's download speed cap in KB/s; 0 is no cap. */
+  speedLimitKbps: number;
 
   // Appearance
   theme: ThemePreference;

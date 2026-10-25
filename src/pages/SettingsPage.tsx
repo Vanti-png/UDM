@@ -115,6 +115,16 @@ function controlWidth(desktop: string): string {
   return IS_MOBILE ? 'w-full' : desktop;
 }
 
+/** Speed caps offered in Settings, in KB/s. 0 is no cap. */
+const SPEED_LIMITS_KBPS = [0, 256, 512, 1024, 2048, 5120, 10240, 25600, 51200];
+
+/** The presets, plus a figure saved by hand that is none of them. */
+function speedLimitOptions(current: number): number[] {
+  return SPEED_LIMITS_KBPS.includes(current)
+    ? SPEED_LIMITS_KBPS
+    : [...SPEED_LIMITS_KBPS, current].sort((a, b) => a - b);
+}
+
 interface SettingsPageProps {
   settings: Settings;
   /**
@@ -530,6 +540,41 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
                 max={10}
                 onChange={(value) => void update({ maxConcurrentDownloads: value })}
                 formatValue={(value) => String(value)}
+              />
+            </div>
+          }
+        />
+
+        <SettingRow
+          title={t('settings.connections')}
+          description={t('settings.connectionsHint')}
+          stacked={IS_MOBILE}
+          control={
+            <div className={controlWidth('w-[180px]')}>
+              <Slider
+                value={settings.connectionsPerDownload}
+                min={1}
+                max={32}
+                onChange={(value) => void update({ connectionsPerDownload: value })}
+                formatValue={(value) => String(value)}
+              />
+            </div>
+          }
+        />
+
+        <SettingRow
+          title={t('settings.speedLimit')}
+          description={t('settings.speedLimitHint')}
+          stacked={IS_MOBILE}
+          control={
+            <div className={controlWidth('w-[200px]')}>
+              <Dropdown
+                value={String(settings.speedLimitKbps)}
+                options={speedLimitOptions(settings.speedLimitKbps).map((kbps) => ({
+                  value: String(kbps),
+                  label: kbps === 0 ? t('settings.speedLimitOff') : `${formatBytes(kbps * 1024)}/s`,
+                }))}
+                onChange={(value) => void update({ speedLimitKbps: Number(value) || 0 })}
               />
             </div>
           }

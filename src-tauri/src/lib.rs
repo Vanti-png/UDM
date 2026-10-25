@@ -8,6 +8,7 @@
 pub mod android;
 pub mod bridge;
 pub mod cache;
+pub mod clipboard;
 pub mod commands;
 pub mod converter;
 pub mod db;
@@ -192,6 +193,12 @@ pub fn run() {
             // state, unlike a partial download, so it goes unconditionally.
             bridge::sweep_leases();
 
+            // Links copied in other programs, as they are copied. Whether
+            // anything comes of them is the setting's to say, read on every
+            // copy, so turning it off needs no restart.
+            #[cfg(windows)]
+            clipboard::spawn(handle.clone());
+
             match paths::sweep_temp(TEMP_SWEEP_AGE_SECS) {
                 Ok(count) if count > 0 => log_info!("app", "swept {count} stale temp files"),
                 Err(err) => log_warn!("app", "temp sweep failed: {err}"),
@@ -244,6 +251,7 @@ pub fn run() {
             commands::check_tool_update,
             commands::detect_platform,
             commands::analyze_url,
+            commands::probe_file,
             commands::get_thumbnail,
             commands::summarize_plan,
             commands::list_downloads,

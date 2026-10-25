@@ -42,6 +42,20 @@
 
     <section class="card list" id="list" aria-live="polite" hidden></section>
 
+    <!-- Every build: the browser's own downloads, handed to the app when it
+         can fetch them. -->
+    <section class="card">
+      <div class="setting" id="captureRow">
+        <div class="text">
+          <p class="title" id="captureTitle" data-i18n="captureTitle"></p>
+          <p class="line" id="captureLine">&nbsp;</p>
+        </div>
+        <button type="button" class="switch" id="captureSwitch" role="switch" aria-checked="false" aria-labelledby="captureTitle" aria-describedby="captureLine" disabled>
+          <span class="knob"></span>
+        </button>
+      </div>
+    </section>
+
     <!-- full -->
     <!-- Each site's switch is shown on that site's own pages, where it is
          about the page in front of the user; the other sites' switch, which

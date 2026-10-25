@@ -333,6 +333,22 @@ pub struct DownloadRequest {
     /// handed it over. `None` for everything typed or pasted.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub source: Option<SourceContext>,
+    /// Set when the link is to be fetched as a plain file, byte for byte,
+    /// with no analysis, no stream choice and no conversion: what a browser
+    /// download the extension captured, or a file link copied to the
+    /// clipboard, is. `mode`, `quality` and `container` mean nothing then.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub file: Option<FileDownload>,
+}
+
+/// How a plain file is to be saved. See `DownloadRequest::file`.
+#[derive(Debug, Clone, Default, Serialize, Deserialize, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct FileDownload {
+    /// The name the user settled on in the New download dialog. `None` keeps
+    /// the one the server gives, or the address's last part.
+    #[serde(default)]
+    pub file_name: Option<String>,
 }
 
 /// Where a link came from when the browser extension handed it over: the tab
@@ -419,6 +435,9 @@ pub enum DownloadStage {
     Video,
     Audio,
     Image,
+    /// A plain file of any type, fetched as it is: an archive, an installer, a
+    /// document. See `downloader::file`.
+    File,
     Merging,
     Converting,
     Finalizing,

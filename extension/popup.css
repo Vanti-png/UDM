@@ -475,8 +475,8 @@ h1 {
   white-space: normal;
 }
 
-/* <full> */
-/* The switches of the full build; the store build has none. */
+/* A switch and what it says: the capture switch in every build, and the
+   session switches of the full build. */
 .setting {
   display: flex;
   align-items: center;
@@ -484,16 +484,19 @@ h1 {
   padding: 10px 12px;
 }
 
+/* <full> */
 /* Two switches in one card are divided as the list's rows are: a hairline
    painted as the lower one's background, starting where its text does.
    Counted among the rows on show only: a site's switch is hidden off its own
-   pages, and the first row in view has nothing above it to be divided from. */
+   pages, and the first row in view has nothing above it to be divided from.
+   Only the session switches share a card; the store build has none. */
 .setting:not([hidden]) ~ .setting:not([hidden]) {
   background-image: linear-gradient(var(--border), var(--border));
   background-size: calc(100% - 12px) 1px;
   background-position: right top;
   background-repeat: no-repeat;
 }
+/* </full> */
 
 /* The app's Toggle: the proportions of the system switch, a track a little
    over one and a half knobs wide, the knob filling it but for 2px all round. */
@@ -532,4 +535,3 @@ h1 {
 .switch[aria-checked="true"] .knob {
   transform: translateX(16px);
 }
-/* </full> */

@@ -10,9 +10,11 @@ import type {
   ConvertJob,
   ConvertRequest,
   ConvertStatus,
+  CopiedLink,
   DiagnosticsSnapshot,
   DownloadRequest,
   DownloadTask,
+  FileInfo,
   Handoff,
   HistoryEntry,
   HistoryRange,
@@ -110,6 +112,12 @@ export const detectPlatform = (url: string) => invoke<PlatformId>('detect_platfo
 export const analyzeUrl = (url: string, source: SourceContext | null = null) =>
   invoke<MediaMetadata>('analyze_url', { url, source });
 export const getThumbnail = (url: string) => invoke<string>('get_thumbnail', { url });
+/**
+ * What a plain file is called, how big it is and whether it resumes, from one
+ * request to its server. For the New download dialog.
+ */
+export const probeFile = (url: string, source: SourceContext | null = null) =>
+  invoke<FileInfo>('probe_file', { url, source });
 
 /**
  * What the current options would actually download.
@@ -302,6 +310,7 @@ export const EVENTS = {
   settingsChanged: 'settings://changed',
   bridgeChanged: 'bridge://changed',
   handoff: 'bridge://handoff',
+  clipboardCopied: 'clipboard://copied',
   convertChanged: 'convert://changed',
   convertProgress: 'convert://progress',
   exportChanged: 'editor://export',
@@ -357,6 +366,15 @@ export function onBridgeChanged(handler: () => void): Promise<UnlistenFn> {
  */
 export function onHandoff(handler: () => void): Promise<UnlistenFn> {
   return listen(EVENTS.handoff, () => handler());
+}
+
+/**
+ * A link was copied in another program while clipboard monitoring is on.
+ * Windows only: the watcher counts the clipboard's changes, which is a
+ * Windows facility. Elsewhere the window checks when it regains focus.
+ */
+export function onClipboardCopied(handler: (link: CopiedLink) => void): Promise<UnlistenFn> {
+  return listen<CopiedLink>(EVENTS.clipboardCopied, (event) => handler(event.payload));
 }
 
 export interface ConvertProgressEvent {
