@@ -282,7 +282,7 @@ durdurur.
 
 ## 5. addons.mozilla.org
 
-**Package:** `extension-firefox.zip`, from `node scripts/pack-extension.mjs --firefox`: the
+**Package:** `extension-firefox-<version>.zip`, from `node scripts/pack-extension.mjs --firefox`: the
 **full build**, with YouTube and the three session switches, in the same version as Chrome's;
 only the manifest is changed for Firefox (see `extension/README.md`).
 

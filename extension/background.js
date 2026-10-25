@@ -36,7 +36,7 @@
 // there, not from taste.
 
 import { CAPTURE_OFF_KEY, appCanTake, captureCandidate, filePayload } from './capture.js';
-import { NOTICES, detailMeta, firstMeta, problemOf } from './describe.js';
+import { NOTICES, detailMeta, firstMeta, problemOf, transportFailure } from './describe.js';
 import { STORE } from './edition.js';
 import {
   MAX_ITEMS,
@@ -153,17 +153,6 @@ async function peer() {
     browser: await browserFamily(),
     extensionVersion: chrome.runtime.getManifest().version,
   };
-}
-
-// Chrome reports "no app" and "the app refused you" as plain English in
-// `lastError`, with nothing machine-readable to switch on. Translating the two
-// that have different advice attached, here and once, keeps that string out of
-// the popup -- which is the only place the user would otherwise meet it.
-function transportFailure(text) {
-  const message = text ?? '';
-  if (/not found/i.test(message)) return { ok: false, code: 'notInstalled', message };
-  if (/forbidden/i.test(message)) return { ok: false, code: 'forbidden', message };
-  return { ok: false, code: 'unreachable', message };
 }
 
 // Every answer comes back in one of two shapes, `{ ok: true, status }` or

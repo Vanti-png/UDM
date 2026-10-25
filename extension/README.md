@@ -173,7 +173,7 @@ also leaves out `sessions.js`. Everything else ships, `media.js` and
 `fonts/` included. It prints what it packed, so a file that should not ship is
 visible in the output rather than in the listing.
 
-`node scripts/pack-extension.mjs --firefox` writes `extension-firefox.zip` for
+`node scripts/pack-extension.mjs --firefox` writes `extension-firefox-<version>.zip` for
 addons.mozilla.org from the same files, as the full build. Only the manifest
 differs: the
 background runs as a module script instead of a service worker, the id is

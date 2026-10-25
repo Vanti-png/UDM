@@ -20,6 +20,27 @@ const LABELS = {
 // nothing the kind of the row does not already say.
 const VAGUE_QUALITY = new Set(['video', 'audio', 'image']);
 
+// The browser reports "no app" and "the app refused you" as plain English in
+// `lastError`, with nothing machine-readable to switch on, and each family in
+// its own words. Translating the two that have different advice attached, here
+// and once, keeps those strings out of the popup -- which is the only place the
+// user would otherwise meet them.
+//
+// - Chrome: "Specified native messaging host not found." and "Access to the
+//   specified native messaging host is forbidden."
+// - Firefox: "No such native application <name>" for both: a host nobody
+//   registered, and one whose manifest does not list this extension's id. Both
+//   are mended by opening an up-to-date app once, which registers the host
+//   with every id it accepts.
+export function transportFailure(text) {
+  const message = text ?? '';
+  if (/not found|no such native application/i.test(message)) {
+    return { ok: false, code: 'notInstalled', message };
+  }
+  if (/forbidden/i.test(message)) return { ok: false, code: 'forbidden', message };
+  return { ok: false, code: 'unreachable', message };
+}
+
 // What the app's answer means for a page of this extension, as one of three
 // sentences. `forbidden`, `version` and `malformed` all come down to an app
 // older than this extension: one that does not know the store copy's id,

@@ -5,7 +5,7 @@
 
 import assert from 'node:assert/strict';
 
-import { NOTICES, detailMeta, firstMeta, problemOf } from '../../extension/describe.js';
+import { NOTICES, detailMeta, firstMeta, problemOf, transportFailure } from '../../extension/describe.js';
 
 const { describe, test } = process.env.VITEST ? await import('vitest') : await import('node:test');
 
@@ -38,5 +38,22 @@ describe('describe', () => {
     assert.equal(problemOf({ ok: false, code: 'internal' }), 'unreachable');
     assert.equal(problemOf(null), 'unreachable');
     for (const name of ['notInstalled', 'update', 'unreachable']) assert.ok(NOTICES[name].text);
+  });
+
+  test("each browser's words for a missing or refused app, as the advice they need", () => {
+    const code = (text) => transportFailure(text).code;
+    // Chrome.
+    assert.equal(code('Specified native messaging host not found.'), 'notInstalled');
+    assert.equal(code('Access to the specified native messaging host is forbidden.'), 'forbidden');
+    // Firefox says the same for a host nobody registered and one that does not
+    // list this extension; opening the app once mends both.
+    assert.equal(code('No such native application com.universaldownloader.bridge'), 'notInstalled');
+    // Anything else -- the host starting and dying, say -- is the app not answering.
+    assert.equal(code('Native host has exited.'), 'unreachable');
+    assert.equal(code('An unexpected error occurred'), 'unreachable');
+    assert.equal(code(undefined), 'unreachable');
+    // The wording is kept for the log, whatever it was sorted into.
+    assert.equal(transportFailure('No such native application x').message, 'No such native application x');
+    assert.equal(problemOf(transportFailure('No such native application x')), 'notInstalled');
   });
 });

@@ -4,8 +4,9 @@
 //   node scripts/pack-extension.mjs            extension-upload.zip, for the Chrome
 //                                              Web Store: the store build (see
 //                                              extension/edition.js)
-//   node scripts/pack-extension.mjs --firefox  extension-firefox.zip, the full
-//                                              build, for addons.mozilla.org
+//   node scripts/pack-extension.mjs --firefox  extension-firefox-<version>.zip,
+//                                              the full build, for
+//                                              addons.mozilla.org
 //   node scripts/pack-extension.mjs --full     extension-full.zip, the full build
 //                                              for Chrome, published beside the
 //                                              app and loaded unpacked
@@ -56,9 +57,19 @@ const FIREFOX = process.argv.includes('--firefox');
 const FIREFOX_ID = 'udm-connector@vanti-png.github.io';
 // Any other Chrome package is the store build, unless the full one is asked for.
 const STORE = !FIREFOX && !process.argv.includes('--full');
+const { version } = JSON.parse(readFileSync(join(source, 'manifest.json'), 'utf8'));
+// The Firefox package is named for its version. Firefox reads a temporary
+// add-on from the file it was loaded from for as long as it runs, and holds
+// it open: a new build written over it was refused, and one written while it
+// was not held changed the add-on under the running browser, which then
+// answered nothing. addons.mozilla.org wants each version uploaded once anyway.
 const target = join(
   root,
-  FIREFOX ? 'extension-firefox.zip' : STORE ? 'extension-upload.zip' : 'extension-full.zip',
+  FIREFOX
+    ? `extension-firefox-${version}.zip`
+    : STORE
+      ? 'extension-upload.zip'
+      : 'extension-full.zip',
 );
 
 function forFirefox(manifest) {
@@ -173,6 +184,5 @@ end.writeUInt32LE(offset, 16);
 
 writeFileSync(target, Buffer.concat([...locals, directory, end]));
 
-const { version } = JSON.parse(readFileSync(join(source, 'manifest.json'), 'utf8'));
 console.log(`\npacked ${files.length} files, version ${version}, ${STORE ? 'store' : 'full'} build -> ${target}`);
 console.log('the signing key and the developer notes are not in it');

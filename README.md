@@ -292,7 +292,9 @@ nothing is downloading or converting.
   host accepts.
 - **Firefox:** `node scripts/pack-extension.mjs --firefox`, then
   `about:debugging#/runtime/this-firefox` -> **Load Temporary Add-on** and pick
-  `extension-firefox.zip`. A temporary add-on lasts until Firefox closes.
+  `extension-firefox-<version>.zip`. A temporary add-on lasts until Firefox
+  closes, and Firefox reads it from that file while it runs: load the next
+  version from its own file rather than packing over this one.
 
 ### Tests
 
