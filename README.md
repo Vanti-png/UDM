@@ -12,13 +12,20 @@ Built with Tauri 2, React 19, TypeScript and Rust. A fork of
 
 ## Download
 
-This fork publishes no installers yet; build it from source (see
-[Development](#development)). Windows 10/11, 64-bit.
+The installers are on the [`latest` release](https://github.com/Vanti-png/UDM/releases/tag/latest).
+Windows 10/11, 64-bit.
+
+- `UniversalDownloader_x64-setup.exe` installs for the current user, without
+  administrator rights. Use this one unless you have a reason not to.
+- `UniversalDownloader_x64.msi` installs for every user of the machine.
+
+The installers are not code-signed, so SmartScreen may warn the first time:
+**More info -> Run anyway**.
 
 The app updates itself from this fork's own releases (`REPOSITORY` in
 `src-tauri/src/updater.rs` is `Vanti-png/UDM`), never from the upstream
-project, whose builds lack the features below. Until a release is published
-the check simply finds nothing newer. See [Publishing a release](#publishing-a-release).
+project, whose builds lack the features below. Each kind of install fetches
+the same kind of installer. See [Publishing a release](#publishing-a-release).
 
 ---
 
@@ -268,7 +275,9 @@ installed copy updates when the tag points at a later commit.
    names the updater looks for, and upload them to the release tagged `latest`,
    replacing the files already there (create the release the first time).
 3. Only then move the `latest` tag to the commit they were built from:
-   `git tag -f latest && git push -f origin latest`.
+   `git tag -f latest <commit> && git push -f origin latest`. Exactly that
+   commit, not a later one: an installed copy compares its own build commit
+   with the tag's, and a tag past it would keep reinstalling the same build.
 
 An installed copy downloads the installer it was installed with, checks it
 against the SHA-256 digest GitHub publishes for the file, and installs it once
