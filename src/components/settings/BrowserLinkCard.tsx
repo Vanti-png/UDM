@@ -20,7 +20,6 @@ import { useTranslation } from '@/i18n';
 import type { TranslationKey } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { COLLAPSE } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import type { BridgeSessionState, BridgeStatus, Settings } from '@/types';
 
@@ -49,9 +48,6 @@ export function useBridgeStatus(
   const [status, setStatus] = useState<BridgeStatus | null>(initial);
 
   useEffect(() => {
-    // There is no bridge on a phone, and no command behind these names either.
-    if (IS_MOBILE) return;
-
     let active = true;
     const read = () => {
       ipc
@@ -198,8 +194,8 @@ function relativeTime(epochSeconds: number, locale: string): string {
 }
 
 // The sizes a `SettingRow` sets its two lines in, so the rows of a group agree.
-const TITLE_SIZE = IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]';
-const BODY_SIZE = IS_MOBILE ? 'text-[13px]' : 'text-[12.5px]';
+const TITLE_SIZE = 'text-[13.5px]';
+const BODY_SIZE = 'text-[12.5px]';
 
 interface BrowserLinkCardProps {
   settings: Settings;
@@ -288,7 +284,7 @@ export function BrowserLinkCard({ settings, update, initialStatus = null }: Brow
               {/* Nothing at all until the first read answers: an empty frame
                   that fills in a moment later is a flicker, not information. */}
               {status && look && StateIcon && (
-                <div className={cn('px-4', IS_MOBILE ? 'py-4' : 'py-3.5')}>
+                <div className={cn('px-4', 'py-3.5')}>
                   <div className="flex items-start gap-2">
                     <StateIcon
                       size={16}
@@ -487,7 +483,7 @@ function ExtensionRow({ status }: { status: BridgeStatus | null }) {
 
   if (status && !status.registered) {
     return (
-      <div className={cn('px-4', IS_MOBILE ? 'py-4' : 'py-3.5')}>
+      <div className={cn('px-4', 'py-3.5')}>
         <div className="flex items-start gap-2">
           <CircleAlert size={16} aria-hidden="true" className="mt-[2px] shrink-0 text-error" />
           <span className={cn('min-w-0 text-fg', TITLE_SIZE)}>{t('settings.linkBroken')}</span>

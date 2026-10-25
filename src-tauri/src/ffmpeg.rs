@@ -1261,10 +1261,10 @@ fn rav1e_quantizer(value: u32) -> u32 {
 }
 
 /// What an encoder is told about speed, for the two whose defaults suit an
-/// archive better than somebody waiting on a phone.
+/// archive better than somebody waiting for an export.
 ///
 /// Both are the processor AV1 an export falls back to where SVT-AV1 will not
-/// open, which is most likely on a phone, and both spend most of their time
+/// open, and both spend most of their time
 /// idle on the processor's cores unless told otherwise. Measured on two seconds
 /// of 720p: libaom at its own default took 113 s, and 1.9 s at speed 6 with
 /// `-row-mt` spreading each frame over the cores -- 6 being the fastest its
@@ -1288,12 +1288,11 @@ pub(crate) fn speed_args(encoder: &str) -> Vec<String> {
 /// The frame rate SVT-AV1 is to plan its rate and keyframes around, said
 /// outright.
 ///
-/// It will not open above 240 frames a second, and the FFmpeg a phone runs
-/// (7.1) hands it no rate at all out of `concat`, which every re-encode passes
-/// through: the encoder then read one off the graph's time base, a million a
-/// second, and the export failed before its first frame -- every AV1 export on
-/// a phone. The desktop's newer FFmpeg carries the rate through the join, and
-/// there this only repeats it. The frames keep their own times either way;
+/// It will not open above 240 frames a second, and FFmpeg 7.1 hands it no rate
+/// at all out of `concat`, which every re-encode passes through: the encoder
+/// then read one off the graph's time base, a million a second, and the export
+/// failed before its first frame. A newer FFmpeg carries the rate through the
+/// join, and there this only repeats it. The frames keep their own times either way;
 /// only the encoder's arithmetic reads the number, so a source whose rate the
 /// probe could not read is planned as the common 30.
 fn svt_frame_rate_args(fps: Option<f64>) -> Vec<String> {
@@ -1386,8 +1385,8 @@ fn bitrate_args(encoder: &str, kbps: u32) -> Vec<String> {
         args.extend(speed_args(encoder));
         args
     } else {
-        // libvpx-vp9 reads a bare `-b:v` as a variable rate, and so does a
-        // phone's MediaCodec encoder. It is also the one spelling every FFmpeg
+        // libvpx-vp9 reads a bare `-b:v` as a variable rate. It is also the
+        // one spelling every FFmpeg
         // encoder understands, which makes it the right answer for an encoder
         // this list has not met.
         vec!["-b:v".into(), average]

@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, useIsPresent, type Variants } from 'motion/react';
+import { AnimatePresence, motion, useIsPresent } from 'motion/react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { getCurrentWebview } from '@tauri-apps/api/webview';
 import {
@@ -6,11 +6,7 @@ import {
   FilePlus2,
   FolderOpen,
   Link2,
-  Pause,
-  Play,
   Redo2,
-  Scissors,
-  Trash2,
   Undo2,
   X,
 } from 'lucide-react';
@@ -22,9 +18,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type MutableRefObject,
-  type ReactNode,
-  type RefObject,
 } from 'react';
 
 import { LinkImportModal } from '@/components/editor/LinkImportModal';
@@ -47,17 +40,15 @@ import { cn } from '@/lib/cn';
 import { VIDEO_EXTENSIONS, isEditableDownload } from '@/lib/editor/files';
 import { cutAt, nextKeptPosition } from '@/lib/editor/segments';
 import { ZOOM_STEP } from '@/lib/editor/zoom';
-import { COLLAPSE, EDITOR, FADE, T } from '@/lib/motion';
+import { COLLAPSE, EDITOR } from '@/lib/motion';
 import { formatMbps } from '@/lib/editor/bitrate';
 import { PROBLEM_TEXT } from '@/lib/fileProblem';
 import {
-  basename,
   formatBytes,
   formatFrameTimecode,
   formatTimecode,
   prettyCodec,
 } from '@/lib/format';
-import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import {
   selectActiveClip,
@@ -75,38 +66,10 @@ import type { Settings } from '@/types';
 /** How many buckets and cells the timeline asks for. */
 const WAVEFORM_BUCKETS = 4000;
 const FILMSTRIP_CELLS = 40;
-/**
- * The height the frames are rendered at, in device pixels. A phone's track is
- * shorter than the desktop's but its screen is two or three pixels to the
- * point, and frames rendered for the desktop were drawn there at a third of
- * their resolution; twice the track is as sharp as a thumbnail needs to be.
- */
-const FILMSTRIP_CELL_HEIGHT = IS_MOBILE ? 112 : 68;
+/** The height the frames are rendered at, in device pixels. */
+const FILMSTRIP_CELL_HEIGHT = 68;
 
 const DROP_TRANSITION = 'transition-[background-color,box-shadow] duration-150 ease-out-quint';
-
-/**
- * The phone's empty screen. It leaves lifted out of the flow (the `popLayout`
- * it is shown under), placed by its offset in the page -- which scrolling does
- * not change, so scrolled down to the recent downloads it dropped by as much
- * as it fades. It is moved back up by that much at once, and fades where it
- * was seen.
- */
-const EMPTY_SCREEN: Variants = {
-  ...FADE,
-  exit: (scrolled: number) => ({
-    opacity: 0,
-    y: -scrolled,
-    transition: { ...T.componentOut, y: { duration: 0 } },
-  }),
-};
-
-/** How far the page under an element is scrolled, as its offset leaves out. */
-function scrolledUnder(element: HTMLElement | null): number {
-  const parent = element?.offsetParent;
-  if (!element || !(parent instanceof HTMLElement)) return 0;
-  return parent.getBoundingClientRect().top + element.offsetTop - element.getBoundingClientRect().top;
-}
 
 /** Whatever is drawn over the editor and has the keyboard while it is open. */
 const OVERLAY = '[role="dialog"][aria-modal="true"],[role="combobox"][aria-expanded="true"]';
@@ -146,13 +109,6 @@ function hasOwnKeys(element: Element | null): boolean {
 
 interface EditorPageProps {
   settings: Settings;
-  /**
-   * Filled in, on a phone, with what the system Back gesture does while a clip
-   * is open and nothing is open over it: the shell hears the gesture, and the
-   * editor decides what it means -- close, asking first if there is work to
-   * lose.
-   */
-  onBackRef?: MutableRefObject<(() => void) | null>;
 }
 
 /**
@@ -163,14 +119,8 @@ interface EditorPageProps {
  * it takes the whole area and becomes a workspace: a rail of clips, the
  * picture, the settings, and the file laid out in time underneath. The screen
  * only ambushes the user once they have asked it to.
- *
- * On a phone the same two shapes are a screen and a mode. Nothing open, it is
- * a card under the app's own bars. A clip open, the bars step aside and the
- * editor has the whole screen, laid out in a column for a thumb: its own bar
- * with the way out and the export, the picture, the transport, the timeline,
- * and the settings filling what is left.
  */
-export function EditorPage({ settings, onBackRef }: EditorPageProps) {
+export function EditorPage({ settings }: EditorPageProps) {
   const { t, language } = useTranslation();
 
   const pool = useEditorStore((state) => state.pool);
@@ -188,9 +138,9 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
   const canUndo = useEditorStore((state) => selectHistory(state).past.length > 0);
   const canRedo = useEditorStore((state) => selectHistory(state).future.length > 0);
   const anyHistory = useEditorStore(selectAnyHistory);
-  // The finished export, opened by whatever the system hands it to -- and on a
-  // phone there may be nothing that will take it. That is said beside the
-  // button, and forgotten when the next export replaces the file.
+  // The finished export, opened by whatever the system hands it to. A failure
+  // is said beside the button, and forgotten when the next export replaces the
+  // file.
   const result = useFileActions(job.status === 'completed' ? job.outputPath : null);
 
   const openPath = useEditorStore((state) => state.open);
@@ -213,9 +163,7 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
   const installTool = useToolsStore((state) => state.install);
   const ffmpegReady = ffmpeg?.available ?? false;
 
-  // No Android build of FFmpeg this app ships has a hardware encoder, so a
-  // phone's clips start without one whatever the setting says.
-  const hardware = !IS_MOBILE && settings.hardwareAcceleration;
+  const hardware = settings.hardwareAcceleration;
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const surfaceRef = useRef<HTMLDivElement>(null);
@@ -230,17 +178,12 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [snapping, setSnapping] = useState(true);
   const [dragging, setDragging] = useState(false);
-  const [picking, setPicking] = useState(false);
   const [pickFailed, setPickFailed] = useState(false);
   const [installError, setInstallError] = useState<string | null>(null);
   const [linkOpen, setLinkOpen] = useState(false);
   // A recent download being opened says so on its own row, so the card's
   // button above it stands still instead of spinning as well.
   const [openingRecent, setOpeningRecent] = useState(false);
-  // Read as an open begins, while the phone's empty screen is still where it
-  // is seen; see EMPTY_SCREEN.
-  const emptyRef = useRef<HTMLDivElement>(null);
-  const [emptyScrolled, setEmptyScrolled] = useState(0);
   const [discardOpen, setDiscardOpen] = useState(false);
   // Whether the preview has to stop at 100 %, which the inspector then says.
   const [previewCapped, setPreviewCapped] = useState(false);
@@ -260,31 +203,18 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
 
   const pickFile = useCallback(async () => {
     setPickFailed(false);
-    setPicking(true);
     try {
-      let paths: string[];
-      if (IS_MOBILE) {
-        // The Android picker hands back content addresses FFmpeg cannot open;
-        // the platform side copies what was picked into the app's cache and
-        // returns those paths. It offers sound as well as pictures, and the
-        // store is what turns a file without a picture away.
-        paths = await ipc.platformPickMediaFiles();
-      } else {
-        const selected = await open({
-          multiple: true,
-          filters: [{ name: t('editor.videoFiles'), extensions: VIDEO_EXTENSIONS }],
-        });
-        paths = Array.isArray(selected) ? selected : selected ? [selected] : [];
-      }
+      const selected = await open({
+        multiple: true,
+        filters: [{ name: t('editor.videoFiles'), extensions: VIDEO_EXTENSIONS }],
+      });
+      const paths = Array.isArray(selected) ? selected : selected ? [selected] : [];
       for (const path of paths) await openPath(path, hardware);
     } catch {
       // Only the picker can land here -- opening reports its own failures. What
-      // it rejects with is a bare sentence in English, from the dialog or from
-      // a phone that could not copy what was chosen, so the editor says it in
+      // it rejects with is a bare sentence in English, so the editor says it in
       // its own words instead.
       setPickFailed(true);
-    } finally {
-      setPicking(false);
     }
   }, [hardware, openPath, t]);
 
@@ -318,10 +248,8 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
   );
 
   // A file dropped on the window arrives as an OS event, and only while this
-  // screen is up: dropping one on Home has nothing to do there. A phone has no
-  // window to drop anything on.
+  // screen is up: dropping one on Home has nothing to do there.
   useEffect(() => {
-    if (IS_MOBILE) return;
     const pending = getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type === 'over') {
         setDragging(true);
@@ -352,7 +280,6 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
   // is aimed at the editor, and a clip opened from the sidebar or the Home
   // screen would otherwise leave it aimed somewhere else.
   useLayoutEffect(() => {
-    if (IS_MOBILE && opening && !clip) setEmptyScrolled(scrolledUnder(emptyRef.current));
   }, [opening, clip]);
 
   const clipId = clip?.id ?? null;
@@ -480,9 +407,8 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
   const markUnplayable = useCallback(() => setPlayable(false), []);
   const toggleSnapping = useCallback(() => setSnapping((value) => !value), []);
 
-  // The position under the desktop's picture, to the frame. Kept stable so the
-  // readout's subscription is not made again on every render; the phone's
-  // transport reads in tenths instead, which is what a thumb can place.
+  // The position under the picture, to the frame. Kept stable so the readout's
+  // subscription is not made again on every render.
   const framePosition = useCallback((seconds: number) => formatFrameTimecode(seconds, fps), [fps]);
 
   // -- what the timeline is drawn from -------------------------------------
@@ -729,53 +655,6 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
     else closeAll();
   }, [closeAll, hasEdits]);
 
-  // The phone's Back gesture, while a clip is open and nothing stands over
-  // it: the X. An open menu, the link sheet and the question about discarding
-  // are layers of their own, and the shell takes those down first (see
-  // useBackLayer). A question this opens can be answered either way and asked
-  // again: the shell keeps the editor's place in the history while it stays.
-  useEffect(() => {
-    if (!IS_MOBILE || !onBackRef || !listening) return;
-    onBackRef.current = requestClose;
-    return () => {
-      if (onBackRef.current === requestClose) onBackRef.current = null;
-    };
-  }, [listening, onBackRef, requestClose]);
-
-  // A phone's keyboard, up for one of the editor's own fields, which the
-  // picture and the timeline fold away for; and a phone on its side, where the
-  // editor scrolls as a whole (see the layout below).
-  const { typing, sideways } = usePhoneRoom(surfaceRef, IS_MOBILE && clipId != null);
-
-  // The field being typed into, and the line under it that answers it, above
-  // the keyboard once there is room for them. The browser brings the field
-  // itself into view as the keyboard rises, but not what is written beneath
-  // it -- the custom rate's size estimate was left under the keyboard.
-  const revealField = useCallback(() => {
-    const field = document.activeElement;
-    if (!(field instanceof HTMLElement) || !surfaceRef.current?.contains(field)) return;
-    (field.closest<HTMLElement>('[data-keyboard-anchor]') ?? field).scrollIntoView({
-      block: 'nearest',
-    });
-  }, []);
-
-  // The keyboard can change height while it is up -- another layout, the
-  // suggestions strip -- and the field goes on needing to be seen.
-  useEffect(() => {
-    if (!typing) return;
-    const viewport = window.visualViewport ?? window;
-    let frame = 0;
-    const onResize = () => {
-      cancelAnimationFrame(frame);
-      frame = requestAnimationFrame(revealField);
-    };
-    viewport.addEventListener('resize', onResize);
-    return () => {
-      cancelAnimationFrame(frame);
-      viewport.removeEventListener('resize', onResize);
-    };
-  }, [revealField, typing]);
-
   const installFfmpeg = useCallback(async () => {
     setInstallError(null);
     if (await installTool('ffmpeg')) return;
@@ -819,34 +698,6 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
     : openError
       ? errorMessage(openError)
       : null;
-
-  // The phone's clips, at the top of the Clip tab. Built here, where the ways
-  // of adding one live, and memoised so the inspector it is handed to can skip
-  // the renders that do not concern it.
-  const clipStrip = useMemo(
-    () =>
-      IS_MOBILE && clipId ? (
-        <>
-          <MediaRail
-            orientation="horizontal"
-            clips={railClips}
-            activeId={clipId}
-            onActivate={activate}
-            onRemove={closeClip}
-            onAdd={addClip}
-            onAddLink={openLink}
-            adding={picking || opening}
-            className="-mx-4 px-4"
-          />
-          {shownOpenError && (
-            <InlineNotice tone="error" className="mt-2">
-              {shownOpenError}
-            </InlineNotice>
-          )}
-        </>
-      ) : undefined,
-    [activate, addClip, clipId, closeClip, openLink, opening, picking, railClips, shownOpenError],
-  );
 
   const ffmpegNotice = ffmpeg != null && !ffmpegReady && (
     <div className="flex items-center gap-3 rounded-[var(--radius-card)] border border-card-edge bg-surface px-4 py-3">
@@ -914,321 +765,6 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
       }
     />
   );
-
-  // -- the phone -------------------------------------------------------------
-
-  if (IS_MOBILE) {
-    const failed = job.status === 'failed' && job.error;
-    const done = job.status === 'completed' && job.outputPath;
-    // The picture's box is the clip's own shape across the width of the
-    // screen, so a landscape video fills it with no bars at all -- and never
-    // more than about a third of the height, so a portrait one leaves room for
-    // everything under it.
-    const width = clip?.probe.width ?? 0;
-    const height = clip?.probe.height ?? 0;
-    const shape = width > 0 && height > 0 ? height / width : 9 / 16;
-
-    return (
-      <>
-        {/* The two shapes pass each other: the one leaving is lifted out of the
-            flow while it fades, so the one arriving is laid out where it will
-            stay from its first frame. The dialogs stand outside both, or one
-            taken down in the same moment would be frozen open in the copy of
-            the shape that is leaving. */}
-        <AnimatePresence initial={false} mode="popLayout" custom={emptyScrolled}>
-          {clip ? (
-            <motion.div
-              key="editing"
-              ref={surfaceRef}
-              variants={EDITOR}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              tabIndex={-1}
-              className="flex min-h-0 flex-1 flex-col outline-none"
-            >
-              {/* -- the bar ----------------------------------------------- */}
-              <div className="flex h-14 shrink-0 items-center gap-1 pl-1.5 pr-3">
-                <TouchButton label={t('editor.close')} onClick={requestClose}>
-                  <X size={22} />
-                </TouchButton>
-                <div className="min-w-0 flex-1 pl-0.5">
-                  <p className="truncate text-[15px] font-semibold leading-5 text-fg">{clip.name}</p>
-                  <p className="tabular truncate text-[12.5px] leading-4 text-fg-muted">
-                    {t('editor.length')} {formatTimecode(keptLength)}
-                  </p>
-                </div>
-                <IconButton
-                  icon={<Undo2 size={20} />}
-                  label={t('editor.undo')}
-                  disabled={!canUndo}
-                  onClick={undo}
-                />
-                <IconButton
-                  icon={<Redo2 size={20} />}
-                  label={t('editor.redo')}
-                  disabled={!canRedo}
-                  onClick={redo}
-                />
-                {running ? (
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    className="ml-1"
-                    onClick={() => void cancelExport()}
-                  >
-                    {t('common.cancel')}
-                  </Button>
-                ) : (
-                  <Button
-                    size="sm"
-                    variant="primary"
-                    className="ml-1"
-                    loading={submitting}
-                    disabled={!ffmpegReady}
-                    onClick={() => void startExport()}
-                  >
-                    {t('editor.export')}
-                  </Button>
-                )}
-              </div>
-
-              {/* -- what the export said ---------------------------------- */}
-              {/* Under the button that asked for it, and only while there is
-                  something to say. */}
-              <AnimatePresence initial={false}>
-                {(running || submitError || failed || done) && (
-                  <motion.div
-                    variants={COLLAPSE}
-                    initial="initial"
-                    animate="animate"
-                    exit="exit"
-                    className="shrink-0 overflow-hidden"
-                  >
-                    <div className="px-4 pb-3 pt-0.5">
-                      {running && (
-                        <>
-                          <div className="flex items-baseline justify-between gap-3 text-[13px] text-fg-muted">
-                            <span>{t('editor.exporting')}</span>
-                            {job.percent != null && (
-                              <span className="tabular">
-                                {t('editor.percent', { value: Math.round(job.percent) })}
-                              </span>
-                            )}
-                          </div>
-                          <Progress value={job.percent} className="mt-2" label={t('editor.exporting')} />
-                        </>
-                      )}
-                      {submitError && (
-                        <InlineNotice tone="error">{errorMessage(submitError)}</InlineNotice>
-                      )}
-                      {failed && (
-                        <InlineNotice tone="error">
-                          {job.error!.code === 'unknown'
-                            ? t('editor.exportFailed')
-                            : errorMessage(job.error!)}
-                        </InlineNotice>
-                      )}
-                      {done && (
-                        <>
-                          <div className="flex items-center gap-3">
-                            <div className="min-w-0 flex-1">
-                              <p className="text-[14px] font-medium text-fg">{t('editor.exported')}</p>
-                              {/* The file's own name: the folder is the phone's
-                                  downloads, and its path is not something
-                                  anyone reads. */}
-                              <p className="mt-0.5 truncate text-[12.5px] text-fg-muted">
-                                {basename(job.outputPath!)}
-                              </p>
-                            </div>
-                            <Button size="sm" variant="secondary" onClick={result.open}>
-                              {t('common.open')}
-                            </Button>
-                          </div>
-                          {result.problem && (
-                            <InlineNotice tone="error" className="mt-2">
-                              {t(PROBLEM_TEXT[result.problem])}
-                            </InlineNotice>
-                          )}
-                        </>
-                      )}
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-
-              {/* -- the picture, the transport, the file in time ---------- */}
-              {/* All three step aside while the keyboard is up for one of the
-                  editor's own fields. They are fixed in height, and under a
-                  keyboard they left the settings -- the field being typed into
-                  among them -- a strip about one line tall. Folded rather than
-                  taken away, so the picture keeps its frame and the timeline
-                  its zoom for when they come back. */}
-              <motion.div
-                variants={COLLAPSE}
-                initial={false}
-                animate={typing ? 'exit' : 'animate'}
-                onAnimationComplete={(name) => {
-                  if (name === 'exit') revealField();
-                }}
-                inert={typing}
-                className="flex shrink-0 flex-col overflow-hidden"
-              >
-                <div
-                  className="flex shrink-0 px-4"
-                  style={{ height: `min(calc((100vw - 32px) * ${shape}), 36vh)` }}
-                >
-                  <PreviewStage
-                    src={clip.previewSrc}
-                    videoRef={videoRef}
-                    aspect={options?.aspect ?? 'source'}
-                    fit={options?.fit ?? 'fill'}
-                    sourceWidth={clip.probe.width}
-                    sourceHeight={clip.probe.height}
-                    volume={options ? (options.mute ? 0 : options.volume) : 1}
-                    playable={playable}
-                    onUnplayable={markUnplayable}
-                    onCappedChange={setPreviewCapped}
-                    className="min-w-0 flex-1"
-                  />
-                  {soundPreview}
-                </div>
-
-                {/* -- the transport ----------------------------------------- */}
-                <div className="flex h-14 shrink-0 items-center gap-1 px-2">
-                  <TouchButton
-                    label={playing ? t('editor.pause') : t('editor.play')}
-                    // Nothing to play when the picture could not be decoded;
-                    // the note under the preview says so.
-                    disabled={running || !playable}
-                    onClick={playPause}
-                  >
-                    {playing ? (
-                      <Pause size={22} fill="currentColor" />
-                    ) : (
-                      <Play size={22} fill="currentColor" />
-                    )}
-                  </TouchButton>
-                  <p className="tabular min-w-0 flex-1 truncate pl-1 text-[14px] text-fg">
-                    <PlayheadTime playhead={playhead} format={formatTimecode} />
-                    <span className="text-fg-faint"> / {formatTimecode(duration)}</span>
-                  </p>
-                  <TouchButton label={t('editor.split')} disabled={running} onClick={splitHere}>
-                    <Scissors size={20} />
-                  </TouchButton>
-                  <TouchButton
-                    label={t('editor.deleteSegment')}
-                    disabled={running || cuts.length <= 1 || selected == null}
-                    onClick={deleteSelected}
-                  >
-                    <Trash2 size={20} />
-                  </TouchButton>
-                </div>
-
-                {/* -- the file, in time ------------------------------------- */}
-                <div className="flex shrink-0 flex-col px-4 pb-1">
-                  <TimelineDock
-                    clipId={clip.id}
-                    durationSec={duration}
-                    fps={fps}
-                    hasAudio={clip.probe.hasAudio}
-                    sound={sound}
-                    cuts={cuts}
-                    selectedId={selected?.id ?? null}
-                    playhead={playhead}
-                    playing={playing}
-                    snapping={snapping}
-                    keyframes={clip.keyframes}
-                    losslessMode={losslessMode}
-                    waveform={timeline.waveform}
-                    filmstrip={timeline.filmstrip}
-                    waveformWorking={timeline.working}
-                    disabled={running}
-                    onSeek={seek}
-                    onSelect={setSelectedId}
-                    onDragEdge={dragEdge}
-                    onDragEdgeStart={beginGesture}
-                    onDragEdgeEnd={endGesture}
-                    onSplit={splitHere}
-                    onDelete={deleteSelected}
-                    onToggleSnapping={toggleSnapping}
-                    onPlayPause={playPause}
-                    onStep={step}
-                    onViewChange={requestTimeline}
-                    zoomRef={zoomRef}
-                  />
-                </div>
-              </motion.div>
-
-              {/* -- the settings, in what is left ------------------------- */}
-              {/* A phone on its side is too short for the column above to
-                  leave any of its height to the settings. There they take the
-                  room they need, and the editor scrolls as a whole. */}
-              <OutputInspector
-                settings={settings}
-                previewCapped={previewCapped}
-                clips={clipStrip}
-                className={cn(
-                  'min-h-0 border-t border-[var(--border)] pt-2',
-                  sideways ? 'flex-none' : 'flex-1',
-                )}
-              />
-            </motion.div>
-          ) : (
-            <motion.div
-              key="empty"
-              ref={emptyRef}
-              variants={EMPTY_SCREEN}
-              custom={emptyScrolled}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-              className="mx-auto w-full max-w-[760px] px-4 pb-12 pt-2"
-            >
-              {ffmpegNotice && <div className="mb-4">{ffmpegNotice}</div>}
-
-              <div className="flex flex-col items-center rounded-[var(--radius-card)] border border-card-edge bg-surface px-6 py-9 text-center">
-                <FilePlus2 size={28} strokeWidth={1.5} aria-hidden="true" className="text-fg-faint" />
-                <p className="mt-3 text-[14px] font-medium text-fg">{t('editor.pickTitle')}</p>
-                <p className="mt-0.5 text-[12.5px] text-fg-muted">{t('editor.pickBody')}</p>
-                <div className="mt-4 flex items-center gap-2">
-                  <Button
-                    size="sm"
-                    variant="secondary"
-                    loading={picking || (opening && !openingRecent)}
-                    disabled={opening}
-                    onClick={addClip}
-                  >
-                    {t('editor.chooseVideo')}
-                  </Button>
-                  <Button size="sm" variant="ghost" icon={<Link2 size={15} />} onClick={openLink}>
-                    {t('editor.linkTitle')}
-                  </Button>
-                </div>
-              </div>
-
-              {shownOpenError && (
-                <InlineNotice tone="error" className="mt-2 px-4">
-                  {shownOpenError}
-                </InlineNotice>
-              )}
-
-              <RecentDownloads
-                accepts={isEditableDownload}
-                onPress={openRecent}
-                rowLabel="editor.openRecent"
-                disabled={picking || opening}
-                className="mt-6"
-              />
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        {linkSheet}
-        {discardQuestion}
-      </>
-    );
-  }
 
   // -- nothing open --------------------------------------------------------
 
@@ -1526,119 +1062,5 @@ export function EditorPage({ settings, onBackRef }: EditorPageProps) {
       {linkSheet}
       {discardQuestion}
     </motion.div>
-  );
-}
-
-/** Less than this lost from the viewport is a bar coming and going, not a keyboard. */
-const KEYBOARD_MIN_PX = 120;
-
-/**
- * The tallest the page has been at the width it has now. Kept for the page's
- * life rather than the editor's: the editor may first open with the keyboard
- * already up for something else, and measured then, a keyboard would read as
- * the screen's own height.
- */
-const room = { width: 0, tallest: 0 };
-
-/**
- * How the phone's screen stands around the editor: whether the keyboard is up
- * for a field inside `surfaceRef`, and whether the phone is on its side.
- *
- * Both halves of the first are asked. The focus alone is not enough: Android
- * leaves a field focused when the keyboard is put away with its own button or
- * with Back. Nor is the viewport alone: the link sheet's field brings the same
- * keyboard up over the editor, where the editor has nothing to make room for.
- *
- * The viewport is measured against the tallest it has been at its width --
- * the activity resizes the page for the keyboard -- and a new width is the
- * phone turned, a new screen and not a keyboard. On its side is judged from
- * that height too, not from the viewport's own shape: a tall keyboard leaves
- * an upright phone a strip wider than it is high, which is still upright.
- */
-function usePhoneRoom(
-  surfaceRef: RefObject<HTMLElement | null>,
-  active: boolean,
-): { typing: boolean; sideways: boolean } {
-  const [focused, setFocused] = useState(false);
-  const [short, setShort] = useState(false);
-  const [sideways, setSideways] = useState(false);
-
-  useEffect(() => {
-    const surface = surfaceRef.current;
-    if (!active || !surface) {
-      setFocused(false);
-      return;
-    }
-    const inside = (element: EventTarget | null) =>
-      element instanceof Element && isTextField(element) && surface.contains(element);
-    setFocused(inside(document.activeElement));
-    const onIn = (event: FocusEvent) => setFocused(inside(event.target));
-    // Where the focus is going, so a move from one field to another does not
-    // unfold the picture for the moment in between.
-    const onOut = (event: FocusEvent) => setFocused(inside(event.relatedTarget));
-    surface.addEventListener('focusin', onIn);
-    surface.addEventListener('focusout', onOut);
-    return () => {
-      surface.removeEventListener('focusin', onIn);
-      surface.removeEventListener('focusout', onOut);
-    };
-  }, [active, surfaceRef]);
-
-  useEffect(() => {
-    if (!active) {
-      setShort(false);
-      setSideways(false);
-      return;
-    }
-    const viewport = window.visualViewport;
-    const measure = () => {
-      const width = viewport ? viewport.width * viewport.scale : window.innerWidth;
-      const height = viewport ? viewport.height * viewport.scale : window.innerHeight;
-      if (Math.abs(width - room.width) > 1) {
-        room.width = width;
-        room.tallest = height;
-      }
-      room.tallest = Math.max(room.tallest, height);
-      setShort(room.tallest - height >= KEYBOARD_MIN_PX);
-      setSideways(width > room.tallest);
-    };
-    measure();
-    const target = viewport ?? window;
-    target.addEventListener('resize', measure);
-    return () => target.removeEventListener('resize', measure);
-  }, [active]);
-
-  return { typing: focused && short, sideways };
-}
-
-/**
- * A round, fingertip-sized button with nothing but a glyph in it: the phone
- * editor's close, and its transport. Forty-four pixels, which is what a touch
- * target has to be, whatever the glyph inside it measures.
- */
-function TouchButton({
-  label,
-  disabled = false,
-  onClick,
-  children,
-}: {
-  label: string;
-  disabled?: boolean;
-  onClick: () => void;
-  children: ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      aria-label={label}
-      disabled={disabled}
-      onClick={onClick}
-      className={cn(
-        'pressable-sm flex size-11 shrink-0 items-center justify-center rounded-full text-fg',
-        'active:bg-surface-active disabled:pointer-events-none disabled:opacity-40',
-      )}
-    >
-      {children}
-    </button>
   );
 }

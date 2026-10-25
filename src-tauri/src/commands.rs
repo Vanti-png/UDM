@@ -106,7 +106,6 @@ pub async fn save_settings(
     }
 
     // The tray menu is built once, in the language saved at start-up.
-    #[cfg(desktop)]
     if previous.language != settings.language {
         crate::tray::relabel(&app, &settings.language);
     }
@@ -652,10 +651,6 @@ pub async fn frame_at(path: String, seconds: f64, height: u32) -> AppResult<Stri
 /// picked that file in a dialog or dropped it on the window. Granting the
 /// whole file system once at build time would have been one line of config and
 /// a standing offer to every page the webview ever loads.
-///
-/// A phone needs it as much as the desktop: the editor there plays the copy
-/// that the system picker's choice was written to. It is streamed by the
-/// Kotlin side, which is told about the file as well (see `android::allow_media`).
 #[tauri::command]
 pub fn allow_media_preview(app: AppHandle, path: String) -> AppResult<()> {
     use tauri::Manager;
@@ -667,8 +662,6 @@ pub fn allow_media_preview(app: AppHandle, path: String) -> AppResult<()> {
     app.asset_protocol_scope()
         .allow_file(&file)
         .map_err(|err| AppError::Other(format!("that file could not be opened for preview: {err}")))?;
-    #[cfg(target_os = "android")]
-    crate::android::allow_media(&app, &file)?;
     Ok(())
 }
 
@@ -776,79 +769,6 @@ pub async fn open_log_dir() -> AppResult<()> {
     crate::files::open_log_dir().await
 }
 
-// -- mobile platform -------------------------------------------------------
-//
-// What the dialog and drag-and-drop APIs do on the desktop has to be asked of
-// the OS on Android. The interface only calls these there; elsewhere they
-// refuse rather than pretend.
-
-#[cfg(not(target_os = "android"))]
-fn android_only<T>() -> AppResult<T> {
-    Err(AppError::Other("this is only available on Android".into()))
-}
-
-#[tauri::command]
-pub async fn platform_open_app_settings(app: AppHandle) -> AppResult<()> {
-    #[cfg(target_os = "android")]
-    return crate::android::open_app_settings(app).await;
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = app;
-        android_only()
-    }
-}
-
-/// `images` widens the picker to photos as well, which the converter takes and
-/// the editor does not.
-#[tauri::command]
-pub async fn platform_pick_media_files(
-    app: AppHandle,
-    images: Option<bool>,
-) -> AppResult<Vec<String>> {
-    #[cfg(target_os = "android")]
-    return crate::android::pick_media_files(app, images.unwrap_or(false)).await;
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = (app, images);
-        android_only()
-    }
-}
-
-#[tauri::command]
-pub async fn platform_set_system_bars(app: AppHandle, dark: bool) -> AppResult<()> {
-    #[cfg(target_os = "android")]
-    return crate::android::set_system_bars(app, dark).await;
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = (app, dark);
-        Ok(())
-    }
-}
-
-/// Hold the screen upright while the first-run film plays. A desktop window
-/// has no way up to hold, so there it succeeds without doing anything.
-#[tauri::command]
-pub async fn platform_set_portrait_lock(app: AppHandle, locked: bool) -> AppResult<()> {
-    #[cfg(target_os = "android")]
-    return crate::android::set_portrait_lock(app, locked).await;
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = (app, locked);
-        Ok(())
-    }
-}
-
-#[tauri::command]
-pub async fn platform_take_shared_text(app: AppHandle) -> AppResult<Option<String>> {
-    #[cfg(target_os = "android")]
-    return crate::android::take_shared_text(app).await;
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = app;
-        Ok(None)
-    }
-}
-
 // -- app updates -----------------------------------------------------------
 
 /// Whether a newer build has been released. `None` when this one is current,
@@ -881,16 +801,15 @@ pub fn get_build_commit() -> &'static str {
     updater::build_commit()
 }
 
-/// Download a newer build. The phone then opens the system installer on it;
-/// the desktop only stages the file, verified, for `apply_app_update` to run
-/// once nothing would be interrupted by it.
+/// Download a newer build and stage it, verified, for `apply_app_update` to
+/// run once nothing would be interrupted by it.
 #[tauri::command]
 pub async fn install_app_update(
     app: AppHandle,
     state: State<'_, AppState>,
     update: updater::AppUpdate,
 ) -> AppResult<()> {
-    #[cfg(any(target_os = "android", windows))]
+    #[cfg(windows)]
     {
         let settings = state.settings();
         let emitter = app.clone();
@@ -904,20 +823,10 @@ pub async fn install_app_update(
             );
         };
 
-        #[cfg(target_os = "android")]
-        {
-            let apk =
-                updater::download(&update, &crate::android::update_dir(), &settings, &on_progress)
-                    .await?;
-            crate::android::install_apk(app, apk.to_string_lossy().into_owned()).await
-        }
-        #[cfg(windows)]
-        {
-            updater::download(&update, &paths::updates_dir()?, &settings, &on_progress).await?;
-            Ok(())
-        }
+        updater::download(&update, &paths::updates_dir()?, &settings, &on_progress).await?;
+        Ok(())
     }
-    #[cfg(not(any(target_os = "android", windows)))]
+    #[cfg(not(windows))]
     {
         let _ = (app, state, update);
         no_self_update()
@@ -992,7 +901,6 @@ pub fn get_diagnostics(app: AppHandle, state: State<'_, AppState>) -> AppResult<
         ffmpeg: snapshot.ffmpeg,
         // A support paste that does not say whether a JavaScript runtime was
         // present cannot explain the one failure this tool exists for.
-        #[cfg(not(target_os = "android"))]
         js_runtime: snapshot.js_runtime,
         download_dir: settings.download_dir,
         db_path: paths::database_path()?.to_string_lossy().into_owned(),
@@ -1026,9 +934,8 @@ fn os_label() -> String {
         os_info::Version::Semantic(_, _, build) if cfg!(windows) => {
             format!("{name} (build {build})")
         }
-        // Everywhere else the version is the release. Android reports "16",
-        // which arrives here as 16.0.0, and trailing zeroes nobody typed are
-        // not information.
+        // Everywhere else the version is the release, and trailing zeroes
+        // nobody typed are not information.
         os_info::Version::Semantic(major, minor, patch) => {
             let mut number = major.to_string();
             if *minor != 0 || *patch != 0 {
@@ -1044,18 +951,6 @@ fn os_label() -> String {
 }
 
 /// Third-party licence list, read from the bundled resource.
-///
-/// Android keeps bundled resources inside the APK, where no file path reaches
-/// them, so that build carries the list compiled in instead.
-#[cfg(target_os = "android")]
-#[tauri::command]
-pub fn get_licenses(app: AppHandle) -> AppResult<serde_json::Value> {
-    let _ = app;
-    Ok(serde_json::from_str(include_str!("../resources/licenses.json"))?)
-}
-
-/// Third-party licence list, read from the bundled resource.
-#[cfg(not(target_os = "android"))]
 #[tauri::command]
 pub fn get_licenses(app: AppHandle) -> AppResult<serde_json::Value> {
     use tauri::Manager;

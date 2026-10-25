@@ -2,8 +2,6 @@ import { motion } from 'motion/react';
 import { open } from '@tauri-apps/plugin-dialog';
 import {
   Check,
-  ChevronLeft,
-  ChevronRight,
   FolderOpen,
   Gauge,
   Keyboard,
@@ -21,7 +19,6 @@ import { ToolCard } from '@/components/settings/ToolCard';
 import { Button } from '@/components/ui/Button';
 import { Dropdown } from '@/components/ui/Dropdown';
 import { InlineNotice } from '@/components/ui/InlineNotice';
-import { ListGroup } from '@/components/ui/ListGroup';
 import { Modal } from '@/components/ui/Modal';
 import { PageHeader } from '@/components/ui/PageHeader';
 import { Segmented } from '@/components/ui/Segmented';
@@ -36,7 +33,6 @@ import { cn } from '@/lib/cn';
 import { decodeQuality, encodeQuality } from '@/lib/downloadOptions';
 import { formatBytes, truncateMiddle } from '@/lib/format';
 import { SPRING, T } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import { speedLimitLabel, speedLimitOptions } from '@/lib/speedLimits';
 import * as ipc from '@/services/ipc';
 import { useSettingsStore } from '@/stores/useSettingsStore';
@@ -111,35 +107,25 @@ const DEFAULT_HOTKEYS: Record<HotkeyAction, string> = {
   openSettings: 'Ctrl+,',
 };
 
-/** A control's width beside its label on the desktop; a phone gives it the row. */
-function controlWidth(desktop: string): string {
-  return IS_MOBILE ? 'w-full' : desktop;
-}
-
 interface SettingsPageProps {
   settings: Settings;
   /**
-   * On a phone, the section open on its own page, or null for the list of
-   * sections. Owned by the app so the Back gesture can close it. On the
-   * desktop, the section to open at, when something elsewhere pointed here --
-   * the sections themselves are switched in place.
+   * The section to open at, when something elsewhere pointed here -- the
+   * sections themselves are switched in place.
    */
   section?: SettingsSection | null;
-  onSectionChange?: (section: SettingsSection | null) => void;
 }
 
-export function SettingsPage({ settings, section: openSection, onSectionChange }: SettingsPageProps) {
+export function SettingsPage({ settings, section: openSection }: SettingsPageProps) {
   const { t } = useTranslation();
   const update = useSettingsStore((state) => state.update);
   const reset = useSettingsStore((state) => state.reset);
   // Opened at the section asked for from the first frame, rather than at
   // General and then moved: an effect alone would show General first and
   // then slide the other in, as if the user had asked twice.
-  const [desktopSection, setDesktopSection] = useState<SettingsSection>(
-    () => (!IS_MOBILE && openSection) || 'general',
-  );
+  const [section, setSection] = useState<SettingsSection>(() => openSection ?? 'general');
   useEffect(() => {
-    if (!IS_MOBILE && openSection) setDesktopSection(openSection);
+    if (openSection) setSection(openSection);
   }, [openSection]);
   const [confirmReset, setConfirmReset] = useState(false);
   const link = useBridgeStatus();
@@ -152,23 +138,18 @@ export function SettingsPage({ settings, section: openSection, onSectionChange }
   const sections = useMemo(
     () =>
       ALL_SECTIONS.filter((candidate) => {
-        // Keyboard shortcuts mean nothing without a keyboard.
-        if (candidate.id === 'shortcuts') return !IS_MOBILE;
-        // The browser extension is a desktop feature. Whether it has a
-        // published listing decides what the section OFFERS, not whether it
+        // Whether the extension has a published listing decides what the
+        // section OFFERS, not whether it
         // exists: hiding it outright would also hide a link that is already
         // working, which is the state every install is in before the listing
         // is approved.
         if (candidate.id === 'connection') {
-          return !IS_MOBILE && link != null && link.supported;
+          return link != null && link.supported;
         }
         return true;
       }),
     [link],
   );
-
-  const section = IS_MOBILE ? (openSection ?? null) : desktopSection;
-  const entry = sections.find((candidate) => candidate.id === section);
 
   // The screen change has already brought the page in; what is animated here is
   // only a change of section after that, which the user asked for.
@@ -230,71 +211,6 @@ export function SettingsPage({ settings, section: openSection, onSectionChange }
     />
   );
 
-  if (IS_MOBILE) {
-    // A phone shows the sections as a list of large rows, and each one opens
-    // on a page of its own -- the pattern of the phone's own Settings app. A
-    // strip of small tabs scrolling sideways was hard to hit, and easy to
-    // scroll when a tap was meant.
-    return (
-      <div className="mx-auto flex w-full max-w-[880px] flex-col px-4 pb-12">
-        {entry ? (
-          <>
-            {/* Stands in for the screen's own bar, which the shell takes away
-                while a section is open: the same height, and the page's heading. */}
-            <div className="sticky top-0 z-10 -mx-4 mb-2 flex h-12 items-center gap-1 bg-bg px-1.5">
-              <button
-                type="button"
-                onClick={() => onSectionChange?.(null)}
-                aria-label={t('common.back')}
-                className="pressable-sm flex size-11 shrink-0 items-center justify-center rounded-full text-fg active:bg-surface-active"
-              >
-                <ChevronLeft size={24} />
-              </button>
-              <h1 className="truncate text-[17px] font-semibold tracking-[-0.01em] text-fg">
-                {t(entry.label)}
-              </h1>
-            </div>
-            {content}
-          </>
-        ) : (
-          <motion.nav
-            initial={arrive}
-            animate={{ opacity: 1, y: 0 }}
-            transition={T.component}
-            aria-label={t('settings.title')}
-            className="mt-4"
-          >
-            {/* 16 padding + 36 tile + 14 gap: the hairlines start under the text. */}
-            <ListGroup inset={66}>
-              {sections.map((candidate) => {
-                const Icon = candidate.icon;
-                return (
-                  <button
-                    key={candidate.id}
-                    type="button"
-                    onClick={() => onSectionChange?.(candidate.id)}
-                    className="flex min-h-[68px] w-full items-center gap-3.5 px-4 py-3 text-left transition-colors duration-150 ease-out-quint active:bg-fill"
-                  >
-                    <span className="flex size-9 shrink-0 items-center justify-center rounded-[9px] bg-fill text-fg-muted">
-                      <Icon size={18} />
-                    </span>
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-[15px] text-fg">{t(candidate.label)}</span>
-                      <span className="mt-0.5 block truncate text-[13px] text-fg-muted">
-                        {t(candidate.summary)}
-                      </span>
-                    </span>
-                    <ChevronRight size={18} className="shrink-0 text-fg-faint" />
-                  </button>
-                );
-              })}
-            </ListGroup>
-          </motion.nav>
-        )}
-        {resetModal}
-      </div>
-    );
-  }
 
   return (
     <div className="mx-auto w-full max-w-[840px] px-6 pb-12">
@@ -313,7 +229,7 @@ export function SettingsPage({ settings, section: openSection, onSectionChange }
               <button
                 key={candidate.id}
                 type="button"
-                onClick={() => setDesktopSection(candidate.id)}
+                onClick={() => setSection(candidate.id)}
                 aria-current={active ? 'true' : undefined}
                 className={cn(
                   'relative flex h-[34px] w-full items-center rounded-[8px] px-2.5 text-left text-[13px] font-medium',
@@ -349,28 +265,26 @@ function GeneralSection({ settings, update }: { settings: Settings; update: Upda
   return (
     <>
       <SettingGroup>
-        {!IS_MOBILE && (
-          <>
-            <ToggleRow
-              title={t('settings.startWithWindows')}
-              description={t('settings.startWithWindowsHint')}
-              checked={settings.startWithWindows}
-              onChange={(value) => void update({ startWithWindows: value })}
-            />
-            <ToggleRow
-              title={t('settings.minimizeToTray')}
-              description={t('settings.minimizeToTrayHint')}
-              checked={settings.minimizeToTray}
-              onChange={(value) => void update({ minimizeToTray: value })}
-            />
-            <ToggleRow
-              title={t('settings.closeToTray')}
-              description={t('settings.closeToTrayHint')}
-              checked={settings.closeToTray}
-              onChange={(value) => void update({ closeToTray: value })}
-            />
-          </>
-        )}
+        <>
+          <ToggleRow
+            title={t('settings.startWithWindows')}
+            description={t('settings.startWithWindowsHint')}
+            checked={settings.startWithWindows}
+            onChange={(value) => void update({ startWithWindows: value })}
+          />
+          <ToggleRow
+            title={t('settings.minimizeToTray')}
+            description={t('settings.minimizeToTrayHint')}
+            checked={settings.minimizeToTray}
+            onChange={(value) => void update({ minimizeToTray: value })}
+          />
+          <ToggleRow
+            title={t('settings.closeToTray')}
+            description={t('settings.closeToTrayHint')}
+            checked={settings.closeToTray}
+            onChange={(value) => void update({ closeToTray: value })}
+          />
+        </>
         <ToggleRow
           title={t('settings.clipboard')}
           description={t('settings.clipboardHint')}
@@ -437,33 +351,21 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
         <SettingRow
           title={t('settings.downloadDir')}
           description={
-            IS_MOBILE ? (
-              <>
-                <span className="block [overflow-wrap:anywhere]">{settings.downloadDir}</span>
-                <span className="mt-1 block">{t('settings.downloadDirMobileHint')}</span>
-              </>
-            ) : (
-              <Tooltip label={settings.downloadDir}>
-                <span>{truncateMiddle(settings.downloadDir, 52)}</span>
-              </Tooltip>
-            )
+            <Tooltip label={settings.downloadDir}>
+              <span>{truncateMiddle(settings.downloadDir, 52)}</span>
+            </Tooltip>
           }
           control={
-            // The Android folder picker hands back a document tree, not a
-            // path the downloader could write to, so the folder is fixed there.
-            IS_MOBILE ? undefined : (
-              <Button size="sm" variant="secondary" onClick={pickFolder}>
-                {t('settings.browse')}
-              </Button>
-            )
+            <Button size="sm" variant="secondary" onClick={pickFolder}>
+              {t('settings.browse')}
+            </Button>
           }
         />
 
         <SettingRow
           title={t('settings.defaultMode')}
-          stacked={IS_MOBILE}
           control={
-            <div className={controlWidth('w-[220px]')}>
+            <div className="w-[220px]">
               <Segmented
                 value={settings.defaultMode}
                 options={[
@@ -479,9 +381,8 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
 
         <SettingRow
           title={t('settings.defaultQuality')}
-          stacked={IS_MOBILE}
           control={
-            <div className={controlWidth('w-[200px]')}>
+            <div className="w-[200px]">
               <Dropdown
                 value={encodeQuality(settings.defaultQuality)}
                 options={[
@@ -502,9 +403,8 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
 
         <SettingRow
           title={t('settings.defaultContainer')}
-          stacked={IS_MOBILE}
           control={
-            <div className={controlWidth('w-[200px]')}>
+            <div className="w-[200px]">
               <Dropdown
                 value={settings.defaultContainer ?? ''}
                 options={[
@@ -522,9 +422,8 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
         <SettingRow
           title={t('settings.maxConcurrent')}
           description={t('settings.maxConcurrentHint')}
-          stacked={IS_MOBILE}
           control={
-            <div className={controlWidth('w-[180px]')}>
+            <div className="w-[180px]">
               <Slider
                 value={settings.maxConcurrentDownloads}
                 min={1}
@@ -539,9 +438,8 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
         <SettingRow
           title={t('settings.connections')}
           description={t('settings.connectionsHint')}
-          stacked={IS_MOBILE}
           control={
-            <div className={controlWidth('w-[180px]')}>
+            <div className="w-[180px]">
               <Slider
                 value={settings.connectionsPerDownload}
                 min={1}
@@ -556,9 +454,8 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
         <SettingRow
           title={t('settings.speedLimit')}
           description={t('settings.speedLimitHint')}
-          stacked={IS_MOBILE}
           control={
-            <div className={controlWidth('w-[200px]')}>
+            <div className="w-[200px]">
               <Dropdown
                 value={String(settings.speedLimitKbps)}
                 options={speedLimitOptions(settings.speedLimitKbps).map((kbps) => ({
@@ -574,9 +471,8 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
         <SettingRow
           title={t('settings.autoRetry')}
           description={t('settings.autoRetryHint')}
-          stacked={IS_MOBILE}
           control={
-            <div className={controlWidth('w-[180px]')}>
+            <div className="w-[180px]">
               <Slider
                 value={settings.autoRetryCount}
                 min={0}
@@ -600,7 +496,7 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
                 onBlur={() => void update({ filenameTemplate: template })}
                 aria-label={t('settings.filenameTemplate')}
               />
-              <p className={cn('truncate text-fg-muted', IS_MOBILE ? 'text-[13px]' : 'text-[12.5px]')}>
+              <p className={cn('truncate text-fg-muted', 'text-[12.5px]')}>
                 {t('settings.filenamePreview')}: {preview}
               </p>
             </div>
@@ -621,9 +517,8 @@ function AppearanceSection({ settings, update }: { settings: Settings; update: U
       <SettingRow
         title={t('settings.theme')}
         description={t('settings.themeHint')}
-        stacked={IS_MOBILE}
         control={
-          <div className={controlWidth('w-[240px]')}>
+          <div className="w-[240px]">
             <Segmented
               value={settings.theme}
               options={[
@@ -639,9 +534,8 @@ function AppearanceSection({ settings, update }: { settings: Settings; update: U
       />
       <SettingRow
         title={t('settings.language')}
-        stacked={IS_MOBILE}
         control={
-          <div className={controlWidth('w-[180px]')}>
+          <div className="w-[180px]">
             <Dropdown
               value={settings.language}
               options={LANGUAGES.map((entry) => ({ value: entry.code, label: entry.label }))}
@@ -656,16 +550,12 @@ function AppearanceSection({ settings, update }: { settings: Settings; update: U
         checked={settings.reduceMotion}
         onChange={(value) => void update({ reduceMotion: value })}
       />
-      {/* On a phone only low resource mode takes the glow away (see App), so
-          the switch would have nothing to switch there. */}
-      {!IS_MOBILE && (
-        <ToggleRow
-          title={t('settings.animatedBackground')}
-          description={t('settings.animatedBackgroundHint')}
-          checked={settings.showAnimatedBackground}
-          onChange={(value) => void update({ showAnimatedBackground: value })}
-        />
-      )}
+      <ToggleRow
+        title={t('settings.animatedBackground')}
+        description={t('settings.animatedBackgroundHint')}
+        checked={settings.showAnimatedBackground}
+        onChange={(value) => void update({ showAnimatedBackground: value })}
+      />
     </SettingGroup>
   );
 }
@@ -703,18 +593,14 @@ function PerformanceSection({ settings, update }: { settings: Settings; update: 
         checked={settings.lowResourceMode}
         onChange={(value) => void update({ lowResourceMode: value })}
       />
-      {/* The GPU pass is an NVIDIA encoder, which no phone has. */}
-      {!IS_MOBILE && (
-        <ToggleRow
-          title={t('settings.hardwareAcceleration')}
-          description={t('settings.hardwareAccelerationHint')}
-          checked={settings.hardwareAcceleration}
-          onChange={(value) => void update({ hardwareAcceleration: value })}
-        />
-      )}
+      <ToggleRow
+        title={t('settings.hardwareAcceleration')}
+        description={t('settings.hardwareAccelerationHint')}
+        checked={settings.hardwareAcceleration}
+        onChange={(value) => void update({ hardwareAcceleration: value })}
+      />
       <SettingRow
         title={t('settings.cacheLimit')}
-        stacked={IS_MOBILE}
         description={
           stats
             ? t('settings.cacheUsage', {
@@ -724,7 +610,7 @@ function PerformanceSection({ settings, update }: { settings: Settings; update: 
             : undefined
         }
         control={
-          <div className={controlWidth('w-[200px]')}>
+          <div className="w-[200px]">
             <Slider
               value={settings.cacheLimitMb}
               min={32}
@@ -897,30 +783,25 @@ function AdvancedSection({
           onLocate={(path) => void update({ ffmpegPath: path })}
           onResetPath={() => void update({ ffmpegPath: null })}
         />
-        {/* The phone already carries a JavaScript engine inside the APK, so
-            there is nothing here for it to offer. */}
-        {!IS_MOBILE && (
-          <ToolCard
-            status={jsRuntime}
-            titleKey="settings.jsRuntime"
-            hintKey="settings.jsRuntimeHint"
-            installing={installing.jsRuntime}
-            installError={installErrors.jsRuntime}
-            check={checks.jsRuntime}
-            optionalNoteKey="settings.jsRuntimeOptional"
-            optional
-            onInstall={() => void runInstall('jsRuntime')}
-            onCheck={() => void runUpdate('jsRuntime')}
-          />
-        )}
+        <ToolCard
+          status={jsRuntime}
+          titleKey="settings.jsRuntime"
+          hintKey="settings.jsRuntimeHint"
+          installing={installing.jsRuntime}
+          installError={installErrors.jsRuntime}
+          check={checks.jsRuntime}
+          optionalNoteKey="settings.jsRuntimeOptional"
+          optional
+          onInstall={() => void runInstall('jsRuntime')}
+          onCheck={() => void runUpdate('jsRuntime')}
+        />
       </SettingGroup>
 
       <SettingGroup title={t('settings.advanced')}>
         <SettingRow
           title={t('settings.networkTimeout')}
-          stacked={IS_MOBILE}
           control={
-            <div className={controlWidth('w-[200px]')}>
+            <div className="w-[200px]">
               <Slider
                 value={settings.networkTimeoutSec}
                 min={5}
@@ -964,30 +845,28 @@ function AdvancedSection({
           checked={settings.debugLogging}
           onChange={(value) => void update({ debugLogging: value })}
         />
-        {!IS_MOBILE && (
-          <SettingRow
-            title={t('settings.logs')}
-            description={
-              logsFailed ? (
-                <span className="text-error">{t('file.revealFailed')}</span>
-              ) : (
-                t('settings.logsHint')
-              )
-            }
-            control={
-              <Button
-                size="sm"
-                variant="secondary"
-                onClick={() => {
-                  setLogsFailed(false);
-                  void ipc.openLogDir().catch(() => setLogsFailed(true));
-                }}
-              >
-                {t('settings.openLogs')}
-              </Button>
-            }
-          />
-        )}
+        <SettingRow
+          title={t('settings.logs')}
+          description={
+            logsFailed ? (
+              <span className="text-error">{t('file.revealFailed')}</span>
+            ) : (
+              t('settings.logsHint')
+            )
+          }
+          control={
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setLogsFailed(false);
+                void ipc.openLogDir().catch(() => setLogsFailed(true));
+              }}
+            >
+              {t('settings.openLogs')}
+            </Button>
+          }
+        />
         <SettingRow
           title={t('settings.resetTitle')}
           description={t('settings.resetHint')}

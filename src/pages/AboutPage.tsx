@@ -1,5 +1,5 @@
 import { openUrl } from '@tauri-apps/plugin-opener';
-import { ExternalLink, Play, ShieldCheck } from 'lucide-react';
+import { ExternalLink, ShieldCheck } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { UpdateRow } from '@/components/settings/UpdateRow';
@@ -9,19 +9,14 @@ import { PageHeader } from '@/components/ui/PageHeader';
 import { SettingGroup, SettingRow } from '@/components/ui/SettingRow';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import type { DiagnosticsSnapshot, LicenseEntry } from '@/types';
 
 // The sizes a `SettingRow` sets its two lines in, so every row on the page agrees.
-const TITLE_SIZE = IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]';
-const BODY_SIZE = IS_MOBILE ? 'text-[13px]' : 'text-[12.5px]';
+const TITLE_SIZE = 'text-[13.5px]';
+const BODY_SIZE = 'text-[12.5px]';
 
-/**
- * `onPlayIntro` is the phone's: the first-run film, played again on request.
- * Without it -- the desktop, which has no film -- the row is not there.
- */
-export function AboutPage({ onPlayIntro }: { onPlayIntro?: () => void }) {
+export function AboutPage() {
   const { t } = useTranslation();
   const [licenses, setLicenses] = useState<LicenseEntry[]>([]);
   const [diagnostics, setDiagnostics] = useState<DiagnosticsSnapshot | null>(null);
@@ -38,7 +33,7 @@ export function AboutPage({ onPlayIntro }: { onPlayIntro?: () => void }) {
   const libraries = licenses.filter((entry) => entry.kind !== 'external-tool');
 
   return (
-    <div className={cn('mx-auto w-full max-w-[720px] pb-12', IS_MOBILE ? 'px-4 pt-4' : 'px-6')}>
+    <div className={cn('mx-auto w-full max-w-[720px] pb-12', 'px-6')}>
       <PageHeader title={t('nav.about')} />
 
       <div className="flex flex-col gap-6">
@@ -46,7 +41,7 @@ export function AboutPage({ onPlayIntro }: { onPlayIntro?: () => void }) {
             exists. Releases carry no version number; the build's commit is what
             tells one from the next. */}
         <ListGroup>
-          <div className={cn('flex items-center gap-3.5 px-4', IS_MOBILE ? 'py-4' : 'py-3.5')}>
+          <div className={cn('flex items-center gap-3.5 px-4', 'py-3.5')}>
             <Logo size={40} className="shrink-0" />
             {/* English whatever the interface language, and marked as such so
                 it is read out -- and cased -- as English. */}
@@ -55,20 +50,6 @@ export function AboutPage({ onPlayIntro }: { onPlayIntro?: () => void }) {
             </div>
           </div>
           <UpdateRow />
-          {onPlayIntro && (
-            <button
-              type="button"
-              onClick={onPlayIntro}
-              className={cn(
-                'flex w-full items-center gap-3 px-4 text-left',
-                'transition-colors duration-150 ease-out-quint active:bg-surface-active',
-                IS_MOBILE ? 'py-3.5' : 'py-2.5',
-              )}
-            >
-              <span className={cn('min-w-0 flex-1 text-fg', TITLE_SIZE)}>{t('intro.replay')}</span>
-              <Play size={15} aria-hidden="true" className="shrink-0 text-fg-faint" />
-            </button>
-          )}
         </ListGroup>
 
         <ListGroup>
@@ -79,7 +60,7 @@ export function AboutPage({ onPlayIntro }: { onPlayIntro?: () => void }) {
                 {t('about.privacyTitle')}
               </span>
             }
-            description={t(IS_MOBILE ? 'about.privacyBodyMobile' : 'about.privacyBody')}
+            description={t('about.privacyBody')}
           />
         </ListGroup>
 
@@ -109,7 +90,7 @@ export function AboutPage({ onPlayIntro }: { onPlayIntro?: () => void }) {
         {tools.length > 0 && (
           <SettingGroup
             title={t('about.externalTools')}
-            description={t(IS_MOBILE ? 'setup.bodyMobile' : 'setup.body')}
+            description={t('setup.body')}
           >
             {tools.map((entry) => (
               <LicenseRow key={entry.name} entry={entry} />
@@ -134,7 +115,7 @@ function DiagnosticRow({ label, value }: { label: string; value: string }) {
     <div
       className={cn(
         'flex items-baseline justify-between gap-6 px-4',
-        IS_MOBILE ? 'py-3.5' : 'py-2.5',
+        'py-2.5',
       )}
     >
       <span className={cn('shrink-0 text-fg', TITLE_SIZE)}>{label}</span>
@@ -162,7 +143,7 @@ function LicenseRow({ entry }: { entry: LicenseEntry }) {
       className={cn(
         'flex w-full items-center gap-3 px-4 text-left',
         'transition-colors duration-150 ease-out-quint hover:bg-surface-hover active:bg-surface-active',
-        IS_MOBILE ? 'py-3.5' : 'py-2.5',
+        'py-2.5',
       )}
     >
       <span className="min-w-0 flex-1">

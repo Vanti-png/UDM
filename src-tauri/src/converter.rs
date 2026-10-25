@@ -123,13 +123,7 @@ pub(crate) fn ffprobe_path() -> Option<PathBuf> {
     // The managed FFmpeg install puts ffprobe next to ffmpeg, and a system
     // install almost always does too.
     if let Some(ffmpeg) = tools::ffmpeg_path() {
-        let sibling = ffmpeg.with_file_name(if cfg!(windows) {
-            "ffprobe.exe"
-        } else if cfg!(target_os = "android") {
-            "libffprobe.so"
-        } else {
-            "ffprobe"
-        });
+        let sibling = ffmpeg.with_file_name(if cfg!(windows) { "ffprobe.exe" } else { "ffprobe" });
         if sibling.is_file() {
             return Some(sibling);
         }
@@ -206,9 +200,9 @@ pub async fn probe(path: &str) -> AppResult<MediaProbe> {
 /// A HEIC or AVIF photo: a single picture in a codec of the MP4 family.
 ///
 /// Such a photo is usually stored as a grid of tiles, each a stream of its own.
-/// The phone's FFmpeg (7.1) reads only the first tile -- a 704x976 corner of a
-/// 4182x5798 photo -- and the desktop's puts the grid back together with a
-/// filter graph of its own that refuses to be followed by any filter of ours,
+/// FFmpeg 7.1 reads only the first tile -- a 704x976 corner of a 4182x5798
+/// photo -- and newer builds put the grid back together with a filter graph
+/// of their own that refuses to be followed by any filter of ours,
 /// so a photo converted with a size or a format filter fails outright. Either
 /// way the photo is first assembled into a whole picture; see [`TileGrid`].
 fn is_tiled_still(probe: &MediaProbe) -> bool {
@@ -229,8 +223,8 @@ struct TileGrid {
 
 impl TileGrid {
     /// Lay the tiles out and cut the picture from them. Measured on a phone
-    /// photo with the desktop's FFmpeg: identical, pixel for pixel, to the
-    /// picture FFmpeg assembles itself.
+    /// camera's photo: identical, pixel for pixel, to the picture FFmpeg
+    /// assembles itself.
     fn filter_graph(&self) -> String {
         let inputs: String = self.tiles.iter().map(|(stream, _, _)| format!("[0:{stream}]")).collect();
         let layout: Vec<String> = self.tiles.iter().map(|(_, x, y)| format!("{x}_{y}")).collect();
@@ -1206,17 +1200,6 @@ impl ConvertManager {
         let mut options = request.options.clone();
         options.target_format = target;
 
-        // On Android a picked file is a private copy in the app's cache, so
-        // "beside the source" would be a folder the user cannot reach.
-        #[cfg(target_os = "android")]
-        if options.output_dir.as_deref().is_none_or(|dir| dir.trim().is_empty()) {
-            let dir = self.settings().download_dir;
-            std::fs::create_dir_all(&dir).map_err(|err| {
-                AppError::Permission(format!("{dir} could not be created: {err}"))
-            })?;
-            options.output_dir = Some(dir);
-        }
-
         normalize_output_dir(&mut options)?;
 
         let mut created = Vec::with_capacity(request.input_paths.len());
@@ -1531,8 +1514,6 @@ impl ConvertManager {
             job.completed_at = Some(util::now_ms());
         });
         log_info!("convert", "wrote {path}");
-        #[cfg(target_os = "android")]
-        crate::android::announce_media(&self.app, &path);
         self.emit_job(id);
         self.emit_changed();
     }

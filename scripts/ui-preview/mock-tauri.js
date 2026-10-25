@@ -3,7 +3,6 @@
  * Injected by vite.config.mjs in this folder; never part of a real build.
  *
  * Switches, as query parameters:
- *   ?platform=android   the phone layout (default: windows)
  *   ?theme=light        start in the light theme (default: dark)
  *   ?lang=en            start in English (default: tr)
  *   ?empty=1            no downloads, conversions or history
@@ -36,15 +35,13 @@
  * `__UD_MOCK__.handoff(item?)` hands over a video as the extension's İndir
  * does, the sample stream with `item`'s fields over it; with
  * `{ kind: 'file', url, fileName, fileSize }` it is a captured browser download.
- * `__UD_MOCK__.copy(url?)` is a link copied in another program.
- * `__UD_MOCK__.picked` is what the phone's file picker returns next, and
+ * `__UD_MOCK__.copy(url?)` is a link copied in another program, and
  * `__UD_MOCK__.clipboard` the last text the app wrote to the clipboard.
  * `__UD_MOCK__.files` is how the next open, reveal or share goes: 'ok',
  * 'missing' or 'fail', as `?files=` sets it at load.
  */
 (() => {
   const params = new URLSearchParams(location.search);
-  const platform = params.get('platform') ?? 'windows';
   const empty = params.has('empty');
   const tiktok = ['fresh', 'stale'].includes(params.get('tiktok')) ? params.get('tiktok') : 'none';
   // Never stale: the other-site sign-in is fresh for its hour, then gone.
@@ -735,7 +732,6 @@
    * on) or `agegate` gets it from Home's analysis, and as a download handed
    * over from the browser -- try
    * `__UD_MOCK__.handoff({ url: 'https://www.tiktok.com/@itzmav_/video/7670756126907960589', kind: 'page' })`.
-   * Only the desktop offers to try again: a phone has no session to lend.
    */
   const needsTiktokSignIn = (url) => url.includes('itzmav_') || url.includes('agegate');
   const tiktokSignIn = () => ({
@@ -745,7 +741,7 @@
       "TikTok shows it only to signed-in viewers. Turn on TikTok session in the browser extension, in the browser where you're signed in to TikTok, then try again.",
     technical:
       'TikTok shows this post only to a signed-in viewer: ERROR: [TikTok] 7670756126907960589: This post may not be comfortable for some audiences. Log in for access. Use --cookies-from-browser or --cookies for the authentication. See  https://github.com/yt-dlp/yt-dlp/wiki/FAQ#how-do-i-pass-cookies-to-yt-dlp  for how to manually pass cookies',
-    retryable: platform === 'windows',
+    retryable: true,
   });
 
   // `?unregistered=1`: the browsers can no longer start the helper, until
@@ -774,11 +770,11 @@
 
   /**
    * Where an export goes when no folder is chosen, if not beside the source:
-   * the downloads folder, for every file on a phone and for the app's own
-   * files on the desktop -- as `ExportManager::default_dir` decides.
+   * the downloads folder, for the app's own files -- as
+   * `ExportManager::default_dir` decides.
    */
   const exportDefaultDir = (path) =>
-    platform === 'android' || /[\\/]AppData[\\/]Roaming[\\/]UniversalDownloader[\\/]/i.test(path)
+    /[\\/]AppData[\\/]Roaming[\\/]UniversalDownloader[\\/]/i.test(path)
       ? settings.downloadDir
       : null;
 
@@ -786,11 +782,6 @@
   const AUDIO_ONLY = /\.(mp3|m4a|aac|opus|ogg|flac|wav)$/i;
   /** A file named like a photo is a photo: one frame, no length, no sound. */
   const PHOTO = /\.(jpe?g|png|webp|heic|heif|avif|bmp|tiff?)$/i;
-
-  /** What the phone's file picker returns (see platform_pick_media_files). */
-  const picker = {
-    picked: ['/data/user/0/io.universaldownloader.app/cache/imports/tatil klibi.mp4'],
-  };
 
   /**
    * How a press on a finished file goes: 'ok', 'missing' (the row says the file
@@ -952,7 +943,7 @@
     },
 
     bridge_status: () => ({
-      supported: platform === 'windows',
+      supported: true,
       storeListed: true,
       enabled: true,
       registered: bridge.registered,
@@ -1192,7 +1183,7 @@
     },
     probe_media: ({ path }) => {
       // A file named like sound is sound: no picture, which is what the editor
-      // has to turn away (the phone's picker offers audio as well).
+      // has to turn away.
       const sound = AUDIO_ONLY.test(path);
       if (PHOTO.test(path)) {
         return {
@@ -1272,16 +1263,13 @@
           .pop()
           .replace(/\.[^.]+$/, '')
           .replace(/ \d+m\d{2}(?:\.\d)?s-\d+m\d{2}(?:\.\d)?s(?: \(\d+\))?$/, '');
-        // A phone's exports land in its downloads, where the gallery finds them;
-        // a desktop's where it was told, or beside the source unless that is
-        // one of the app's own folders.
-        const folder =
-          platform === 'android'
-            ? '/storage/emulated/0/Download/Universal Downloader/'
-            : (request.outputDir ??
-                exportDefaultDir(request.inputPath) ??
-                request.inputPath.replace(/[^\\/]+$/, '')
-              ).replace(/[\\/]*$/, '\\');
+        // Where it was told, or beside the source unless that is one of the
+        // app's own folders.
+        const folder = (
+          request.outputDir ??
+          exportDefaultDir(request.inputPath) ??
+          request.inputPath.replace(/[^\\/]+$/, '')
+        ).replace(/[\\/]*$/, '\\');
         emit('editor://export', publishExport({
           status: 'completed',
           percent: 100,
@@ -1442,15 +1430,6 @@
     share_file: ({ path }) => fileAnswer(path),
     open_log_dir: () => null,
 
-    platform_open_app_settings: () => null,
-    // What the Android picker hands back once it has copied the choice into
-    // the app's cache. Set `__UD_MOCK__.picked` from the console to pick
-    // something else -- a name ending in .mp3 is a file with no picture.
-    platform_pick_media_files: () => [...picker.picked],
-    platform_set_system_bars: () => null,
-    platform_take_shared_text: () => null,
-    platform_set_portrait_lock: () => null,
-
     check_app_update: () => (params.has('update') ? update : null),
     install_app_update: async () => {
       for (let step = 1; step <= 10; step += 1) {
@@ -1542,13 +1521,13 @@
   };
   window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener: () => {} };
   window.__TAURI_OS_PLUGIN_INTERNALS__ = {
-    platform,
-    os_type: platform,
-    family: platform === 'windows' ? 'windows' : 'unix',
+    platform: 'windows',
+    os_type: 'windows',
+    family: 'windows',
     version: '10.0.26200',
     arch: 'x86_64',
     eol: '\r\n',
-    exe_extension: platform === 'windows' ? 'exe' : '',
+    exe_extension: 'exe',
   };
 
   // A split transfer as segmented.rs reports one: eight pieces, each filled by
@@ -1624,8 +1603,6 @@
       emit('clipboard://copied', { url, file });
     },
     get tasks() { return tasks; },
-    get picked() { return picker.picked; },
-    set picked(paths) { picker.picked = paths; },
     get files() { return files.result; },
     set files(result) { files.result = result; },
   };

@@ -2,7 +2,6 @@ import { motion } from 'motion/react';
 
 import { cn } from '@/lib/cn';
 import { SPRING } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 
 interface ToggleProps {
   checked: boolean;
@@ -44,7 +43,7 @@ export function ToggleTrack({ checked }: { checked: boolean }) {
         // The proportions of the system switch: a track a little over one and a
         // half knobs wide, the knob filling it but for 2px all round.
         'relative flex shrink-0 items-center rounded-full p-[2px] transition-colors duration-250 ease-out-quint',
-        IS_MOBILE ? 'h-[31px] w-[51px]' : 'h-[24px] w-[40px]',
+        'h-[24px] w-[40px]',
         checked ? 'bg-accent' : 'bg-fill-active',
       )}
     >
@@ -55,7 +54,7 @@ export function ToggleTrack({ checked }: { checked: boolean }) {
         transition={SPRING.snap}
         className={cn(
           'block rounded-full bg-white shadow-[0_0_0_0.5px_rgb(0_0_0/0.06),0_2px_5px_rgb(0_0_0/0.2)]',
-          IS_MOBILE ? 'size-[27px]' : 'size-5',
+          'size-5',
           checked ? 'ml-auto' : 'mr-auto',
         )}
       />

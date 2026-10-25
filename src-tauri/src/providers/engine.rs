@@ -356,18 +356,7 @@ pub fn base_args(settings: &Settings) -> Vec<String> {
     }
 
     // YouTube's player has to be run through JavaScript before most formats
-    // are offered. yt-dlp only looks for Deno by default, which a phone does
-    // not have; the APK carries QuickJS for this.
-    #[cfg(target_os = "android")]
-    {
-        args.push("--js-runtimes".to_string());
-        args.push(format!(
-            "quickjs:{}",
-            crate::android::quickjs_binary().display()
-        ));
-    }
-
-    #[cfg(not(target_os = "android"))]
+    // are offered, and yt-dlp only looks for Deno by itself.
     if let Some(runtime) = js_runtime() {
         args.push("--js-runtimes".to_string());
         args.push(runtime);
@@ -395,7 +384,6 @@ pub fn base_args(settings: &Settings) -> Vec<String> {
 /// install is ever offered -- while a machine that had none uses the one the
 /// user installed here. The PATH search below only answers before the first
 /// discovery pass has published, the one moment the managed copy is invisible.
-#[cfg(not(target_os = "android"))]
 fn js_runtime() -> Option<String> {
     tools::js_runtime_path()
         .as_deref()
@@ -405,7 +393,6 @@ fn js_runtime() -> Option<String> {
 
 /// Which runtime a path holds, in the `kind:path` pair yt-dlp is given. The
 /// program names itself: `deno.exe` is a Deno.
-#[cfg(not(target_os = "android"))]
 fn runtime_spec(path: &Path) -> Option<String> {
     let name = path.file_stem()?.to_str()?;
     Some(format!("{name}:{}", path.display()))
@@ -413,7 +400,6 @@ fn runtime_spec(path: &Path) -> Option<String> {
 
 /// Whatever the machine already had. Looked up once: this runs for every
 /// invocation, and PATH does not change underneath a running app.
-#[cfg(not(target_os = "android"))]
 fn path_runtime() -> Option<String> {
     static FOUND: once_cell::sync::OnceCell<Option<String>> = once_cell::sync::OnceCell::new();
 
@@ -958,8 +944,7 @@ impl ImageCandidate {
 }
 
 /// The shorter side a picture in the pick-from grid needs: a tile is about
-/// 135 points across on the desktop and 100 on a phone, drawn at two or three
-/// device pixels to the point.
+/// 135 points across, drawn at up to two device pixels to the point.
 const GRID_SIDE: u64 = 300;
 
 /// A small rendition of a photo, for the grid its post is picked from. The
@@ -1539,7 +1524,7 @@ mod tests {
     fn a_tiktok_audience_wall_asks_for_a_tiktok_sign_in() {
         let err = classify_engine_error(TIKTOK_AUDIENCE_WALL);
         assert_eq!(err.code(), "tiktokSignIn");
-        // The desktop's browser can answer it; a phone has nothing to lend.
+        // A linked browser can answer it, where there is one to link.
         assert_eq!(err.retryable(), cfg!(windows));
         assert!(
             err.technical()
@@ -1619,8 +1604,8 @@ mod tests {
 
     #[test]
     fn a_failed_lookup_is_a_network_error_whatever_the_id_spells() {
-        // As reported from a phone whose DNS gave no answer, and the same
-        // with the backup lookup's reason and an id that contains "geo".
+        // As reported when DNS gave no answer, and the same with a backup
+        // lookup's reason and an id that contains "geo".
         let reported = "ERROR: [vm.tiktok] ZSq4hQv5y: Unable to download webpage: [Errno 7] No address associated with hostname (caused by TransportError('[Errno 7] No address associated with hostname'))";
         let with_backup = "ERROR: [vm.tiktok] ZSgeo4Qv5: Unable to download webpage: [Errno 7] No address associated with hostname; backup lookup: 1.1.1.1 timed out, 8.8.8.8 timed out (caused by TransportError('...'))";
 
@@ -1635,7 +1620,6 @@ mod tests {
     /// The engine has to be told what a runtime is, not only where it is, and
     /// a pair it does not recognise is one it silently ignores.
     #[test]
-    #[cfg(not(target_os = "android"))]
     fn a_runtime_is_named_after_the_program_it_points_at() {
         assert_eq!(
             runtime_spec(Path::new(r"C:\Users\x\AppData\Roaming\UniversalDownloader\tools\js\deno.exe")),

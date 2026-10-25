@@ -6,11 +6,10 @@
 //! (see `build.rs`), so a newer one exists exactly when the tag points
 //! somewhere else.
 //!
-//! The phone hands the new APK to the system installer, which asks the user
-//! and checks the signature. The Windows app replaces itself: it stages the
-//! installer it was installed with, waits until nothing is running, starts it
-//! and exits. Nothing but this module vouches for that file, which is why the
-//! desktop is stricter about where it comes from and what it hashes to.
+//! The app replaces itself: it stages the installer it was installed with,
+//! waits until nothing is running, starts it and exits. Nothing but this
+//! module vouches for that file, which is why it is strict about where it
+//! comes from and what it hashes to.
 
 use std::io::Read;
 use std::path::{Path, PathBuf};
@@ -60,28 +59,16 @@ pub fn build_commit() -> &'static str {
     env!("UD_BUILD_COMMIT")
 }
 
-/// The release file that can replace this copy of the app.
-///
-/// On the phone that is the APK for the processor this code is running on: the
-/// APK is split per ABI, so that is also the one that is installed. On Windows
-/// it is the installer this copy came from -- a per-user NSIS install and a
-/// per-machine MSI one do not upgrade each other cleanly. `None` means this
-/// copy never updates itself, which is every development build.
+/// The release file that can replace this copy of the app: the installer this
+/// copy came from -- a per-user NSIS install and a per-machine MSI one do not
+/// upgrade each other cleanly. `None` means this copy never updates itself,
+/// which is every development build.
 fn asset_name() -> Option<&'static str> {
-    #[cfg(target_os = "android")]
-    {
-        match std::env::consts::ARCH {
-            "aarch64" => Some("UniversalDownloader_android_arm64.apk"),
-            "arm" => Some("UniversalDownloader_android_armv7.apk"),
-            "x86_64" => Some("UniversalDownloader_android_x86_64.apk"),
-            _ => None,
-        }
-    }
     #[cfg(windows)]
     {
         windows_asset(tauri::utils::platform::bundle_type(), std::env::consts::ARCH)
     }
-    #[cfg(not(any(target_os = "android", windows)))]
+    #[cfg(not(windows))]
     {
         None
     }
@@ -136,13 +123,11 @@ struct ReleaseAsset {
     updated_at: Option<String>,
 }
 
-#[cfg(any(not(target_os = "android"), test))]
 #[derive(Deserialize)]
 struct Comparison {
     status: String,
 }
 
-#[cfg(any(not(target_os = "android"), test))]
 impl Comparison {
     /// GitHub describes the head of a comparison as `ahead`, `behind`,
     /// `diverged` or `identical`. Only the first is a newer build.
@@ -191,7 +176,6 @@ async fn tagged_commit(client: &reqwest::Client) -> AppResult<String> {
 /// itself with the older one, every launch. GitHub answering 404 means it has
 /// never seen this build's commit -- a local one that was not pushed -- and
 /// that is not behind anything either.
-#[cfg(not(target_os = "android"))]
 async fn release_is_ahead(client: &reqwest::Client, current: &str, tagged: &str) -> AppResult<bool> {
     // The second page of one commit per page: the answer is in the envelope,
     // and the first page is the only one that carries every changed file with
@@ -203,9 +187,6 @@ async fn release_is_ahead(client: &reqwest::Client, current: &str, tagged: &str)
         // install", but only one of them is a build that can never update
         // itself, and a support log that cannot tell them apart is no help.
         Err(AppError::NotFound { .. }) => {
-            // Named by path rather than imported: this is the module's only
-            // warning, and a phone does not build this function, so the import
-            // would sit unused there and fail its lints.
             crate::log_warn!(
                 "updater",
                 "github does not know commit {current}; this build cannot tell whether it is behind"
@@ -239,9 +220,8 @@ pub async fn check(settings: &Settings) -> AppResult<Option<AppUpdate>> {
         return Ok(None);
     }
 
-    // The phone asks before it installs and Android refuses a downgrade by
-    // itself, so only the desktop pays for the extra request.
-    #[cfg(not(target_os = "android"))]
+    // The app installs without asking, so a tag that merely differs is not
+    // enough: the release has to come after this build.
     if !release_is_ahead(&client, current, &tagged).await? {
         log_info!("updater", "build {current} is not behind {tagged}");
         return Ok(None);
@@ -295,9 +275,8 @@ pub async fn download(
     on_progress: tools::InstallProgress<'_>,
 ) -> AppResult<PathBuf> {
     let asset = asset_name().ok_or_else(nothing_to_install)?;
-    // The update comes back from the interface, and on the desktop the file is
-    // run as it is: nothing is fetched until it is known to be ours.
-    #[cfg(not(target_os = "android"))]
+    // The update comes back from the interface, and the file is run as it is:
+    // nothing is fetched until it is known to be ours.
     vet(update, asset)?;
 
     std::fs::create_dir_all(dir)?;
@@ -357,14 +336,12 @@ fn nothing_to_install() -> AppError {
     AppError::Other("this copy of the app does not update itself".into())
 }
 
-/// Refuse an update the desktop app should not run.
+/// Refuse an update the app should not run.
 ///
-/// An APK is checked by Android against the key the installed app was signed
-/// with. Nothing does that for a Windows installer, so here the digest is
-/// required rather than welcome, the address has to be this project's own
-/// release, and the commit -- which becomes part of a file name -- has to be
-/// nothing but a hash.
-#[cfg(any(not(target_os = "android"), test))]
+/// Nothing checks a Windows installer's signature against the installed app,
+/// so here the digest is required rather than welcome, the address has to be
+/// this project's own release, and the commit -- which becomes part of a file
+/// name -- has to be nothing but a hash.
 fn vet(update: &AppUpdate, asset: &str) -> AppResult<()> {
     let refuse = |why: &str| Err(AppError::Other(format!("refused the update: {why}")));
 
@@ -404,9 +381,8 @@ fn verify(path: &Path, update: &AppUpdate) -> AppResult<()> {
 }
 
 /// Compare a file with a GitHub `sha256:<hex>` digest. No digest to compare
-/// with is not a failure here: the phone's installer still refuses an APK that
-/// was not signed with the same key as the installed app, and the desktop has
-/// already turned away an update without one (see `vet`).
+/// with is not a failure here: an update without one has already been turned
+/// away (see `vet`).
 fn verify_digest(path: &Path, digest: Option<&str>) -> AppResult<()> {
     use sha2::{Digest, Sha256};
 
@@ -545,7 +521,7 @@ mod tests {
     #[test]
     fn a_matching_digest_passes_and_a_different_one_fails() {
         let dir = scratch("digest");
-        let file = dir.join("app.apk");
+        let file = dir.join("app.exe");
         std::fs::write(&file, b"hello").unwrap();
         // sha256("hello")
         let good = GOOD_DIGEST;
@@ -559,7 +535,7 @@ mod tests {
     #[test]
     fn a_missing_or_unknown_digest_is_not_a_failure() {
         let dir = scratch("no-digest");
-        let file = dir.join("app.apk");
+        let file = dir.join("app.exe");
         std::fs::write(&file, b"hello").unwrap();
 
         assert!(verify_digest(&file, None).is_ok());
@@ -602,11 +578,11 @@ mod tests {
             r#"{
                 "published_at": "2026-09-15T00:00:00Z",
                 "assets": [{
-                    "name": "UniversalDownloader_android_arm64.apk",
+                    "name": "UniversalDownloader_x64-setup.exe",
                     "size": 57268738,
-                    "browser_download_url": "https://github.com/x/y/releases/download/latest/a.apk",
+                    "browser_download_url": "https://github.com/x/y/releases/download/latest/a.exe",
                     "digest": "sha256:abc",
-                    "content_type": "application/vnd.android.package-archive",
+                    "content_type": "application/x-msdownload",
                     "updated_at": "2026-10-09T08:55:47Z"
                 }]
             }"#,

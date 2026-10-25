@@ -8,7 +8,6 @@ import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { formatDuration } from '@/lib/format';
 import { galleryTitleKey, itemLabelKey } from '@/lib/gallerySelection';
-import { IS_MOBILE } from '@/lib/platform';
 import type { GalleryItem } from '@/types';
 
 interface GalleryPickerProps {
@@ -68,9 +67,7 @@ export function GalleryPicker({ items, picked, onChange }: GalleryPickerProps) {
           onClick={toggleAll}
           className={cn(
             'pressable -mr-1.5 rounded-md px-1.5 text-[12.5px] font-medium text-accent',
-            // A finger's worth of height on the phone, given back by the
-            // margins so the heading row stays the height of its text.
-            IS_MOBILE ? '-my-3 min-h-11' : 'py-0.5',
+            'py-0.5',
           )}
         >
           {all ? t('tracks.selectNone') : t('tracks.selectAll')}
@@ -86,7 +83,7 @@ export function GalleryPicker({ items, picked, onChange }: GalleryPickerProps) {
         <div
           role="group"
           aria-label={title}
-          className={cn('grid gap-1.5', IS_MOBILE ? 'grid-cols-3' : 'grid-cols-4')}
+          className={cn('grid gap-1.5', 'grid-cols-4')}
         >
           {items.map((item) => (
             <GalleryTile
@@ -105,8 +102,7 @@ export function GalleryPicker({ items, picked, onChange }: GalleryPickerProps) {
 
 /**
  * One item: its picture, cut square, with a tick in the corner. The whole
- * tile is the control -- a hundred pixels across on a phone, well over a
- * fingertip -- and an item left out recedes rather than disappearing, so the
+ * tile is the control, and an item left out recedes rather than disappearing, so the
  * post still reads whole.
  */
 function GalleryTile({

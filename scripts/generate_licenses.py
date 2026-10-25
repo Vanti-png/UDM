@@ -29,31 +29,7 @@ EXTERNAL_TOOLS = [
         "license": "GPL-3.0-or-later (managed build) / varies for a custom build",
         "kind": "external-tool",
         "url": "https://ffmpeg.org",
-        "note": "Used only to merge separate audio/video streams and for user-requested conversion. Invoked as a separate process, never linked. The copy this app installs is the GPL build from yt-dlp/FFmpeg-Builds; a custom path may point at any other build. The Android app ships a GPL build of FFmpeg 7.1 and ffprobe inside the APK instead.",
-    },
-    {
-        "name": "Python",
-        "version": "3.12 (Android only)",
-        "license": "PSF-2.0",
-        "kind": "external-tool",
-        "url": "https://www.python.org",
-        "note": "Ships inside the Android app to run yt-dlp, which is a Python program. Invoked as a separate process; never linked into the app.",
-    },
-    {
-        "name": "QuickJS",
-        "version": "Android only",
-        "license": "MIT",
-        "kind": "external-tool",
-        "url": "https://bellard.org/quickjs/",
-        "note": "Ships inside the Android app so yt-dlp can run the JavaScript some sites require before they list their formats. Invoked as a separate process.",
-    },
-    {
-        "name": "youtubedl-android",
-        "version": "0.18.1 (Android only)",
-        "license": "GPL-3.0",
-        "kind": "external-tool",
-        "url": "https://github.com/JunkFood02/youtubedl-android",
-        "note": "Source of the Android builds of Python, FFmpeg and QuickJS listed above, which it packages from Termux. Only those binaries are used; its source and the sources of the builds are available from the project.",
+        "note": "Used only to merge separate audio/video streams and for user-requested conversion. Invoked as a separate process, never linked. The copy this app installs is the GPL build from yt-dlp/FFmpeg-Builds; a custom path may point at any other build.",
     },
 ]
 
@@ -80,15 +56,8 @@ ASSETS = [
 
 
 # Packages whose manifest points at a file instead of naming a licence.
-NPM_LICENSES = {
-    "remotion": "Remotion License",
-    "@remotion/player": "Remotion License",
-    "@remotion/bundler": "Remotion License",
-    "@remotion/renderer": "Remotion License",
-}
-NPM_NOTES = {
-    "remotion": "Draws the phone's first-run intro. Free for individuals, non-profits and companies of up to three people; see remotion.dev/license.",
-}
+NPM_LICENSES: dict[str, str] = {}
+NPM_NOTES: dict[str, str] = {}
 
 
 def npm_packages() -> list[dict]:

@@ -437,26 +437,6 @@
   scroll-behavior: auto !important;
 }
 
-/* A phone. A backdrop blur re-blurs whatever moves beneath it on every frame,
-   and on a 120 Hz panel that is a constant GPU load for an effect a small
-   screen barely shows, so anything that asks for one keeps its solid fill
-   instead. */
-:root[data-mobile="true"] {
-  -webkit-tap-highlight-color: transparent;
-}
-
-/* Only the standard property: the build adds the prefixed one, and naming both
-   here makes it keep the prefix alone, which Android's WebView ignores. */
-:root[data-mobile="true"] * {
-  backdrop-filter: none !important;
-}
-
-/* Android draws its own fading scroll indicator; the desktop's permanent track
-   would sit beside every scrolling screen. */
-:root[data-mobile="true"] ::-webkit-scrollbar {
-  display: none;
-}
-
 /* Low resource mode: a backdrop blur re-blurs everything behind it on every
    frame that changes, which is the most expensive effect a page can ask for.
    The surfaces keep their fill, so nothing becomes unreadable. */

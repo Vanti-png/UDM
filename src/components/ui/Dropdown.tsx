@@ -12,10 +12,8 @@ import {
 } from 'react';
 import { createPortal } from 'react-dom';
 
-import { useBackLayer } from '@/hooks/useBackLayer';
 import { cn } from '@/lib/cn';
 import { T } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 
 export interface DropdownOption<T extends string> {
   value: T;
@@ -87,10 +85,6 @@ export function Dropdown<T extends string>({
     setActiveIndex(-1);
     triggerRef.current?.focus();
   }, []);
-
-  // On a phone the Back gesture takes an open menu down before anything under
-  // it -- the dialog it was opened in, or the screen.
-  useBackLayer(open, closeMenu);
 
   const commit = useCallback(
     (option: DropdownOption<T>) => {
@@ -223,7 +217,7 @@ export function Dropdown<T extends string>({
         onKeyDown={onTriggerKeyDown}
         className={cn(
           'pressable group flex w-full items-center gap-2 rounded-[var(--radius-control)] px-3 text-left',
-          IS_MOBILE ? 'h-12' : 'h-9',
+          'h-9',
           'bg-fill hover:bg-fill-hover',
           'disabled:pointer-events-none disabled:opacity-45',
           open && 'bg-fill-hover',
@@ -233,7 +227,7 @@ export function Dropdown<T extends string>({
         <span
           className={cn(
             'min-w-0 flex-1 truncate',
-            IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]',
+            'text-[13.5px]',
             selected ? 'text-fg' : 'text-fg-muted',
           )}
         >
@@ -298,7 +292,7 @@ export function Dropdown<T extends string>({
                     onClick={() => commit(option)}
                     className={cn(
                       'flex cursor-pointer items-center gap-2.5 rounded-[8px] px-2.5',
-                      IS_MOBILE ? 'min-h-12 py-2.5' : 'py-1.5',
+                      'py-1.5',
                       option.disabled && 'cursor-not-allowed opacity-40',
                       !option.disabled && activeIndex === index && 'bg-fill-hover',
                     )}
@@ -308,7 +302,7 @@ export function Dropdown<T extends string>({
                       <div
                         className={cn(
                           'truncate text-fg',
-                          IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]',
+                          'text-[13.5px]',
                           isSelected && 'font-medium',
                         )}
                       >

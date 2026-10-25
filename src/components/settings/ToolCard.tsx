@@ -11,7 +11,6 @@ import type { TranslationKey } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { formatBytes, truncateMiddle } from '@/lib/format';
 import { FADE } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import type { ToolCheckState } from '@/stores/useToolsStore';
 import type { AppErrorInfo, ToolInstallProgress, ToolStatus } from '@/types';
 
@@ -91,7 +90,6 @@ const SOURCE_LABEL = {
   managed: 'settings.toolSourceManaged',
   system: 'settings.toolSourceSystem',
   custom: 'settings.toolSourceCustom',
-  bundled: 'settings.toolSourceBundled',
   missing: 'settings.toolMissing',
 } as const satisfies Record<ToolStatus['source'], TranslationKey>;
 
@@ -99,8 +97,7 @@ const SOURCE_LABEL = {
 function checkFailureReason(error: AppErrorInfo, t: (key: TranslationKey) => string): string {
   // Only a connection problem has something the user can do about it; what
   // else can go wrong -- GitHub rate-limiting or unwell -- passes by itself.
-  const connection = ['network', 'offline', 'networkBlocked'].includes(error.code);
-  return connection ? errorMessage(error) : t('settings.toolCheckLater');
+  return error.code === 'network' ? errorMessage(error) : t('settings.toolCheckLater');
 }
 
 /** One tool as a row of a `ListGroup`: what it is, its state, what can be done. */
@@ -129,8 +126,8 @@ export function ToolCard({
     check?.result?.upToDate === true &&
     check.result.installed === status.version;
   // The sizes a `SettingRow` sets its two lines in, so the rows of a group agree.
-  const titleSize = IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]';
-  const bodySize = IS_MOBILE ? 'text-[13px]' : 'text-[12.5px]';
+  const titleSize = 'text-[13.5px]';
+  const bodySize = 'text-[12.5px]';
 
   const pickFile = async () => {
     if (!onLocate) return;
@@ -143,7 +140,7 @@ export function ToolCard({
   };
 
   return (
-    <div className={cn('px-4', IS_MOBILE ? 'py-4' : 'py-3.5')}>
+    <div className={cn('px-4', 'py-3.5')}>
       <div className="flex items-center justify-between gap-3">
         <span className={cn('min-w-0 text-fg', titleSize)}>{t(titleKey)}</span>
         {status.available ? (
@@ -218,9 +215,7 @@ export function ToolCard({
         </InlineNotice>
       )}
 
-      {/* A tool that ships inside the app has nothing to install, and on a
-          phone a file the user points at would not be allowed to run. */}
-      {!installing && !(status.source === 'bundled' && status.available) && (
+      {!installing && (
         <div className="mt-3 flex flex-wrap items-center gap-2">
           {/* An installed tool is asked about before anything is fetched; a
               missing one has nothing to compare and is simply installed. */}
@@ -234,12 +229,12 @@ export function ToolCard({
               ? t(checking ? 'settings.toolChecking' : 'settings.toolUpdate')
               : t('settings.toolInstall')}
           </Button>
-          {onLocate && !IS_MOBILE && (
+          {onLocate && (
             <Button size="sm" variant="ghost" onClick={pickFile}>
               {t('settings.toolLocate')}
             </Button>
           )}
-          {customPath && onResetPath && !IS_MOBILE && (
+          {customPath && onResetPath && (
             <Button size="sm" variant="ghost" onClick={onResetPath}>
               {t('settings.toolReset')}
             </Button>

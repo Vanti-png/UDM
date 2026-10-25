@@ -1,10 +1,9 @@
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
-import { IS_MOBILE } from '@/lib/platform';
 
 /*
- * The large title at the top of a desktop page, with the page's own actions on
+ * The large title at the top of a page, with the page's own actions on
  * the right. It is the first child of the page's column and brings its own
  * vertical padding, so the page adds none above it:
  *
@@ -13,9 +12,7 @@ import { IS_MOBILE } from '@/lib/platform';
  *     ...
  *   </div>
  *
- * Home has no header: the hero is its title. On a phone the top bar already
- * names the screen, so only the actions are rendered there, and nothing at all
- * when there are none.
+ * Home has no header: the hero is its title.
  */
 
 interface PageHeaderProps {
@@ -26,15 +23,6 @@ interface PageHeaderProps {
 }
 
 export function PageHeader({ title, subtitle, actions, className }: PageHeaderProps) {
-  if (IS_MOBILE) {
-    if (!actions) return null;
-    return (
-      <div className={cn('flex flex-wrap items-center justify-end gap-1.5 py-2', className)}>
-        {actions}
-      </div>
-    );
-  }
-
   return (
     <header className={cn('flex items-end justify-between gap-4 pb-5 pt-9', className)}>
       <div className="min-w-0">

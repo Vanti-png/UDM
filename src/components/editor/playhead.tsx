@@ -6,8 +6,7 @@ import { memo, useLayoutEffect, useRef } from 'react';
  * While the video plays, the position changes on every frame. Kept as state on
  * the page it re-rendered the whole editor sixty times a second -- the
  * inspector, the rail of clips, both canvases, every piece on the timeline --
- * for the sake of one line moving and one number counting. On a phone that is
- * the battery going on work nobody sees.
+ * for the sake of one line moving and one number counting.
  *
  * Held here instead, the two things that really move with it -- the line
  * across the timeline and the time beside the play button -- subscribe and

@@ -15,7 +15,6 @@ import { cn } from '@/lib/cn';
 import { PROBLEM_TEXT } from '@/lib/fileProblem';
 import { clampPercent, formatBytes, formatEta, formatSpeed } from '@/lib/format';
 import { COLLAPSE, LIST_ITEM } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import type { DownloadStage, DownloadTask } from '@/types';
 
 interface DownloadCardProps {
@@ -32,8 +31,7 @@ interface DownloadCardProps {
 /** Stages that are simply "downloading"; the bar already says that. */
 const TRANSFER_STAGES: ReadonlySet<DownloadStage> = new Set(['video', 'audio', 'image', 'file']);
 
-/** 30px under a pointer, 36px under a fingertip. */
-const ACTION_SIZE = IS_MOBILE ? 'sm' : 'md';
+const ACTION_SIZE = 'md';
 
 const LINE = cn(ROW_LINE, 'gap-x-3');
 
@@ -72,7 +70,7 @@ export const DownloadCard = memo(function DownloadCard({
   // when the backend said so, and otherwise which press did not work.
   const file = useFileActions(outputPath);
 
-  const copy = task.error ? errorCopy(task.error, IS_MOBILE) : null;
+  const copy = task.error ? errorCopy(task.error) : null;
   const errorTitle = copy?.title ?? t('downloads.failed');
   const technical = status === 'failed' ? task.error?.technical : null;
 
@@ -123,15 +121,12 @@ export const DownloadCard = memo(function DownloadCard({
               )}
               {progress.speedBps > 0 && (
                 <>
-                  <span className={cn(!IS_MOBILE && 'min-w-[64px]')}>
+                  <span className={cn('min-w-[64px]')}>
                     {formatSpeed(progress.speedBps)}
                   </span>
                   {progress.etaSec != null && (
-                    // A phone has room for the time but not for the word.
                     <span>
-                      {IS_MOBILE
-                        ? formatEta(progress.etaSec)
-                        : t('downloads.eta', { time: formatEta(progress.etaSec) })}
+                      {t('downloads.eta', { time: formatEta(progress.etaSec) })}
                     </span>
                   )}
                 </>
@@ -207,14 +202,14 @@ export const DownloadCard = memo(function DownloadCard({
   // a button of its own, and one button may not hold another.
   const mainClass = cn(
     'relative flex min-w-0 flex-1 items-center py-2.5 pr-2',
-    IS_MOBILE ? 'gap-3 pl-3' : 'gap-4 pl-4',
+    'gap-4 pl-4',
   );
 
   return (
     <motion.article
       // Layout animation measures the row on every render, and progress renders
-      // it several times a second; a phone skips the glide.
-      layout={IS_MOBILE ? false : 'position'}
+      // it several times a second.
+      layout="position"
       variants={LIST_ITEM}
       initial="initial"
       animate="animate"
@@ -226,7 +221,7 @@ export const DownloadCard = memo(function DownloadCard({
           'transition-colors duration-150 ease-out-quint hover:bg-surface-hover has-[[data-open]:active]:bg-surface-active',
       )}
     >
-      <div className={cn('flex items-center', IS_MOBILE ? 'pr-1.5' : 'pr-3')}>
+      <div className={cn('flex items-center', 'pr-3')}>
         <div className={mainClass}>
           {outputPath && (
             <button
@@ -262,7 +257,7 @@ export const DownloadCard = memo(function DownloadCard({
               'reveal-on-hover transition-opacity duration-150 ease-out-quint group-focus-within:opacity-100',
           )}
         >
-          {details && !IS_MOBILE && (
+          {details && (
             <IconButton
               icon={<Activity size={15} />}
               label={t('downloads.openDetails')}
@@ -306,9 +301,7 @@ export const DownloadCard = memo(function DownloadCard({
               onClick={file.share}
             />
           )}
-          {/* On a phone this only opens the system's Downloads view, and
-              pressing the row already opens the file; Share takes its place. */}
-          {outputPath && file.problem !== 'missing' && !IS_MOBILE && (
+          {outputPath && file.problem !== 'missing' && (
             <IconButton
               icon={<FolderOpen size={15} />}
               label={t('downloads.showInFolder')}

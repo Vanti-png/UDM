@@ -21,7 +21,6 @@ vi.mock('@tauri-apps/api/window', () => ({
   getCurrentWindow: () => ({ setTheme: async () => {} }),
 }));
 vi.mock('motion/react', () => ({ MotionGlobalConfig: {} }));
-vi.mock('@/lib/platform', () => ({ IS_MOBILE: false }));
 vi.mock('@/services/ipc', () => ({
   getSettings: async () => backend.stored,
   isFirstLaunch: async () => backend.firstLaunch,
@@ -42,7 +41,6 @@ vi.mock('@/services/ipc', () => ({
     backend.saved.push(backend.stored);
     return backend.stored;
   },
-  platformSetSystemBars: async () => {},
 }));
 
 vi.stubGlobal('document', {

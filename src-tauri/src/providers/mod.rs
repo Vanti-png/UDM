@@ -243,8 +243,8 @@ fn page_reader_may_answer(platform: PlatformId, url: &str) -> bool {
 // Pressing Download usually follows an analysis by seconds, and the download
 // used to start by running that same analysis again. For the engine that means
 // starting Python and, for YouTube, solving the player's JavaScript challenge
-// -- the most expensive thing the app does, and on a phone enough on its own to
-// heat it. An analysis the user has just seen is fresh enough to download from:
+// -- the most expensive thing the app does. An analysis the user has just seen
+// is fresh enough to download from:
 // stream URLs stay valid for hours, and a download that fails with a reused
 // analysis forgets it, so the retry resolves the link anew.
 

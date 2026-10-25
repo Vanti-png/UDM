@@ -3,31 +3,9 @@ import { X } from 'lucide-react';
 import { useEffect, useId, useLayoutEffect, useRef, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 
-import { useBackLayer } from '@/hooks/useBackLayer';
 import { cn } from '@/lib/cn';
 import { DIALOG, T } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import { IconButton } from './IconButton';
-
-/** Inputs that hold no text, and so bring up no keyboard when focused. */
-const TEXTLESS_INPUTS = new Set([
-  'button',
-  'checkbox',
-  'color',
-  'file',
-  'hidden',
-  'image',
-  'radio',
-  'range',
-  'reset',
-  'submit',
-]);
-
-/** Whether focusing `element` brings up a phone's keyboard. */
-function takesText(element: HTMLElement): boolean {
-  if (element.isContentEditable || element instanceof HTMLTextAreaElement) return true;
-  return element instanceof HTMLInputElement && !TEXTLESS_INPUTS.has(element.type);
-}
 
 interface ModalProps {
   open: boolean;
@@ -55,17 +33,10 @@ export function Modal({
   const titleId = useId();
   const descriptionId = useId();
 
-  // On a phone the Back gesture closes the dialog, as Escape does here, and
-  // leaves the screen under it where it was.
-  useBackLayer(open, onClose);
-
   // Read when Escape comes rather than when the dialog opened. Callers hand a
   // new function on every render, and the dialog's setup below -- which takes
-  // the focus, and gives it back on the way out -- ran again each time. On the
-  // phone's editor the focus moving is itself a render: the discard question,
-  // asked while the bit rate field still had the focus, gave it back to the
-  // field, took it again, and so on every few frames for as long as it stood,
-  // with the keyboard up over it and the digits going into the field behind.
+  // the focus, and gives it back on the way out -- would otherwise run again
+  // each time, taking the focus from whatever field it was in.
   const onCloseRef = useRef(onClose);
   useLayoutEffect(() => {
     onCloseRef.current = onClose;
@@ -124,12 +95,8 @@ export function Modal({
       window.clearTimeout(timer);
       body.style.overflow = previousOverflow;
       body.style.paddingRight = previousPadding;
-      // The focus goes back where it was -- except, on a phone, to a field that
-      // takes text: focused, it brings its keyboard up again, one the user had
-      // put away before the dialog came or that the dialog put away itself. A
-      // touch takes them back to the field if they want it.
-      const previous = restoreFocusRef.current;
-      if (!(IS_MOBILE && previous && takesText(previous))) previous?.focus?.();
+      // The focus goes back where it was.
+      restoreFocusRef.current?.focus?.();
     };
   }, [open]);
 
@@ -156,7 +123,7 @@ export function Modal({
             initial="initial"
             animate="animate"
             exit="exit"
-            // Never wider than the screen: a phone is narrower than most dialogs.
+            // Never wider than the window.
             style={{ width, maxWidth: '100%' }}
             className={cn(
               'relative max-h-[85vh] overflow-hidden rounded-[var(--radius-panel)]',

@@ -9,7 +9,6 @@ import { TextInput } from '@/components/ui/TextInput';
 import { errorCopy, useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { formatBytes, truncateMiddle } from '@/lib/format';
-import { IS_MOBILE } from '@/lib/platform';
 import { displayHost } from '@/lib/url';
 import * as ipc from '@/services/ipc';
 import { useNewDownloadStore, type PendingFile } from '@/stores/useNewDownloadStore';
@@ -196,7 +195,7 @@ function FileDialog({ file, open, count, settings, onQueued }: FileDialogProps) 
           }}
         />
 
-        <dl className={cn('grid grid-cols-[auto_1fr] gap-x-4 gap-y-2', IS_MOBILE ? 'text-[14px]' : 'text-[13px]')}>
+        <dl className={cn('grid grid-cols-[auto_1fr] gap-x-4 gap-y-2', 'text-[13px]')}>
           <dt className="text-fg-muted">{t('newDownload.size')}</dt>
           <dd className="tabular-nums text-fg">{sizeText}</dd>
           <dt className="text-fg-muted">{t('newDownload.resume')}</dt>
@@ -206,11 +205,9 @@ function FileDialog({ file, open, count, settings, onQueued }: FileDialogProps) 
             <span className="min-w-0 flex-1 truncate text-fg" title={folder}>
               {truncateMiddle(folder, 40)}
             </span>
-            {!IS_MOBILE && (
-              <Button size="sm" variant="secondary" onClick={() => void pickFolder()} disabled={submitting}>
-                {t('newDownload.change')}
-              </Button>
-            )}
+            <Button size="sm" variant="secondary" onClick={() => void pickFolder()} disabled={submitting}>
+              {t('newDownload.change')}
+            </Button>
           </dd>
         </dl>
 
@@ -222,7 +219,7 @@ function FileDialog({ file, open, count, settings, onQueued }: FileDialogProps) 
         {shownError && (
           <InlineNotice tone="error">
             {(() => {
-              const { title, message } = errorCopy(shownError, IS_MOBILE);
+              const { title, message } = errorCopy(shownError);
               return `${title}. ${message}`;
             })()}
           </InlineNotice>

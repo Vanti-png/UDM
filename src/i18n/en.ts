@@ -27,7 +27,6 @@ export const en = {
   'input.suggestion': 'Link on the clipboard',
   'input.suggestionDismiss': 'Dismiss suggestion',
   'input.dropHint': 'Drop a link to analyze it',
-  'input.shareHint': 'Tip: share a link to Universal Downloader from any app.',
 
   'analyze.analyzing': 'Analyzing URL…',
   'analyze.retry': 'Try again',
@@ -96,8 +95,6 @@ export const en = {
   'action.preparing': 'Preparing…',
 
   'downloads.title': 'Downloads',
-  // The first half of Downloads on a phone, beside History.
-  'downloads.active': 'Active',
   'downloads.queued': 'Queued',
   'downloads.emptyTitle': 'Nothing downloading',
   'downloads.emptyBody': 'Paste a link on Home to get started.',
@@ -176,9 +173,6 @@ export const en = {
   'convert.title': 'Convert',
   'convert.dropTitle': 'Drop files here',
   'convert.dropBody': 'Video, audio or photos already on your computer.',
-  'convert.pickTitle': 'Choose files to convert',
-  'convert.pickBody': 'Video, audio or photos already on this phone.',
-  'convert.savedTo': 'Saves to {folder}',
   'convert.chooseFiles': 'Choose files',
   'convert.mediaFiles': 'Media files',
   'convert.addMore': 'Add more',
@@ -317,7 +311,6 @@ export const en = {
   'settings.notifyError': 'Notify on failure',
 
   'settings.downloadDir': 'Download folder',
-  'settings.downloadDirMobileHint': 'Your file manager and gallery find downloads here.',
   'settings.browse': 'Browse',
   'settings.defaultMode': 'Default type',
   'settings.defaultQuality': 'Default quality',
@@ -439,7 +432,6 @@ export const en = {
   'settings.toolSourceManaged': 'Managed by the app',
   'settings.toolSourceSystem': 'Found on PATH',
   'settings.toolSourceCustom': 'Custom path',
-  'settings.toolSourceBundled': 'Included with the app',
 
   'settings.networkTimeout': 'Network timeout',
   'settings.proxy': 'Proxy',
@@ -468,8 +460,6 @@ export const en = {
   'about.privacyTitle': 'Your downloads stay on your device.',
   'about.privacyBody':
     'No account, no ads, no analytics. Links are resolved by tools running on this machine, and the only network requests made are to the media source itself.',
-  'about.privacyBodyMobile':
-    "No account, no ads, no analytics. Links are resolved on your phone. Requests go only to the media source, to GitHub to check for updates and, if your phone's DNS can't find a site, to a public DNS resolver (Cloudflare or Google) for its address.",
   'about.licenses': 'Open source libraries',
   'about.externalTools': 'External tools',
   'about.system': 'System',
@@ -478,32 +468,16 @@ export const en = {
   'welcome.subtitle': 'Fast. Private. Ad-free.',
   'welcome.getStarted': 'Get started',
   'welcome.pointPrivacy': 'Nothing leaves your machine',
-  'welcome.pointPrivacyMobile': 'Nothing leaves your phone',
   'welcome.pointPrivacyBody': 'No account, no telemetry, no ad network.',
   'welcome.pointQuality': 'Best available quality',
   'welcome.pointQualityBody': 'Separate video and audio streams are merged for you.',
   'welcome.pointQueue': 'Queue and resume',
   'welcome.pointQueueBody': 'Pause, resume and retry without losing progress.',
 
-  'intro.skip': 'Skip',
-  'intro.start': 'Get started',
-  'intro.replay': 'Watch the intro',
-  'intro.share': 'Share from any app.',
-  'intro.saved': 'Saved to your phone.',
-  'intro.trim': 'Cut out the extra.',
-  'intro.fast': 'Fast',
-  'intro.private': 'Private',
-  'intro.adFree': 'Ad-free',
-  'intro.sampleTitle': 'A week in the mountains',
-  'intro.sampleChannel': 'Trail Notes',
-  'intro.summary':
-    'Share or paste a link from almost any site, choose video or audio, and download it; cut it on the phone if you like. Fast, private, ad-free.',
 
   'setup.title': 'One-time setup',
   'setup.body':
     'Universal Downloader uses two open-source tools to read media details and merge streams. They are downloaded once and run entirely on your machine.',
-  'setup.bodyMobile':
-    'Universal Downloader reads media details with yt-dlp, an open-source tool. It is downloaded once, about 3 MB, and runs entirely on your phone. FFmpeg is already built in.',
   'setup.installNow': 'Install now',
   'setup.ffmpegOptional':
     'FFmpeg is optional, but without it separate video and audio streams cannot be merged.',
@@ -617,11 +591,7 @@ export const en = {
   'editor.removeSound': 'Remove the sound',
   'editor.soundFiles': 'Audio files',
   'editor.openFailed': "This file couldn't be opened.",
-  'editor.pickTitle': 'Choose a video to edit',
-  'editor.pickBody': 'From this phone, or from a link.',
-  'editor.chooseVideo': 'Choose a video',
   'editor.openRecent': 'Edit {title}',
-  'editor.percent': '{value}%',
 
   'common.cancel': 'Cancel',
   'common.close': 'Close',
@@ -629,21 +599,10 @@ export const en = {
   'common.enabled': 'On',
   'common.seconds': '{n}s',
   'common.copy': 'Copy',
-  'common.back': 'Back',
 
   'update.title': 'An update is available',
-  'update.body':
-    'A newer version of Universal Downloader has been released. Your downloads, history and settings stay as they are.',
-  'update.size': 'Size',
-  'update.later': 'Later',
-  'update.install': 'Update',
-  'update.retry': 'Try again',
   'update.downloading': 'Downloading the update…',
-  'update.preparing': 'Opening the installer…',
-  'update.installerOpened': "The installer has opened. If it didn't appear, press Update again.",
   'update.failed': 'The update could not be downloaded. Check your connection and try again.',
-  'update.permission':
-    'Android needs your permission to install the update. Allow "Install unknown apps" for Universal Downloader, then press Try again.',
   'update.check': 'Check for updates',
   'update.checkFailed': 'Could not check for updates',
   'update.build': 'Build {commit}',
@@ -661,25 +620,15 @@ export const en = {
     'No provider could read media from this address, and no direct media file was found.',
   'error.network.title': "We couldn't reach the source",
   'error.network.message': 'Check your connection and try again.',
-  'error.offline.title': "You're offline",
-  'error.offline.message': 'Connect to Wi-Fi or mobile data and try again.',
-  'error.networkBlocked.title': "Universal Downloader can't get online",
-  'error.networkBlocked.message':
-    "Your phone is connected, but this app can't use the connection. Allow Universal Downloader to use Wi-Fi and mobile data in its settings, check any VPN, firewall or ad blocker, then try again.",
-  'error.networkBlocked.action': 'Open app settings',
   'error.forbidden.title': "We couldn't access this media",
   'error.forbidden.message':
     'The source may require login or may not currently support public downloads.',
   'error.membershipRequired.title': 'This video is for channel members',
   'error.membershipRequired.message':
     "YouTube only serves it to an account that holds the channel's membership. Connect your browser in Settings and Universal Downloader will offer that sign-in the next time you try this link.",
-  'error.membershipRequired.messageMobile':
-    "YouTube only serves it to an account that holds the channel's membership. The phone can't use that sign-in; the desktop app can download it.",
   'error.tiktokSignIn.title': 'This post needs a TikTok sign-in',
   'error.tiktokSignIn.message':
     "TikTok shows it only to signed-in viewers. Turn on TikTok session in the full browser extension, in the browser where you're signed in to TikTok, then try again.",
-  'error.tiktokSignIn.messageMobile':
-    "TikTok shows it only to signed-in viewers. The phone can't use a TikTok sign-in yet; the desktop app can download it.",
   'error.tiktokSignIn.action': 'Show in Settings',
   'error.tiktokNotForAccount.title': "TikTok won't show this post to the linked account either",
   'error.tiktokNotForAccount.message':

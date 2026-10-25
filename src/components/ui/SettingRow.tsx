@@ -1,9 +1,8 @@
 import type { ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
-import { IS_MOBILE } from '@/lib/platform';
 import { ListGroup, ListGroupLabel } from './ListGroup';
-import { Toggle, ToggleTrack } from './Toggle';
+import { Toggle } from './Toggle';
 
 interface SettingRowProps {
   title: ReactNode;
@@ -26,8 +25,7 @@ export function SettingRow({
   return (
     <div
       className={cn(
-        'flex gap-4 px-4',
-        IS_MOBILE ? (stacked ? 'gap-3 py-4' : 'py-4') : 'py-3',
+        'flex gap-4 px-4 py-3',
         // Wrapping lets a wide control drop under its label on a narrow screen;
         // the label's minimum width is what decides when that happens.
         stacked ? 'flex-col' : 'flex-wrap items-center justify-between',
@@ -46,17 +44,8 @@ export function SettingRow({
 function RowText({ title, description }: { title: ReactNode; description?: ReactNode }) {
   return (
     <>
-      <div className={cn('text-fg', IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]')}>{title}</div>
-      {description && (
-        <p
-          className={cn(
-            'mt-0.5 leading-relaxed text-fg-muted',
-            IS_MOBILE ? 'text-[13px]' : 'text-[12.5px]',
-          )}
-        >
-          {description}
-        </p>
-      )}
+      <div className="text-[13.5px] text-fg">{title}</div>
+      {description && <p className="mt-0.5 text-[12.5px] leading-relaxed text-fg-muted">{description}</p>}
     </>
   );
 }
@@ -69,39 +58,14 @@ interface ToggleRowProps {
   disabled?: boolean;
 }
 
-/**
- * A setting that is only on or off. On a phone the whole row is the switch:
- * aiming a fingertip at a small toggle at the edge of the screen is exactly
- * the kind of precision a touch screen should not ask for.
- */
+/** A setting that is only on or off. */
 export function ToggleRow({ title, description, checked, onChange, disabled = false }: ToggleRowProps) {
-  if (!IS_MOBILE) {
-    return (
-      <SettingRow
-        title={title}
-        description={description}
-        control={<Toggle checked={checked} onChange={onChange} disabled={disabled} label={title} />}
-      />
-    );
-  }
-
   return (
-    <button
-      type="button"
-      role="switch"
-      aria-checked={checked}
-      disabled={disabled}
-      onClick={() => onChange(!checked)}
-      className={cn(
-        'flex w-full items-center gap-4 px-4 py-4 text-left transition-colors duration-150 ease-out-quint',
-        'active:bg-fill disabled:pointer-events-none disabled:opacity-40',
-      )}
-    >
-      <div className="min-w-0 flex-1">
-        <RowText title={title} description={description} />
-      </div>
-      <ToggleTrack checked={checked} />
-    </button>
+    <SettingRow
+      title={title}
+      description={description}
+      control={<Toggle checked={checked} onChange={onChange} disabled={disabled} label={title} />}
+    />
   );
 }
 

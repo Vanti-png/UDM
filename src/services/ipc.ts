@@ -259,45 +259,24 @@ export const sweepTempFiles = () => invoke<number>('sweep_temp_files');
 // `fileMissing` when the file is no longer where it was saved.
 
 export const openFile = (path: string) => invoke<void>('open_file', { path });
-/** Selects it in its folder; a phone opens its Downloads view instead. */
+/** Selects it in its folder. */
 export const revealFile = (path: string) => invoke<void>('reveal_file', { path });
-/** The system's share sheet: Windows' own, or Android's chooser. */
+/** Windows' share sheet. */
 export const shareFile = (path: string) => invoke<void>('share_file', { path });
-/** The desktop's logs folder, with the current log selected in it. */
+/** The logs folder, with the current log selected in it. */
 export const openLogDir = () => invoke<void>('open_log_dir');
-
-// -- mobile platform -------------------------------------------------------
-//
-// Only called on Android (see `IS_MOBILE`); the desktop has plugin APIs for
-// the same jobs, or has no such job.
-
-/** The app's page in the system settings, where its network access is allowed. */
-export const platformOpenAppSettings = () => invoke<void>('platform_open_app_settings');
-/** `images` adds photos to the picker, which the converter takes and the editor does not. */
-export const platformPickMediaFiles = (images = false) =>
-  invoke<string[]>('platform_pick_media_files', { images });
-export const platformSetSystemBars = (dark: boolean) =>
-  invoke<void>('platform_set_system_bars', { dark });
-/** Holds the screen upright, or lets it turn again; a tablet is never held. */
-export const platformSetPortraitLock = (locked: boolean) =>
-  invoke<void>('platform_set_portrait_lock', { locked });
-export const platformTakeSharedText = () => invoke<string | null>('platform_take_shared_text');
-
-/** Dispatched by the Android side when a link is shared into a running app. */
-export const SHARED_TEXT_EVENT = 'ud-shared-text';
 
 // -- app updates -----------------------------------------------------------
 
 /** A newer build, or null when this one is current or never updates itself. */
 export const checkAppUpdate = () => invoke<AppUpdate | null>('check_app_update');
 /**
- * Downloads the build. On the phone this resolves once the system installer
- * has been opened on it; on the desktop, once the installer is staged and
- * verified, which changes nothing until `applyAppUpdate`.
+ * Downloads the build. Resolves once the installer is staged and verified,
+ * which changes nothing until `applyAppUpdate`.
  */
 export const installAppUpdate = (update: AppUpdate) =>
   invoke<void>('install_app_update', { update });
-/** Desktop only. Starts the staged installer and exits the app. */
+/** Starts the staged installer and exits the app. */
 export const applyAppUpdate = (update: AppUpdate) =>
   invoke<void>('apply_app_update', { update });
 /** The commit this build was made from; empty when it was built outside git. */

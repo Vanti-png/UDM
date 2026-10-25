@@ -3,7 +3,6 @@ import { Link2, Plus, X } from 'lucide-react';
 import { memo, useEffect, useState } from 'react';
 
 import { IconButton } from '@/components/ui/IconButton';
-import { Spinner } from '@/components/ui/Spinner';
 import { Tooltip } from '@/components/ui/Tooltip';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
@@ -19,13 +18,6 @@ import * as ipc from '@/services/ipc';
  * rail that can be hidden is a rail whose plus button can be hidden too. It
  * shows a frame and a length and nothing else -- the name is in the tooltip,
  * where it costs no width.
- *
- * On a phone it lies on its side, as a strip at the top of the Clip tab: a
- * screen that tall has no width to spare for a column, and a strip of clips
- * above the picture would take height from everything else for the sake of
- * something most edits never use. There the frames are larger, the name is
- * the accessible name alone, and the one remove button belongs to the clip
- * that is open -- a finger has no hover to reveal one per chip with.
  */
 
 /**
@@ -35,10 +27,6 @@ import * as ipc from '@/services/ipc';
  */
 const THUMB_WIDTH = 68;
 const THUMB_HEIGHT = 38;
-
-/** The phone's strip, where a frame has to be large enough to recognise. */
-const STRIP_WIDTH = 96;
-const STRIP_HEIGHT = 54;
 
 /** Asked for at twice the drawn height, so it holds up on a 2x display. */
 const FRAME_HEIGHT = 76;
@@ -132,10 +120,6 @@ interface MediaRailProps {
   onRemove: (id: string) => void;
   onAdd: () => void;
   onAddLink: () => void;
-  /** A column down the side (the desktop), or a strip across (the phone). */
-  orientation?: 'vertical' | 'horizontal';
-  /** A file is being read in, and the add button says so. */
-  adding?: boolean;
   className?: string;
 }
 
@@ -147,68 +131,9 @@ export const MediaRail = memo(function MediaRail({
   onRemove,
   onAdd,
   onAddLink,
-  orientation = 'vertical',
-  adding = false,
   className,
 }: MediaRailProps) {
   const { t } = useTranslation();
-
-  if (orientation === 'horizontal') {
-    return (
-      <div
-        aria-label={t('editor.media')}
-        // The top padding is the room the open clip's remove button needs to
-        // sit over the corner of its frame without the scroller clipping it.
-        className={cn(
-          'flex items-start gap-2.5 overflow-x-auto overscroll-x-contain pt-1.5',
-          className,
-        )}
-      >
-        <AnimatePresence initial={false}>
-          {clips.map((clip) => (
-            <StripChip
-              key={clip.id}
-              clip={clip}
-              active={clip.id === activeId}
-              // Removing the only clip is closing the editor, which the X at
-              // the top already does.
-              removable={clips.length > 1}
-              onActivate={onActivate}
-              onRemove={onRemove}
-            />
-          ))}
-        </AnimatePresence>
-
-        <button
-          type="button"
-          aria-label={t('editor.addMedia')}
-          aria-busy={adding || undefined}
-          disabled={adding}
-          onClick={onAdd}
-          className={cn(
-            'pressable-sm flex shrink-0 items-center justify-center rounded-[var(--radius-thumb)]',
-            'border border-dashed border-border-strong text-fg-muted active:bg-fill',
-            'disabled:pointer-events-none',
-          )}
-          style={{ width: STRIP_WIDTH, height: STRIP_HEIGHT }}
-        >
-          {adding ? <Spinner size={18} /> : <Plus size={20} aria-hidden="true" />}
-        </button>
-        <button
-          type="button"
-          aria-label={t('editor.linkTitle')}
-          onClick={onAddLink}
-          className={cn(
-            'pressable-sm flex shrink-0 items-center justify-center rounded-[var(--radius-thumb)]',
-            'border border-dashed border-border-strong text-fg-muted active:bg-fill',
-          )}
-          style={{ width: STRIP_HEIGHT, height: STRIP_HEIGHT }}
-        >
-          <Link2 size={18} aria-hidden="true" />
-        </button>
-      </div>
-    );
-  }
 
   return (
     <div
@@ -333,82 +258,6 @@ const ClipChip = memo(function ClipChip({ clip, active, onActivate, onRemove }: 
           'group-focus-within:opacity-100',
         )}
       />
-    </motion.div>
-  );
-});
-
-interface StripChipProps extends ClipChipProps {
-  removable: boolean;
-}
-
-/** One clip on the phone's strip: a larger frame, and its length beneath. */
-const StripChip = memo(function StripChip({
-  clip,
-  active,
-  removable,
-  onActivate,
-  onRemove,
-}: StripChipProps) {
-  const { t } = useTranslation();
-  const frame = useClipFrame(clip.path, clip.durationSec);
-
-  return (
-    <motion.div
-      variants={CLIP_RISE}
-      initial="initial"
-      animate="animate"
-      exit="exit"
-      className="relative shrink-0"
-      style={{ width: STRIP_WIDTH }}
-    >
-      <button
-        type="button"
-        aria-label={clip.name}
-        aria-current={active || undefined}
-        onClick={() => onActivate(clip.id)}
-        className="pressable-sm block w-full text-center"
-      >
-        <span
-          className="relative block overflow-hidden rounded-[var(--radius-thumb)] bg-surface-active"
-          style={{ width: STRIP_WIDTH, height: STRIP_HEIGHT }}
-        >
-          {frame != null && (
-            <img src={frame} alt="" className="no-drag h-full w-full object-cover" />
-          )}
-          {/* Over the frame rather than on its box, where the picture would
-              cover it. */}
-          {active && (
-            <span
-              aria-hidden="true"
-              className="absolute inset-0 rounded-[var(--radius-thumb)] ring-2 ring-inset ring-accent"
-            />
-          )}
-        </span>
-        <span
-          className={cn(
-            'tabular mt-1 block text-[12px] leading-4',
-            active ? 'text-fg' : 'text-fg-muted',
-          )}
-        >
-          {formatDuration(clip.durationSec)}
-        </span>
-      </button>
-
-      {active && removable && (
-        // Drawn small on the corner of the frame and reached through a larger
-        // square around it: the corner of a 54px frame is all the room there
-        // is, and a fingertip is not that precise.
-        <button
-          type="button"
-          aria-label={t('editor.removeClip')}
-          onClick={() => onRemove(clip.id)}
-          className="absolute -right-1.5 -top-1.5 flex size-9 items-center justify-center"
-        >
-          <span className="flex size-6 items-center justify-center rounded-full bg-surface text-fg shadow-soft">
-            <X size={13} aria-hidden="true" />
-          </span>
-        </button>
-      )}
     </motion.div>
   );
 });

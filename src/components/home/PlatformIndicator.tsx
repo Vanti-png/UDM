@@ -39,7 +39,7 @@ export function PlatformIndicator({ platform }: { platform: PlatformId }) {
         ) : (
           // Spread across a fixed width rather than set a fixed gap apart: the
           // gap is 10px wherever the row fits, and closes up by a pixel or two
-          // on a narrow phone instead of pushing the last tile off the screen.
+          // in a narrow window instead of pushing the last tile off the edge.
           <motion.div
             key="featured"
             variants={FADE}

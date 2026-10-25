@@ -143,12 +143,9 @@ impl ExportManager {
             .unwrap_or_default()
     }
 
-    /// How many exports are running: one or none.
-    ///
-    /// Read by [`crate::android`], which keeps the app alive in the background
-    /// while there is work. It is worked out from the published state, so it
-    /// goes back to zero at the same moment the screen hears the export ended
-    /// -- however it ended.
+    /// How many exports are running: one or none. It is worked out from the
+    /// published state, so it goes back to zero at the same moment the screen
+    /// hears the export ended -- however it ended.
     pub fn active_count(&self) -> u32 {
         u32::from(self.state().status.is_active())
     }
@@ -161,7 +158,7 @@ impl ExportManager {
     /// [`crate::commands::export_default_dir`], so the row can only ever name
     /// the folder the file will really be written into.
     pub fn default_dir(&self, input: &Path) -> Option<String> {
-        out_of_reach(input, cfg!(target_os = "android"), paths::root().ok())
+        out_of_reach(input, paths::root().ok())
             .then(|| self.settings().download_dir)
     }
 
@@ -283,11 +280,6 @@ impl ExportManager {
                 Ok(()) => {
                     let path = job.output.to_string_lossy().into_owned();
                     log_info!("export", "wrote {path}");
-                    // Written by path into shared storage, which the gallery
-                    // does not watch: without this the export would exist
-                    // nowhere but in this app until the phone next rescanned.
-                    #[cfg(target_os = "android")]
-                    crate::android::announce_media(&manager.app, &path);
                     manager.publish(|state| {
                         *state = ExportState {
                             status: ExportStatus::Completed,
@@ -820,16 +812,12 @@ fn ensure_produced(pieces: &[PathBuf], scratch: &Path) -> AppResult<()> {
 /// The folder an export is written into.
 ///
 /// The one the user chose, if they chose one; otherwise beside the source,
-/// except where the source sits somewhere the user cannot keep a file. On
-/// Android that is every file the editor opens: the picker copies what it is
-/// handed into the app's cache, and a fetched link lands in the app's own
-/// temporary folder. Beside either of those is a folder no file manager or
-/// gallery can reach, and one the system empties when it runs short of space.
-/// On the desktop it is a file inside the app's own folder, which is where a
-/// link brought in with the editor's "from a link" is fetched to: that
-/// temporary folder is emptied by the sweep at startup and by clearing
-/// temporary files in Settings. Either way an export written beside the source
-/// would be finished, and then gone. `shared` is where it goes instead -- the
+/// except where the source sits somewhere the user cannot keep a file: inside
+/// the app's own folder, which is where a link brought in with the editor's
+/// "from a link" is fetched to. That temporary folder is emptied by the sweep
+/// at startup and by clearing temporary files in Settings, so an export
+/// written beside the source would be finished, and then gone. `shared` is
+/// where it goes instead -- the
 /// folder downloads go to, as for a conversion -- and is `None` whenever beside
 /// the source is a place the user already knows; see
 /// [`ExportManager::default_dir`].
@@ -848,11 +836,10 @@ fn export_dir(input: &Path, chosen: Option<&str>, shared: Option<&str>) -> AppRe
         .ok_or_else(|| AppError::Io("that file has nowhere beside it to write to".into()))
 }
 
-/// Whether beside `input` is somewhere an export would not be kept: anywhere
-/// at all on a phone, and inside the app's own folder, `root`, elsewhere. The
-/// reasons are [`export_dir`]'s.
-fn out_of_reach(input: &Path, phone: bool, root: Option<&Path>) -> bool {
-    phone || root.is_some_and(|root| lies_within(input, root))
+/// Whether beside `input` is somewhere an export would not be kept: inside the
+/// app's own folder, `root`. The reasons are [`export_dir`]'s.
+fn out_of_reach(input: &Path, root: Option<&Path>) -> bool {
+    root.is_some_and(|root| lies_within(input, root))
 }
 
 /// Whether `path` is inside `dir`, the app's own folder.
@@ -1704,24 +1691,23 @@ mod tests {
 
     #[test]
     fn an_export_lands_beside_its_source_unless_that_is_out_of_sight() {
-        let source = Path::new("/data/user/0/app/cache/picked/holiday.mp4");
-        let downloads = "/storage/emulated/0/Download/Universal Downloader";
+        let source = Path::new("C:/Users/someone/AppData/Roaming/UniversalDownloader/temp/holiday.mp4");
+        let downloads = "C:/Users/someone/Downloads";
 
-        // The desktop: beside the source, as it always was.
+        // Beside the source, when nothing says otherwise.
         assert_eq!(
             export_dir(source, None, None).unwrap(),
-            PathBuf::from("/data/user/0/app/cache/picked")
+            PathBuf::from("C:/Users/someone/AppData/Roaming/UniversalDownloader/temp")
         );
-        // The phone: the source is a private copy, so the export goes where a
-        // download would, and never into the cache the system empties.
+        // A source out of sight: the export goes where a download would.
         assert_eq!(
             export_dir(source, None, Some(downloads)).unwrap(),
             PathBuf::from(downloads)
         );
-        // A folder the user chose wins on both, and blank is not a choice.
+        // A folder the user chose wins, and blank is not a choice.
         assert_eq!(
-            export_dir(source, Some(" /sdcard/Movies "), Some(downloads)).unwrap(),
-            PathBuf::from("/sdcard/Movies")
+            export_dir(source, Some(" D:/Movies "), Some(downloads)).unwrap(),
+            PathBuf::from("D:/Movies")
         );
         assert_eq!(
             export_dir(source, Some("  "), Some(downloads)).unwrap(),
@@ -1729,7 +1715,7 @@ mod tests {
         );
         assert_eq!(
             export_dir(source, Some(""), None).unwrap(),
-            PathBuf::from("/data/user/0/app/cache/picked")
+            PathBuf::from("C:/Users/someone/AppData/Roaming/UniversalDownloader/temp")
         );
         // Nothing to fall back on is still an error rather than a guess.
         assert!(export_dir(Path::new("/"), None, None).is_err());
@@ -1740,7 +1726,7 @@ mod tests {
         let root = Path::new("/Users/someone/AppData/Roaming/UniversalDownloader");
         let downloads = "/Users/someone/Downloads";
         let decide = |source: &Path, chosen: Option<&str>| {
-            let shared = out_of_reach(source, false, Some(root)).then_some(downloads);
+            let shared = out_of_reach(source, Some(root)).then_some(downloads);
             export_dir(source, chosen, shared).unwrap()
         };
         let fetched = root.join("temp").join("holiday 0m00s-0m12s.mp4");
@@ -1764,10 +1750,8 @@ mod tests {
         );
         // A folder the user chose is still the answer, even for the app's own file.
         assert_eq!(decide(&fetched, Some("/Volumes/Cuts")), PathBuf::from("/Volumes/Cuts"));
-        // No app folder to compare with leaves the desktop as it was.
-        assert!(!out_of_reach(&fetched, false, None));
-        // And a phone never writes beside a source, wherever it is.
-        assert!(out_of_reach(Path::new("/storage/emulated/0/DCIM/a.mp4"), true, None));
+        // No app folder to compare with leaves it beside the source.
+        assert!(!out_of_reach(&fetched, None));
     }
 
     #[test]

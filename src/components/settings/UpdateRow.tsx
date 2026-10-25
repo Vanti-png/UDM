@@ -5,7 +5,6 @@ import { InlineNotice } from '@/components/ui/InlineNotice';
 import { SettingRow } from '@/components/ui/SettingRow';
 import { useTranslation } from '@/i18n';
 import type { TranslationKey } from '@/i18n';
-import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import { useUpdateStore } from '@/stores/useUpdateStore';
 
@@ -43,10 +42,9 @@ export function UpdateRow() {
     try {
       const { check, install } = useUpdateStore.getState();
       const found = await check(true);
-      // On the phone the prompt has opened by now. The desktop has none: the
-      // build is staged here, and `DesktopUpdater` installs it as soon as
+      // The build is staged here, and `DesktopUpdater` installs it as soon as
       // nothing is running.
-      if (found && !IS_MOBILE) {
+      if (found) {
         await install();
         if (useUpdateStore.getState().phase === 'failed') setProblem('update.failed');
       }
@@ -60,7 +58,7 @@ export function UpdateRow() {
   const status = ((): TranslationKey | null => {
     if (phase === 'downloading') return 'update.downloading';
     if (phase === 'failed' || stalled) return 'update.notInstalled';
-    if (update) return !IS_MOBILE && phase === 'ready' ? 'update.waiting' : 'update.title';
+    if (update) return phase === 'ready' ? 'update.waiting' : 'update.title';
     return checked ? 'update.current' : null;
   })();
 

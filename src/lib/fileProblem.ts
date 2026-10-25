@@ -9,11 +9,11 @@ export type FileAction = 'open' | 'reveal' | 'share';
 export type FileProblem = 'missing' | FileAction;
 
 /**
- * Only the backend's own code says a file is gone. Anything else -- a type the
- * app will not open, no app on the phone for it, a share sheet that would not
- * come up -- is a failure of that one action, and saying the file was moved
- * would be a lie. It was one, on every row of the desktop, while the opener's
- * refusal of every path was read as exactly that.
+ * Only the backend's own code says a file is gone. Anything else -- a type
+ * nothing will open, a share sheet that would not come up -- is a failure of
+ * that one action, and saying the file was moved would be a lie. It was one,
+ * on every row, while the opener's refusal of every path was read as exactly
+ * that.
  */
 export function problemFrom(error: unknown, action: FileAction): FileProblem {
   const code =

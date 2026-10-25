@@ -24,7 +24,6 @@ export const tr: Record<TranslationKey, string> = {
   'input.suggestion': 'Panodaki bağlantı',
   'input.suggestionDismiss': 'Öneriyi kapat',
   'input.dropHint': 'Analiz etmek için bir bağlantı bırak',
-  'input.shareHint': 'İpucu: herhangi bir uygulamadan bağlantıyı Universal Downloader ile paylaş.',
 
   'analyze.analyzing': 'Bağlantı analiz ediliyor…',
   'analyze.retry': 'Tekrar dene',
@@ -90,7 +89,6 @@ export const tr: Record<TranslationKey, string> = {
   'action.preparing': 'Hazırlanıyor…',
 
   'downloads.title': 'İndirmeler',
-  'downloads.active': 'Sürüyor',
   'downloads.queued': 'Sırada',
   'downloads.emptyTitle': 'İndirme yok',
   'downloads.emptyBody': 'Başlamak için ana sayfada bir bağlantı yapıştır.',
@@ -169,9 +167,6 @@ export const tr: Record<TranslationKey, string> = {
   'convert.title': 'Dönüştür',
   'convert.dropTitle': 'Dosyaları buraya bırak',
   'convert.dropBody': 'Bilgisayarındaki video, ses veya fotoğraflar.',
-  'convert.pickTitle': 'Dönüştürülecek dosyaları seç',
-  'convert.pickBody': 'Bu telefondaki video, ses veya fotoğraflar.',
-  'convert.savedTo': 'Kayıt yeri: {folder}',
   'convert.chooseFiles': 'Dosya seç',
   'convert.mediaFiles': 'Medya dosyaları',
   'convert.addMore': 'Dosya ekle',
@@ -255,8 +250,6 @@ export const tr: Record<TranslationKey, string> = {
   'history.delete': 'Geçmişten kaldır',
   'history.clearAll': 'Geçmişi temizle',
   'history.clear': 'Temizle',
-  // Not "Diskteki dosyalar": a phone has no disk to speak of, and the files
-  // stay where they are there too.
   'history.clearConfirmBody': 'Dosyaların kendisi silinmez.',
   'history.clearRange': 'Zaman aralığı',
   'history.range.day': 'Son 24 saat',
@@ -311,7 +304,6 @@ export const tr: Record<TranslationKey, string> = {
   'settings.notifyError': 'Hata olunca bildir',
 
   'settings.downloadDir': 'İndirme klasörü',
-  'settings.downloadDirMobileHint': 'Dosya yöneticin ve galerin indirilenleri burada bulur.',
   'settings.browse': 'Gözat',
   'settings.defaultMode': 'Varsayılan tür',
   'settings.defaultQuality': 'Varsayılan kalite',
@@ -436,7 +428,6 @@ export const tr: Record<TranslationKey, string> = {
   'settings.toolSourceManaged': 'Uygulama tarafından yönetiliyor',
   'settings.toolSourceSystem': "PATH'te bulundu",
   'settings.toolSourceCustom': 'Özel yol',
-  'settings.toolSourceBundled': 'Uygulamayla birlikte gelir',
 
   'settings.networkTimeout': 'Ağ zaman aşımı',
   'settings.proxy': 'Proxy',
@@ -465,8 +456,6 @@ export const tr: Record<TranslationKey, string> = {
   'about.privacyTitle': 'İndirmelerin cihazında kalır.',
   'about.privacyBody':
     'Hesap yok, reklam yok, analitik yok. Bağlantılar bu makinede çalışan araçlarla çözümlenir ve yalnızca medya kaynağının kendisine ağ isteği yapılır.',
-  'about.privacyBodyMobile':
-    "Hesap yok, reklam yok, analitik yok. Bağlantılar telefonunda çözümlenir. İstekler yalnızca medya kaynağına, güncellemeleri denetlemek için GitHub'a ve telefonunun DNS'i bir siteyi bulamazsa adresini sormak için herkese açık bir DNS çözümleyicisine (Cloudflare veya Google) gider.",
   'about.licenses': 'Açık kaynak kütüphaneler',
   'about.externalTools': 'Harici araçlar',
   'about.system': 'Sistem',
@@ -475,32 +464,16 @@ export const tr: Record<TranslationKey, string> = {
   'welcome.subtitle': 'Hızlı. Gizli. Reklamsız.',
   'welcome.getStarted': 'Başla',
   'welcome.pointPrivacy': 'Hiçbir şey cihazından çıkmaz',
-  'welcome.pointPrivacyMobile': 'Hiçbir şey telefonundan çıkmaz',
   'welcome.pointPrivacyBody': 'Hesap yok, telemetri yok, reklam ağı yok.',
   'welcome.pointQuality': 'Mevcut en iyi kalite',
   'welcome.pointQualityBody': 'Ayrı video ve ses akışları kendiliğinden birleştirilir.',
   'welcome.pointQueue': 'Kuyruk ve devam ettirme',
   'welcome.pointQueueBody': 'İlerlemeyi kaybetmeden duraklat, sürdür, tekrar dene.',
 
-  'intro.skip': 'Geç',
-  'intro.start': 'Başla',
-  'intro.replay': 'Tanıtımı izle',
-  'intro.share': 'Her uygulamadan paylaş.',
-  'intro.saved': 'Telefonuna kaydedilir.',
-  'intro.trim': 'Fazlasını kes.',
-  'intro.fast': 'Hızlı',
-  'intro.private': 'Gizli',
-  'intro.adFree': 'Reklamsız',
-  'intro.sampleTitle': 'Dağlarda bir hafta',
-  'intro.sampleChannel': 'Yol Notları',
-  'intro.summary':
-    'Hemen her siteden bir bağlantıyı paylaş ya da yapıştır, video veya ses seç ve indir; istersen telefonda kes. Hızlı, gizli, reklamsız.',
 
   'setup.title': 'Tek seferlik kurulum',
   'setup.body':
     'Universal Downloader, medya bilgilerini okumak ve akışları birleştirmek için iki açık kaynak araç kullanır. Bir kez indirilir ve tamamen bu bilgisayarda çalışır.',
-  'setup.bodyMobile':
-    'Universal Downloader, medya bilgilerini açık kaynaklı yt-dlp aracıyla okur. Bir kez indirilir (yaklaşık 3 MB) ve tamamen telefonunda çalışır. FFmpeg zaten uygulamanın içinde.',
   'setup.installNow': 'Şimdi kur',
   'setup.ffmpegOptional':
     'FFmpeg isteğe bağlıdır, ancak onsuz ayrı video ve ses akışları birleştirilemez.',
@@ -611,11 +584,7 @@ export const tr: Record<TranslationKey, string> = {
   'editor.removeSound': 'Sesi çıkar',
   'editor.soundFiles': 'Ses dosyaları',
   'editor.openFailed': 'Bu dosya açılamadı.',
-  'editor.pickTitle': 'Düzenlenecek bir video seç',
-  'editor.pickBody': 'Bu telefondan ya da bir bağlantıdan.',
-  'editor.chooseVideo': 'Video seç',
   'editor.openRecent': 'Düzenle: {title}',
-  'editor.percent': '%{value}',
 
   'common.cancel': 'İptal',
   'common.close': 'Kapat',
@@ -623,21 +592,10 @@ export const tr: Record<TranslationKey, string> = {
   'common.enabled': 'Açık',
   'common.seconds': '{n} sn',
   'common.copy': 'Kopyala',
-  'common.back': 'Geri',
 
   'update.title': 'Güncelleme var',
-  'update.body':
-    "Universal Downloader'ın yeni bir sürümü yayınlandı. İndirmelerin, geçmişin ve ayarların olduğu gibi kalır.",
-  'update.size': 'Boyut',
-  'update.later': 'Sonra',
-  'update.install': 'Güncelle',
-  'update.retry': 'Tekrar dene',
   'update.downloading': 'Güncelleme indiriliyor…',
-  'update.preparing': 'Yükleyici açılıyor…',
-  'update.installerOpened': "Yükleyici açıldı. Görünmediyse Güncelle'ye tekrar bas.",
   'update.failed': 'Güncelleme indirilemedi. Bağlantını kontrol edip tekrar dene.',
-  'update.permission':
-    "Güncellemeyi kurmak için Android izin istiyor. Universal Downloader için \"Bilinmeyen uygulamaları yükle\" iznini ver, sonra Tekrar dene'ye bas.",
   'update.check': 'Güncellemeleri denetle',
   'update.checkFailed': 'Güncellemeler denetlenemedi',
   'update.build': 'Derleme {commit}',
@@ -655,25 +613,15 @@ export const tr: Record<TranslationKey, string> = {
     'Hiçbir sağlayıcı bu adresten medya okuyamadı ve doğrudan bir medya dosyası da bulunamadı.',
   'error.network.title': 'Kaynağa ulaşamadık',
   'error.network.message': 'Bağlantını kontrol edip tekrar dene.',
-  'error.offline.title': 'İnternet bağlantısı yok',
-  'error.offline.message': "Wi-Fi'ye veya mobil veriye bağlanıp tekrar dene.",
-  'error.networkBlocked.title': 'Universal Downloader internete çıkamıyor',
-  'error.networkBlocked.message':
-    "Telefonun bağlı ama bu uygulama bağlantıyı kullanamıyor. Ayarlardan Universal Downloader'ın Wi-Fi ve mobil veri kullanmasına izin ver; varsa VPN, güvenlik duvarı veya reklam engelleyiciyi kontrol edip tekrar dene.",
-  'error.networkBlocked.action': 'Uygulama ayarlarını aç',
   'error.forbidden.title': 'Bu medyaya erişemedik',
   'error.forbidden.message':
     'Kaynak oturum açmayı gerektiriyor olabilir veya şu anda herkese açık indirmeyi desteklemiyor olabilir.',
   'error.membershipRequired.title': 'Bu video kanal üyelerine özel',
   'error.membershipRequired.message':
     "YouTube bu videoyu yalnızca kanalın üyeliğine sahip bir hesaba veriyor. Ayarlar'dan tarayıcını bağla; Universal Downloader bu bağlantıyı bir dahaki denemende o oturumu kullanarak açsın.",
-  'error.membershipRequired.messageMobile':
-    'YouTube bu videoyu yalnızca kanalın üyeliğine sahip bir hesaba veriyor. Telefonda bu oturum kullanılamıyor; bilgisayardaki uygulamayla indirebilirsin.',
   'error.tiktokSignIn.title': "Bu gönderi için TikTok'ta oturum açmak gerekiyor",
   'error.tiktokSignIn.message':
     "TikTok bu gönderiyi yalnızca oturum açmış izleyicilere gösteriyor. TikTok'a giriş yaptığın tarayıcıda uzantının tam sürümünden TikTok oturumunu aç, sonra tekrar dene.",
-  'error.tiktokSignIn.messageMobile':
-    'TikTok bu gönderiyi yalnızca oturum açmış izleyicilere gösteriyor. Telefonda TikTok oturumu henüz kullanılamıyor; bilgisayardaki uygulamayla indirebilirsin.',
   'error.tiktokSignIn.action': 'Ayarlarda göster',
   'error.tiktokNotForAccount.title': 'TikTok bu gönderiyi bağlı hesaba da göstermiyor',
   'error.tiktokNotForAccount.message':

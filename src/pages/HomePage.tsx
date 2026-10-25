@@ -27,7 +27,6 @@ import {
   pickedPositions,
 } from '@/lib/gallerySelection';
 import { COLLAPSE, FADE, RISE, T, rise } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import { normalizeUrl } from '@/lib/url';
 import type { SettingsSection } from '@/pages/SettingsPage';
 import * as ipc from '@/services/ipc';
@@ -250,7 +249,7 @@ export function HomePage({
   // The plain-language pair from the dictionary, keyed by the error code, with
   // the backend's English text as the fallback -- here as a single line.
   const describeError = (info: AppErrorInfo) => {
-    const { title, message } = errorCopy(info, IS_MOBILE);
+    const { title, message } = errorCopy(info);
     return `${title}. ${message}`;
   };
 
@@ -300,9 +299,7 @@ export function HomePage({
   const errorAction =
     error?.code === 'engineMissing'
       ? { label: t('setup.installNow'), onClick: () => void installEngine() }
-      : error?.code === 'networkBlocked' && IS_MOBILE
-        ? { label: t('error.networkBlocked.action'), onClick: () => void ipc.platformOpenAppSettings() }
-        : error?.code === 'tiktokSignIn' && !IS_MOBILE
+      : error?.code === 'tiktokSignIn'
           ? { label: t('error.tiktokSignIn.action'), onClick: () => onOpenSettings('connection') }
           : undefined;
 
@@ -375,11 +372,6 @@ export function HomePage({
         </AnimatePresence>
       </div>
 
-      {IS_MOBILE && phase === 'idle' && engineReady && !url.trim() && (
-        <p className="mt-4 text-center text-[12.5px] leading-relaxed text-fg-faint">
-          {t('input.shareHint')}
-        </p>
-      )}
 
       {engineMissing && (
         <motion.div
@@ -390,7 +382,7 @@ export function HomePage({
         >
           <h3 className="text-[14px] font-semibold text-fg">{t('setup.title')}</h3>
           <p className="mt-1.5 text-[13px] leading-relaxed text-fg-muted">
-            {t(IS_MOBILE ? 'setup.bodyMobile' : 'setup.body')}
+            {t('setup.body')}
           </p>
           {engineInstall ? (
             <InstallProgress progress={engineInstall} className="mt-3" />

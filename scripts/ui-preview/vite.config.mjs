@@ -1,5 +1,5 @@
 /**
- * Development helper: the desktop or phone interface in a plain browser.
+ * Development helper: the interface in a plain browser.
  *
  * Without a Tauri backend `getSettings()` rejects, the settings gate never
  * opens and the app paints an empty background forever. This config serves the
@@ -8,8 +8,8 @@
  *
  *   npx vite --config scripts/ui-preview/vite.config.mjs
  *
- * then open http://localhost:1430/ (desktop) or /?platform=android (phone).
- * See the header of mock-tauri.js for the other switches.
+ * then open http://localhost:1430/. See the header of mock-tauri.js for the
+ * switches.
  */
 import { readFileSync } from 'node:fs';
 import { fileURLToPath, URL } from 'node:url';

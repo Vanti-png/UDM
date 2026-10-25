@@ -4,7 +4,6 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { rise } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 
 const CARD = 'overflow-hidden rounded-[var(--radius-card)] border border-card-edge bg-surface';
 
@@ -16,7 +15,7 @@ const CARD = 'overflow-hidden rounded-[var(--radius-card)] border border-card-ed
  */
 export function AnalyzingCard() {
   const { t } = useTranslation();
-  const field = IS_MOBILE ? 'h-12' : 'h-9';
+  const field = 'h-9';
 
   return (
     <motion.div
@@ -44,7 +43,7 @@ export function AnalyzingCard() {
           <Skeleton className={field} />
         </div>
         <Skeleton className={cn('mt-3', field)} />
-        <Skeleton className={cn('mt-4', IS_MOBILE ? 'h-13' : 'h-11')} rounded="lg" />
+        <Skeleton className={cn('mt-4', 'h-11')} rounded="lg" />
       </div>
     </motion.div>
   );

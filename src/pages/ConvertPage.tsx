@@ -40,7 +40,6 @@ import {
   type KindChoice,
 } from '@/lib/convertOptions';
 import { formatBytes, formatDuration, prettyCodec, truncateMiddle } from '@/lib/format';
-import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import { selectFinishedJobs, useConvertStore, type StagedFile } from '@/stores/useConvertStore';
 import { useToolsStore } from '@/stores/useToolsStore';
@@ -72,9 +71,8 @@ const DEFAULT_ICON_SIDE = 256;
 /** Where a row's text starts: its padding, the 44px tile, the gap. */
 const TEXT_INSET = 72;
 
-/** A phone stacks the control under its label, where it takes the full width.
- *  On a desktop it is wide enough for four quality segments in either language. */
-const CONTROL_WIDTH = IS_MOBILE ? 'w-full' : 'w-[280px]';
+/** Wide enough for four quality segments in either language. */
+const CONTROL_WIDTH = 'w-[280px]';
 
 const DROP_TRANSITION = 'transition-[background-color,box-shadow] duration-150 ease-out-quint';
 
@@ -135,7 +133,6 @@ export function ConvertPage({ settings }: { settings: Settings }) {
   // one, and only while this screen is mounted -- dropping a file on Home has
   // nothing to do there.
   useEffect(() => {
-    if (IS_MOBILE) return;
     const pending = getCurrentWebview().onDragDropEvent((event) => {
       if (event.payload.type === 'over') {
         setDragging(true);
@@ -209,13 +206,6 @@ export function ConvertPage({ settings }: { settings: Settings }) {
   const pickFiles = useCallback(async () => {
     setPickError(null);
     try {
-      // The Android picker returns content URIs that FFmpeg cannot open; the
-      // platform side copies the choices somewhere it can and returns those.
-      if (IS_MOBILE) {
-        const picked = await ipc.platformPickMediaFiles(true);
-        if (picked.length > 0) void addFiles(picked);
-        return;
-      }
       const selected = await open({
         multiple: true,
         filters: [{ name: t('convert.mediaFiles'), extensions: [...INPUT_EXTENSIONS] }],
@@ -260,7 +250,7 @@ export function ConvertPage({ settings }: { settings: Settings }) {
   }, [installTool, t]);
 
   return (
-    <div className={cn('mx-auto w-full max-w-[760px] pb-12', IS_MOBILE ? 'px-4 pt-2' : 'px-6')}>
+    <div className={cn('mx-auto w-full max-w-[760px] pb-12', 'px-6')}>
       <PageHeader title={t('convert.title')} />
 
       <AnimatePresence initial={false}>
@@ -311,10 +301,10 @@ export function ConvertPage({ settings }: { settings: Settings }) {
           >
             <FilePlus2 size={28} strokeWidth={1.5} aria-hidden="true" className="text-fg-faint" />
             <p className="mt-3 text-[14px] font-medium text-fg">
-              {t(IS_MOBILE ? 'convert.pickTitle' : 'convert.dropTitle')}
+              {t('convert.dropTitle')}
             </p>
             <p className="mt-0.5 text-[12.5px] text-fg-muted">
-              {t(IS_MOBILE ? 'convert.pickBody' : 'convert.dropBody')}
+              {t('convert.dropBody')}
             </p>
             <Button size="sm" variant="secondary" className="mt-4" onClick={() => void pickFiles()}>
               {t('convert.chooseFiles')}
@@ -380,7 +370,6 @@ export function ConvertPage({ settings }: { settings: Settings }) {
           {kind !== 'gif' && (
             <SettingRow
               title={t('convert.target')}
-              stacked={IS_MOBILE}
               control={
                 <Dropdown
                   className={CONTROL_WIDTH}
@@ -397,7 +386,6 @@ export function ConvertPage({ settings }: { settings: Settings }) {
           {kind !== 'audio' && (
             <SettingRow
               title={t(kind === 'video' ? 'convert.resolution' : 'convert.size')}
-              stacked={IS_MOBILE}
               control={
                 <SizeControl
                   kind={kind}
@@ -414,7 +402,6 @@ export function ConvertPage({ settings }: { settings: Settings }) {
           {(kind === 'video' || kind === 'gif') && (
             <SettingRow
               title={t('convert.fps')}
-              stacked={IS_MOBILE}
               control={
                 <Dropdown
                   className={CONTROL_WIDTH}
@@ -435,7 +422,6 @@ export function ConvertPage({ settings }: { settings: Settings }) {
           {kind === 'audio' && (
             <SettingRow
               title={t('convert.bitrate')}
-              stacked={IS_MOBILE}
               control={
                 <Dropdown
                   className={CONTROL_WIDTH}
@@ -462,7 +448,6 @@ export function ConvertPage({ settings }: { settings: Settings }) {
           {qualities.length > 0 && tunable && (
             <SettingRow
               title={t('convert.quality')}
-              stacked={IS_MOBILE}
               control={
                 <Segmented
                   className={CONTROL_WIDTH}
@@ -475,40 +460,31 @@ export function ConvertPage({ settings }: { settings: Settings }) {
             />
           )}
 
-          {!IS_MOBILE && (
-            <SettingRow
-              title={
-                outputDir == null ? (
-                  t('convert.besideSource')
-                ) : (
-                  <Tooltip label={outputDir}>
-                    <span>{truncateMiddle(outputDir, 46)}</span>
-                  </Tooltip>
-                )
-              }
-              control={
-                <div className="flex items-center gap-1.5">
-                  {outputDir != null && (
-                    <Button size="sm" variant="ghost" onClick={() => setOutputDir(null)}>
-                      {t('convert.resetFolder')}
-                    </Button>
-                  )}
-                  <Button size="sm" variant="secondary" onClick={() => void pickFolder()}>
-                    {t('options.change')}
+          <SettingRow
+            title={
+              outputDir == null ? (
+                t('convert.besideSource')
+              ) : (
+                <Tooltip label={outputDir}>
+                  <span>{truncateMiddle(outputDir, 46)}</span>
+                </Tooltip>
+              )
+            }
+            control={
+              <div className="flex items-center gap-1.5">
+                {outputDir != null && (
+                  <Button size="sm" variant="ghost" onClick={() => setOutputDir(null)}>
+                    {t('convert.resetFolder')}
                   </Button>
-                </div>
-              }
-            />
-          )}
+                )}
+                <Button size="sm" variant="secondary" onClick={() => void pickFolder()}>
+                  {t('options.change')}
+                </Button>
+              </div>
+            }
+          />
         </ListGroup>
 
-        {IS_MOBILE && (
-          // Picked files are private copies, so results always go to the
-          // Downloads folder; there is no other writable place to offer.
-          <p className="mt-2 px-4 text-[12.5px] leading-relaxed text-fg-muted [overflow-wrap:anywhere]">
-            {t('convert.savedTo', { folder: settings.downloadDir })}
-          </p>
-        )}
 
         <Button
           className="mt-4"
@@ -616,12 +592,12 @@ function StagedRow({ file, onRemove }: { file: StagedFile; onRemove: () => void 
 
   return (
     <motion.div
-      layout={IS_MOBILE ? false : 'position'}
+      layout={'position'}
       variants={LIST_ITEM}
       initial="initial"
       animate="animate"
       exit="exit"
-      className={cn('group flex items-center gap-3 py-2.5 pl-4', IS_MOBILE ? 'pr-1.5' : 'pr-3')}
+      className={cn('group flex items-center gap-3 py-2.5 pl-4', 'pr-3')}
     >
       <div
         className={cn(
@@ -652,7 +628,7 @@ function StagedRow({ file, onRemove }: { file: StagedFile; onRemove: () => void 
       <IconButton
         icon={<X size={15} />}
         label={t('convert.removeFile')}
-        size={IS_MOBILE ? 'sm' : 'md'}
+        size={'md'}
         className="reveal-on-hover group-focus-within:opacity-100"
         onClick={onRemove}
       />

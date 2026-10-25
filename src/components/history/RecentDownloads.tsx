@@ -7,8 +7,7 @@ import { Spinner } from '@/components/ui/Spinner';
 import { useThumbnail } from '@/hooks/useThumbnail';
 import { useTranslation, type TranslationKey } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { formatBytes, formatDate, formatDay } from '@/lib/format';
-import { IS_MOBILE } from '@/lib/platform';
+import { formatBytes, formatDate } from '@/lib/format';
 import { recentDownloads } from '@/lib/recentDownloads';
 import * as ipc from '@/services/ipc';
 import { useQueueStore } from '@/stores/useQueueStore';
@@ -25,7 +24,7 @@ const SHOWN = 6;
 const SCANNED = 200;
 
 /** Where a row's text starts: its padding, the 72px thumbnail, the gap. */
-const TEXT_INSET = IS_MOBILE ? 96 : 104;
+const TEXT_INSET = 104;
 
 interface RecentDownloadsProps {
   /** Which finished downloads this screen can take. Keep it stable: a new
@@ -154,7 +153,7 @@ function RecentRow({
       aria-busy={pending || undefined}
       className={cn(
         'flex w-full items-center py-2.5 text-left',
-        IS_MOBILE ? 'gap-3 pl-3 pr-4' : 'gap-4 pl-4 pr-4',
+        'gap-4 pl-4 pr-4',
         'transition-colors duration-150 ease-out-quint hover:bg-surface-hover active:bg-surface-active',
         // Every row stands still while one opens; only the one pressed says so.
         'disabled:pointer-events-none',
@@ -179,10 +178,7 @@ function RecentRow({
           {entry.title}
         </span>
         <span className={cn(ROW_LINE, 'mt-0.5 gap-x-3')}>
-          {/* A phone has room for the day, not for the year and the minute. */}
-          <span>
-            {IS_MOBILE ? formatDay(entry.createdAt, language) : formatDate(entry.createdAt, language)}
-          </span>
+          <span>{formatDate(entry.createdAt, language)}</span>
           <span>{entry.qualityLabel}</span>
           <span>{entry.container.toUpperCase()}</span>
           {entry.fileSize != null && <span>{formatBytes(entry.fileSize)}</span>}

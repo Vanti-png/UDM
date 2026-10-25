@@ -3,7 +3,6 @@ import { MotionGlobalConfig } from 'motion/react';
 import { create } from 'zustand';
 
 import { detectSystemLanguage, setLanguage } from '@/i18n';
-import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import type { Settings, ThemePreference } from '@/types';
 
@@ -45,9 +44,8 @@ function applyMotion(settings: Settings) {
 
 /**
  * The first launch after install speaks the system's language rather than the
- * stored default. Only the webview knows that language -- on a phone including
- * one chosen for this app alone -- so it is filled in here, before anything is
- * drawn. It is saved at once, which makes it a stored choice like any other:
+ * stored default. Only the webview knows that language, so it is filled in
+ * here, before anything is drawn. It is saved at once, which makes it a stored choice like any other:
  * no later launch looks at the system again, so nothing here can override
  * what the user picks in Settings, before onboarding is finished or after.
  */
@@ -76,9 +74,6 @@ export function applyTheme(preference: ThemePreference) {
   const setClass = (dark: boolean) => {
     root.classList.toggle('dark', dark);
     root.style.colorScheme = dark ? 'dark' : 'light';
-    // A phone's status and navigation bars are drawn over the page's own
-    // background, so their icons have to follow this theme, not the OS one.
-    if (IS_MOBILE) void ipc.platformSetSystemBars(dark).catch(() => {});
   };
 
   // The native title bar is painted by Windows, not by this stylesheet, so it

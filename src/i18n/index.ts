@@ -71,29 +71,17 @@ function lookUp(key: string): string | null {
  * its sentences are the fallback rather than the answer: the code is looked up
  * first, and only a code no dictionary answers to falls through to what came
  * back over the wire.
- *
- * A phone may have a sentence of its own (`error.<code>.messageMobile`) where
- * the desktop's advice -- connect a browser, turn on its session -- cannot be
- * followed there. Whether this is a phone is passed in rather than read here:
- * the platform check would bring the IPC layer and the OS plugin into every
- * module and test that only wants a translation.
  */
-export function errorCopy(
-  error: AppErrorInfo,
-  isMobile = false,
-): { title: string; message: string } {
+export function errorCopy(error: AppErrorInfo): { title: string; message: string } {
   return {
     title: lookUp(`error.${error.code}.title`) ?? error.title,
-    message:
-      (isMobile ? lookUp(`error.${error.code}.messageMobile`) : null) ??
-      lookUp(`error.${error.code}.message`) ??
-      error.message,
+    message: lookUp(`error.${error.code}.message`) ?? error.message,
   };
 }
 
 /** What to say about a failure, as `errorCopy` words it, without its title. */
-export function errorMessage(error: AppErrorInfo, isMobile = false): string {
-  return errorCopy(error, isMobile).message;
+export function errorMessage(error: AppErrorInfo): string {
+  return errorCopy(error).message;
 }
 
 /**
@@ -107,7 +95,7 @@ export function useTranslation() {
 
 /**
  * The first of the system's preferred languages the app speaks, else English.
- * The whole list rather than its first entry: someone whose phone lists German
+ * The whole list rather than its first entry: someone whose system lists German
  * and then Turkish reads Turkish better than the English fallback. Used on the
  * first launch after install, and by a reset (see the settings store).
  */

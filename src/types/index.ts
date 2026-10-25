@@ -511,9 +511,9 @@ export interface ExportRequest {
   options: ExportOptions;
   /**
    * Null means beside the source file -- unless the source is one of the app's
-   * own files, which is every source on a phone and, on the desktop, a clip
-   * fetched from a link into the app's temporary folder. Those go to the
-   * download folder instead; `exportDefaultDir` says which, for the inspector.
+   * own files, a clip fetched from a link into the app's temporary folder.
+   * Those go to the download folder instead; `exportDefaultDir` says which,
+   * for the inspector.
    */
   outputDir: string | null;
 }
@@ -678,8 +678,7 @@ export interface Settings {
   customUserAgent: string | null;
   debugLogging: boolean;
 
-  // Connection. Desktop only: the phone has no browser to link to, and the
-  // Connection section is hidden there rather than showing a dead toggle.
+  // Connection: the browser extension's link to the app.
   browserLinkEnabled: boolean;
 
   // Hotkeys, stored as accelerator strings ("Ctrl+Shift+D").
@@ -704,16 +703,12 @@ export interface ToolStatus {
   available: boolean;
   path: string | null;
   version: string | null;
-  source: 'bundled' | 'managed' | 'system' | 'custom' | 'missing';
+  source: 'managed' | 'system' | 'custom' | 'missing';
 }
 
 export interface ToolsState {
   engine: ToolStatus;
   ffmpeg: ToolStatus;
-  /**
-   * Desktop only. Android carries its own JavaScript engine inside the APK, so
-   * there is nothing to install there and the field arrives unavailable.
-   */
   jsRuntime: ToolStatus;
 }
 
@@ -734,7 +729,7 @@ export interface ToolUpdateCheck {
   upToDate: boolean;
 }
 
-/** A newer build of the phone app, found on the release page. */
+/** A newer build of the app, found on the release page. */
 export interface AppUpdate {
   commit: string;
   assetUrl: string;

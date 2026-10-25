@@ -22,9 +22,7 @@ import type { FilmstripData } from '@/types';
  * It also reads no colour from the theme, which is why -- unlike the waveform
  * beside it -- it watches nothing. The canvas is transparent where no chunk
  * has arrived, and what shows through is the track's own fill, which CSS keeps
- * in step with the theme without anything being painted again. The track's
- * rather than the canvas's: on a phone the file does not reach the ends of the
- * track, and a filled canvas would paint the gutters beside it as film.
+ * in step with the theme without anything being painted again.
  *
  * Memoised: its props change when the view does, and never while the video
  * merely plays.
@@ -139,10 +137,8 @@ export const Filmstrip = memo(function Filmstrip({
 
     // Where the strip's own stretch of the file lies on the canvas. The cells
     // are tiled from its start rather than from the canvas's edge, and cut off
-    // at its end: on a phone the file is laid out with a gutter at either end
-    // of the track, and a cell tiled from the edge would hang out into it.
-    // Wherever the file runs off the side -- all of the desktop's track at
-    // every scale -- this is the canvas's own edge, and nothing changes.
+    // at its end. Wherever the file runs off the side this is the canvas's own
+    // edge, and nothing changes.
     const fromX = Math.max(0, ((data.startSec - windowStartSec) / span) * width);
     const toX = Math.min(width, ((dataEnd - windowStartSec) / span) * width);
     if (toX <= fromX) return;
@@ -156,8 +152,7 @@ export const Filmstrip = memo(function Filmstrip({
       // the one nearest to the time the band is mostly about. Every band here
       // starts inside the strip, but the last one can have its middle past the
       // strip's end: it shows the last frame, cut off by the clip, rather than
-      // leaving the end of the file bare -- on a phone's track, where a cell
-      // spans seconds, that bare stretch was a tenth of a short clip.
+      // leaving the end of the file bare.
       const seconds = Math.min(windowStartSec + ((x + cellWidth / 2) / width) * span, dataEnd);
       // A window wider than the strip has bands no frame answers for, and the
       // bare surface is the honest drawing of that.
@@ -272,8 +267,7 @@ export const Filmstrip = memo(function Filmstrip({
       style={{ width, height }}
       // Transparent to the pointer: the track underneath is what a press on the
       // timeline means, and a canvas swallowing it would be a dead strip.
-      // Positioned, so it paints over the fill a phone draws under the file,
-      // which is positioned too, and under the marks that come after it.
+      // Positioned, so it paints under the marks that come after it.
       className={cn('pointer-events-none relative block', className)}
     />
   );

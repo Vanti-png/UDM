@@ -217,8 +217,7 @@ export const Waveform = memo(function Waveform({
       style={{ width, height }}
       // Transparent to the pointer: the track underneath is what a press on the
       // timeline means, and a canvas swallowing it would be a dead strip.
-      // Positioned, so it paints over the fill a phone draws under the file,
-      // which is positioned too, and under the marks that come after it.
+      // Positioned, so it paints under the marks that come after it.
       className={cn('pointer-events-none relative block text-accent', className)}
     />
   );

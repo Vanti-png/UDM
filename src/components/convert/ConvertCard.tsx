@@ -12,7 +12,6 @@ import { cn } from '@/lib/cn';
 import { PROBLEM_TEXT } from '@/lib/fileProblem';
 import { clampPercent, formatBytes } from '@/lib/format';
 import { COLLAPSE, LIST_ITEM } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import type { ConvertJob } from '@/types';
 
 interface ConvertCardProps {
@@ -22,8 +21,7 @@ interface ConvertCardProps {
   onRemove: (id: string) => void;
 }
 
-/** 30px under a pointer, 36px under a fingertip. */
-const ACTION_SIZE = IS_MOBILE ? 'sm' : 'md';
+const ACTION_SIZE = 'md';
 
 const LINE = cn(ROW_LINE, 'gap-x-3');
 
@@ -156,8 +154,8 @@ export const ConvertCard = memo(function ConvertCard({
   return (
     <motion.article
       // Layout animation measures the row on every render, and progress renders
-      // it several times a second; a phone skips the glide.
-      layout={IS_MOBILE ? false : 'position'}
+      // it several times a second.
+      layout="position"
       variants={LIST_ITEM}
       initial="initial"
       animate="animate"
@@ -169,7 +167,7 @@ export const ConvertCard = memo(function ConvertCard({
           'transition-colors duration-150 ease-out-quint hover:bg-surface-hover has-[[data-open]:active]:bg-surface-active',
       )}
     >
-      <div className={cn('flex items-center', IS_MOBILE ? 'pr-1.5' : 'pr-3')}>
+      <div className={cn('flex items-center', 'pr-3')}>
         {outputPath ? (
           <button
             type="button"
@@ -202,8 +200,6 @@ export const ConvertCard = memo(function ConvertCard({
               onClick={() => onRetry(job.id)}
             />
           )}
-          {/* Kept on a phone, where it opens the system's Downloads view: a
-              conversion row has no Share to stand in for it. */}
           {outputPath && file.problem !== 'missing' && (
             <IconButton
               icon={<FolderOpen size={15} />}

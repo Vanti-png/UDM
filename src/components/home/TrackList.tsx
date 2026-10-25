@@ -5,7 +5,6 @@ import { ListGroup } from '@/components/ui/ListGroup';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { formatDuration } from '@/lib/format';
-import { IS_MOBILE } from '@/lib/platform';
 import type { TrackSummary } from '@/types';
 
 interface TrackListProps {
@@ -47,7 +46,7 @@ export function TrackList({ tracks, picked, onChange }: TrackListProps) {
         </button>
       </div>
 
-      <ListGroup inset={IS_MOBILE ? 56 : 52} className="max-h-[360px] overflow-y-auto">
+      <ListGroup inset={52} className="max-h-[360px] overflow-y-auto">
         {tracks.map((track) => {
           const on = picked.has(track.position);
           return (
@@ -59,7 +58,7 @@ export function TrackList({ tracks, picked, onChange }: TrackListProps) {
               onClick={() => toggle(track.position)}
               className={cn(
                 'flex w-full items-center gap-3 px-4 text-left hover:bg-surface-hover',
-                IS_MOBILE ? 'min-h-[56px] py-2' : 'min-h-[48px] py-1.5',
+                'min-h-[48px] py-1.5',
               )}
             >
               <span
@@ -76,7 +75,7 @@ export function TrackList({ tracks, picked, onChange }: TrackListProps) {
                 <span
                   className={cn(
                     'block truncate text-fg',
-                    IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]',
+                    'text-[13.5px]',
                     !on && 'text-fg-muted',
                   )}
                 >

@@ -2,7 +2,6 @@ import { Clipboard, X } from 'lucide-react';
 
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { IS_MOBILE } from '@/lib/platform';
 import { displayHost } from '@/lib/url';
 
 interface ClipboardSuggestionProps {
@@ -36,7 +35,7 @@ export function ClipboardSuggestion({ url, onAccept, onDismiss }: ClipboardSugge
         onClick={onAccept}
         className={cn(
           'pressable shrink-0 rounded-[8px] font-medium text-accent hover:bg-accent-soft',
-          IS_MOBILE ? 'h-8 px-3' : 'h-7 px-2',
+          'h-7 px-2',
         )}
       >
         {t('input.analyze')}
@@ -49,7 +48,7 @@ export function ClipboardSuggestion({ url, onAccept, onDismiss }: ClipboardSugge
         className={cn(
           'pressable-sm flex shrink-0 items-center justify-center rounded-full text-fg-faint',
           'hover:bg-fill hover:text-fg',
-          IS_MOBILE ? 'size-8' : 'size-7',
+          'size-7',
         )}
       >
         <X size={14} />

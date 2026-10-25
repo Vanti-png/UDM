@@ -4,8 +4,6 @@
 //! across a queue rather than renegotiated per file. It is rebuilt only when a
 //! setting that affects transport (proxy, timeout, user agent) changes.
 
-pub mod dns;
-
 use std::sync::RwLock;
 use std::time::Duration;
 
@@ -97,13 +95,6 @@ fn build(settings: &Settings) -> AppResult<reqwest::Client> {
         builder = builder.use_rustls_tls();
     }
 
-    // A phone's DNS is whatever its network, VPN or Private DNS setting makes
-    // it, and it is not always answering.
-    #[cfg(target_os = "android")]
-    {
-        builder = builder.dns_resolver(std::sync::Arc::new(dns::FallbackResolver));
-    }
-
     builder
         .build()
         .map_err(|err| AppError::Network(format!("could not create the HTTP client: {err}")))
@@ -134,7 +125,7 @@ pub fn invalidate() {
 /// How the resolvers of the platforms the app and its tools run on word "that
 /// host name could not be looked up".
 const LOOKUP_FAILURES: &[&str] = &[
-    // Android
+    // EAI_NODATA, as Python's resolver words it
     "no address associated with hostname",
     // Linux
     "name or service not known",
@@ -155,40 +146,8 @@ pub fn is_lookup_failure(text: &str) -> bool {
     LOOKUP_FAILURES.iter().any(|needle| lower.contains(needle))
 }
 
-/// A failed lookup, told apart by what Android knows about the connection.
-///
-/// "No address associated with hostname" is all an app is told whether the
-/// phone is offline, Android or a VPN is not letting this app online, or a
-/// DNS server is not answering -- and by the time it reaches here, the public
-/// resolvers have not answered either. What the user should do differs, so
-/// the phone is asked which it is. Its answer also goes into the technical
-/// details, which is what someone helping the user will look at.
-#[cfg(target_os = "android")]
-pub async fn explain_failure(app: &tauri::AppHandle, err: AppError) -> AppError {
-    let AppError::Network(detail) = &err else {
-        return err;
-    };
-    if !is_lookup_failure(detail) {
-        return err;
-    }
-    match crate::android::network_status(app.clone()).await {
-        Ok(status) => {
-            let detail = format!("{detail} [Android: {}]", status.describe());
-            if status.connected {
-                AppError::NetworkBlocked(detail)
-            } else {
-                AppError::Offline(detail)
-            }
-        }
-        Err(status_err) => {
-            crate::log_warn!("net", "the connection could not be checked: {status_err}");
-            err
-        }
-    }
-}
-
-/// On the desktop, a failed lookup is reported as it is.
-#[cfg(not(target_os = "android"))]
+/// A failure as it is to be reported. A failed lookup is reported as it is:
+/// the desktop has no more to say about the connection than the error does.
 pub async fn explain_failure(_app: &tauri::AppHandle, err: AppError) -> AppError {
     err
 }
@@ -200,7 +159,7 @@ mod tests {
     #[test]
     fn lookup_failures_are_recognised_in_every_wording() {
         let failures = [
-            // The engine on the phone the report came from.
+            // The engine, as one report had it.
             "ERROR: [vm.tiktok] ZSq4hQv5y: Unable to download webpage: [Errno 7] No address associated with hostname (caused by TransportError('[Errno 7] No address associated with hostname'))",
             "error sending request for url (https://vt.tiktok.com/ZSq4hQv5y/): client error (Connect): dns error: failed to lookup address information: No address associated with hostname",
             "ERROR: Unable to download webpage: <urlopen error [Errno -2] Name or service not known>",

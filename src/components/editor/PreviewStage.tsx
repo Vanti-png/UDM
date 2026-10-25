@@ -2,7 +2,6 @@ import { memo, useEffect, useRef, useState, type RefObject } from 'react';
 
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { IS_MOBILE } from '@/lib/platform';
 import type { AspectRatio, FrameFit } from '@/types';
 
 /*
@@ -65,8 +64,7 @@ let audioContext: AudioContext | null = null;
 
 /**
  * Let the clock stop. A running context keeps the audio output awake whether
- * or not anything is playing through it -- on a phone, a steady drain on the
- * battery for a paused preview -- so it is suspended whenever the picture
+ * or not anything is playing through it, so it is suspended whenever the picture
  * stops, and resumed the moment it plays (see `apply` below). Only one preview
  * is ever on screen, so the shared clock stopping never silences another.
  */
@@ -300,16 +298,7 @@ export const PreviewStage = memo(function PreviewStage({
                 // all: it reports a correct duration, plays its audio, and
                 // hands over a zero-width picture. This is the only place that
                 // failure announces itself.
-                if (video.videoWidth === 0) {
-                  onUnplayable();
-                  return;
-                }
-                // A phone's WebView decodes nothing of a paused video it was
-                // only asked the size of, so a clip opened on one showed a
-                // black stage until it was played or scrubbed. Asking for the
-                // position it is already at is a seek all the same, and a seek
-                // paints the frame there.
-                if (IS_MOBILE && video.paused && video.currentTime === 0) video.currentTime = 0;
+                if (video.videoWidth === 0) onUnplayable();
               }}
             />
           ) : fallbackFrame != null ? (

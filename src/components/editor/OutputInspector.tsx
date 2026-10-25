@@ -1,4 +1,4 @@
-import { AnimatePresence, motion, useReducedMotionConfig } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { ChevronDown, Music, RotateCcw, Sliders, X } from 'lucide-react';
 import {
@@ -17,7 +17,6 @@ import { IconButton } from '@/components/ui/IconButton';
 import { ListGroup, ListGroupLabel } from '@/components/ui/ListGroup';
 import { InlineNotice } from '@/components/ui/InlineNotice';
 import { Segmented } from '@/components/ui/Segmented';
-import { ToggleRow } from '@/components/ui/SettingRow';
 import { Slider } from '@/components/ui/Slider';
 import { Spinner } from '@/components/ui/Spinner';
 import { TextInput } from '@/components/ui/TextInput';
@@ -28,8 +27,7 @@ import { cn } from '@/lib/cn';
 import { estimatedBytes, formatMbps, parseMbps, sourceVideoKbps } from '@/lib/editor/bitrate';
 import { AUDIO_EXTENSIONS, VIDEO_EXTENSIONS } from '@/lib/editor/files';
 import { basename, formatBytes, formatDuration, prettyCodec } from '@/lib/format';
-import { COLLAPSE, SIDEWAYS, T } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
+import { COLLAPSE, T } from '@/lib/motion';
 import * as ipc from '@/services/ipc';
 import {
   selectActiveClip,
@@ -73,13 +71,6 @@ import type {
  * the mode saying which choice did it. It is also not a second store: the
  * pool, the cuts and the history live in `useEditorStore`, and this reads and
  * writes them directly rather than mirroring them into props.
- *
- * On a phone it is the lower half of the screen, full width, with the rows at
- * the size of the phone's other settings. Two things it offers a desktop are
- * not there: where the file is saved -- on Android an export lands in the
- * downloads folder and the gallery, and a folder picked there would come back
- * as a content address FFmpeg cannot write to -- and hardware encoding, which
- * no Android build of FFmpeg this app ships can do.
  */
 
 interface OutputInspectorProps {
@@ -93,11 +84,6 @@ interface OutputInspectorProps {
    * a level above 100 % is only heard in the export.
    */
   previewCapped?: boolean;
-  /**
-   * The open clips, at the top of the Clip tab. A phone's, which has no rail
-   * beside the picture to hold them.
-   */
-  clips?: ReactNode;
   className?: string;
 }
 
@@ -224,7 +210,6 @@ function keepFocus(event: MouseEvent) {
 export const OutputInspector = memo(function OutputInspector({
   settings,
   previewCapped = false,
-  clips,
   className,
 }: OutputInspectorProps) {
   const { t, language } = useTranslation();
@@ -232,11 +217,6 @@ export const OutputInspector = memo(function OutputInspector({
   const [advanced, setAdvanced] = useState(false);
   const [scrolled, setScrolled] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
-  // On a phone the new tab's content comes in from the side of the tab that
-  // was picked, as Downloads' two halves do; a transform string is beyond the
-  // reach of `MotionConfig`, so under the system's reduced motion it fades.
-  const still = useReducedMotionConfig() ?? false;
-  const direction = still ? 0 : tab === 'output' ? 1 : -1;
 
   const clip = useEditorStore(selectActiveClip);
   const options = useEditorStore(selectOptions);
@@ -252,8 +232,7 @@ export const OutputInspector = memo(function OutputInspector({
   const soundError = useEditorStore((state) => state.soundError);
   const addSound = useEditorStore((state) => state.addSound);
   const removeSound = useEditorStore((state) => state.removeSound);
-  // The phone's picker copies what was chosen before it answers, which for a
-  // long recording is a while; the row says so for all of it.
+  // Reading a long recording in takes a while; the row says so for all of it.
   const [pickingSound, setPickingSound] = useState(false);
   const [soundPickFailed, setSoundPickFailed] = useState(false);
 
@@ -295,7 +274,7 @@ export const OutputInspector = memo(function OutputInspector({
   const clipPath = clip?.path ?? null;
   const [landing, setLanding] = useState<{ path: string; dir: string | null } | null>(null);
   useEffect(() => {
-    if (IS_MOBILE || !clipPath) return;
+    if (!clipPath) return;
     let live = true;
     void ipc
       .exportDefaultDir(clipPath)
@@ -341,10 +320,7 @@ export const OutputInspector = memo(function OutputInspector({
     setPickingSound(true);
     let path: string | undefined;
     try {
-      if (IS_MOBILE) {
-        path = (await ipc.platformPickMediaFiles())[0];
-      } else {
-        const selected = await open({
+      const selected = await open({
           multiple: false,
           filters: [
             { name: t('editor.soundFiles'), extensions: AUDIO_EXTENSIONS },
@@ -352,7 +328,6 @@ export const OutputInspector = memo(function OutputInspector({
           ],
         });
         path = typeof selected === 'string' ? selected : undefined;
-      }
     } catch {
       setSoundPickFailed(true);
     } finally {
@@ -413,9 +388,8 @@ export const OutputInspector = memo(function OutputInspector({
   const notIn = t('editor.notInContainer', { container: containerName });
 
   // Disabled and named, not hidden: a menu that quietly loses an entry when
-  // the format changes teaches nothing about why it is gone. With a pointer
-  // the reason is a hover away; a finger gets no hover, so on a phone it is
-  // written under the entry instead.
+  // the format changes teaches nothing about why it is gone. The reason is a
+  // hover away.
   const codecOption = <C extends string>(codec: C, legal: readonly C[]): DropdownOption<C> => {
     const allowed = legal.includes(codec);
     return {
@@ -423,7 +397,7 @@ export const OutputInspector = memo(function OutputInspector({
       label: prettyCodec(codec) ?? codec,
       disabled: !allowed,
       disabledReason: allowed ? undefined : notIn,
-      description: IS_MOBILE && !allowed ? notIn : undefined,
+      description: undefined,
     };
   };
   const videoCodecOptions = VIDEO_LADDER.map((codec) => codecOption(codec, legalVideo));
@@ -446,8 +420,6 @@ export const OutputInspector = memo(function OutputInspector({
 
   const clipPane = (
     <>
-      {clips && <div className="mb-5">{clips}</div>}
-
       <ListGroup>
         <Row
           title={t('editor.aspect')}
@@ -528,12 +500,12 @@ export const OutputInspector = memo(function OutputInspector({
             <div
               className={cn(
                 'flex items-center gap-3 pl-4',
-                IS_MOBILE ? 'min-h-[56px] py-1.5 pr-1.5' : 'min-h-[52px] py-2 pr-2.5',
+                'min-h-[52px] py-2 pr-2.5',
               )}
             >
-              <Music size={IS_MOBILE ? 18 : 16} aria-hidden="true" className="shrink-0 text-accent" />
+              <Music size={16} aria-hidden="true" className="shrink-0 text-accent" />
               <div className="min-w-0 flex-1">
-                <p className={cn('truncate text-fg', IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]')}>
+                <p className={cn('truncate text-fg', 'text-[13.5px]')}>
                   {sound.name}
                 </p>
                 {sound.durationSec != null && (
@@ -544,7 +516,7 @@ export const OutputInspector = memo(function OutputInspector({
               </div>
               <IconButton
                 size="sm"
-                icon={<X size={IS_MOBILE ? 18 : 15} />}
+                icon={<X size={15} />}
                 label={t('editor.removeSound')}
                 onClick={removeSound}
               />
@@ -563,13 +535,13 @@ export const OutputInspector = memo(function OutputInspector({
             className={cn(
               'flex w-full items-center gap-3 pl-4 pr-3 text-left text-accent hover:bg-surface-hover',
               'disabled:pointer-events-none',
-              IS_MOBILE ? 'min-h-[52px] text-[15px] active:bg-surface-active' : 'min-h-11 text-[13.5px]',
+              'min-h-11 text-[13.5px]',
             )}
           >
             {soundBusy ? (
-              <Spinner size={IS_MOBILE ? 18 : 16} />
+              <Spinner size={16} />
             ) : (
-              <Music size={IS_MOBILE ? 18 : 16} aria-hidden="true" className="shrink-0" />
+              <Music size={16} aria-hidden="true" className="shrink-0" />
             )}
             {t('editor.addSound')}
           </button>
@@ -663,9 +635,7 @@ export const OutputInspector = memo(function OutputInspector({
                       exit="exit"
                       className="overflow-hidden"
                     >
-                      {/* The field and the estimate under it, which the
-                          phone's editor keeps above the keyboard together. */}
-                      <div data-keyboard-anchor className="pb-1 pr-1.5 pt-2.5">
+                      <div className="pb-1 pr-1.5 pt-2.5">
                         <BitrateField
                           // A new clip is a new number to start from, not an
                           // edit of the last one's.
@@ -748,8 +718,7 @@ export const OutputInspector = memo(function OutputInspector({
               aria-expanded={advanced}
               className={cn(
                 'pressable -ml-1.5 flex items-center gap-1.5 rounded-md px-1.5 font-medium text-fg-muted hover:text-fg',
-                // A line of text is too thin a target for a finger.
-                IS_MOBILE ? 'mt-2 min-h-11 text-[14px]' : 'mt-3 py-1 text-[12.5px]',
+                'mt-3 py-1 text-[12.5px]',
               )}
             >
               <Sliders size={13} />
@@ -778,14 +747,12 @@ export const OutputInspector = memo(function OutputInspector({
                       checked={options.toneMapSdr}
                       onChange={(toneMapSdr) => setOptions({ toneMapSdr })}
                     />
-                    {!IS_MOBILE && (
-                      <SwitchRow
-                        title={t('editor.hardware')}
-                        description={t('editor.hardwareHint')}
-                        checked={options.hardware}
-                        onChange={(hardware) => setOptions({ hardware })}
-                      />
-                    )}
+                    <SwitchRow
+                      title={t('editor.hardware')}
+                      description={t('editor.hardwareHint')}
+                      checked={options.hardware}
+                      onChange={(hardware) => setOptions({ hardware })}
+                    />
                   </ListGroup>
                 </motion.div>
               )}
@@ -794,44 +761,41 @@ export const OutputInspector = memo(function OutputInspector({
         )}
       </AnimatePresence>
 
-      {/* Where it lands, as one row: the answer, and the way to change it.
-          A phone's exports go to its downloads, which is not a choice. */}
-      {!IS_MOBILE && (
-        <ListGroup className="mt-5">
-          <div className="flex min-h-[52px] items-center gap-1.5 py-2 pl-4 pr-2.5">
-            <div className="min-w-0 flex-1">
-              <p className="text-[13.5px] text-fg">{t('editor.exportFolder')}</p>
-              {landsIn == null ? (
-                // A blank line rather than a guess while the answer is on its
-                // way, which is the height of the words that replace it.
+      {/* Where it lands, as one row: the answer, and the way to change it. */}
+      <ListGroup className="mt-5">
+        <div className="flex min-h-[52px] items-center gap-1.5 py-2 pl-4 pr-2.5">
+          <div className="min-w-0 flex-1">
+            <p className="text-[13.5px] text-fg">{t('editor.exportFolder')}</p>
+            {landsIn == null ? (
+              // A blank line rather than a guess while the answer is on its
+              // way, which is the height of the words that replace it.
+              <p className="truncate text-[12.5px] text-fg-muted">
+                {landsIn === null ? t('editor.besideSource') : '\u00a0'}
+              </p>
+            ) : (
+              // The folder's own name, which is what people recognise; the
+              // path it sits on is a hover away. A path cut to fit this column
+              // lost the one part worth reading.
+              <Tooltip label={landsIn}>
                 <p className="truncate text-[12.5px] text-fg-muted">
-                  {landsIn === null ? t('editor.besideSource') : '\u00a0'}
+                  {basename(landsIn.replace(/[\\/]+$/, '')) || landsIn}
                 </p>
-              ) : (
-                // The folder's own name, which is what people recognise; the
-                // path it sits on is a hover away. A path cut to fit this column
-                // lost the one part worth reading.
-                <Tooltip label={landsIn}>
-                  <p className="truncate text-[12.5px] text-fg-muted">
-                    {basename(landsIn.replace(/[\\/]+$/, '')) || landsIn}
-                  </p>
-                </Tooltip>
-              )}
-            </div>
-            {outputDir != null && (
-              <IconButton
-                size="sm"
-                icon={<RotateCcw size={14} />}
-                label={t('convert.resetFolder')}
-                onClick={() => setOutputDir(null)}
-              />
+              </Tooltip>
             )}
-            <Button size="sm" variant="secondary" onClick={() => void pickFolder()}>
-              {t('options.change')}
-            </Button>
           </div>
-        </ListGroup>
-      )}
+          {outputDir != null && (
+            <IconButton
+              size="sm"
+              icon={<RotateCcw size={14} />}
+              label={t('convert.resetFolder')}
+              onClick={() => setOutputDir(null)}
+            />
+          )}
+          <Button size="sm" variant="secondary" onClick={() => void pickFolder()}>
+            {t('options.change')}
+          </Button>
+        </div>
+      </ListGroup>
     </>
   );
 
@@ -851,7 +815,7 @@ export const OutputInspector = memo(function OutputInspector({
     <aside
       className={cn(
         'flex min-h-0 flex-col',
-        !IS_MOBILE && 'w-[272px] shrink-0 xl:w-[300px]',
+        'w-[272px] shrink-0 xl:w-[300px]',
         className,
       )}
       onMouseDown={keepFocus}
@@ -861,7 +825,7 @@ export const OutputInspector = memo(function OutputInspector({
       <div
         className={cn(
           'shrink-0 border-b transition-colors duration-150 ease-out-quint',
-          IS_MOBILE ? 'px-4 pb-3 pt-1' : 'px-3 pb-3 pt-3',
+          'px-3 pb-3 pt-3',
           scrolled ? 'border-[var(--border)]' : 'border-transparent',
         )}
       >
@@ -873,40 +837,20 @@ export const OutputInspector = memo(function OutputInspector({
         onScroll={(event) => setScrolled(event.currentTarget.scrollTop > 0)}
         // The gutter is kept whether or not there is anything to scroll, so
         // switching to the taller tab does not shift every row sideways by
-        // the width of the bar that appears. A phone's scrollbars float over
-        // the content and take no room, so there it has no gutter to keep.
+        // the width of the bar that appears.
         className={cn(
           'min-h-0 flex-1 overflow-y-auto overscroll-contain',
-          // A field brought into view above the keyboard stops short of its
-          // edge rather than flush against it.
-          IS_MOBILE
-            ? 'overflow-x-hidden scroll-py-3 px-4 pb-6 pt-1'
-            : 'pb-4 pl-3 pr-0.5 [scrollbar-gutter:stable]',
+          'pb-4 pl-3 pr-0.5 [scrollbar-gutter:stable]',
         )}
       >
-        {IS_MOBILE ? (
-          <AnimatePresence mode="wait" initial={false} custom={direction}>
-            <motion.div
-              key={tab}
-              custom={direction}
-              variants={SIDEWAYS}
-              initial="initial"
-              animate="animate"
-              exit="exit"
-            >
-              {tab === 'clip' ? clipPane : outputPane}
-            </motion.div>
-          </AnimatePresence>
-        ) : (
-          <motion.div
-            key={tab}
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            transition={T.micro}
-          >
-            {tab === 'clip' ? clipPane : outputPane}
-          </motion.div>
-        )}
+        <motion.div
+          key={tab}
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={T.micro}
+        >
+          {tab === 'clip' ? clipPane : outputPane}
+        </motion.div>
       </div>
     </aside>
   );
@@ -921,14 +865,10 @@ export const OutputInspector = memo(function OutputInspector({
  * height of everything. Here a title and its control share a line, the way an
  * inspector's do, and what belongs under a control (the frame's fit, a custom
  * rate) opens inside the same row rather than as a row of its own.
- *
- * A phone keeps that shape at its own sizes: fifteen-pixel titles, menus a
- * fingertip tall, and a control column wide enough for the longest choice in
- * either language -- "Özel bit hızı" -- beside the longest title at 360px.
  */
 
-/** The size of a note under a control: a caption on the desktop, a line of text on a phone. */
-const NOTE_TEXT = IS_MOBILE ? 'text-[13px]' : 'text-[12.5px]';
+/** The size of a note under a control. */
+const NOTE_TEXT = 'text-[12.5px]';
 
 function Row({
   title,
@@ -940,12 +880,12 @@ function Row({
   children?: ReactNode;
 }) {
   return (
-    <div className={IS_MOBILE ? 'py-1.5 pl-4 pr-1.5' : 'py-2 pl-4 pr-2.5'}>
+    <div className={'py-2 pl-4 pr-2.5'}>
       <div className="flex min-h-9 items-center justify-between gap-2">
-        <span className={cn('min-w-0 truncate text-fg', IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]')}>
+        <span className={cn('min-w-0 truncate text-fg', 'text-[13.5px]')}>
           {title}
         </span>
-        <div className={cn('shrink-0', IS_MOBILE ? 'w-[152px]' : 'w-[128px] xl:w-[148px]')}>
+        <div className={cn('shrink-0', 'w-[128px] xl:w-[148px]')}>
           {control}
         </div>
       </div>
@@ -977,19 +917,6 @@ function SwitchRow({
   disabled?: boolean;
   onChange: (checked: boolean) => void;
 }) {
-  // By touch the whole row is the switch, as it is everywhere else on a phone.
-  if (IS_MOBILE) {
-    return (
-      <ToggleRow
-        title={title}
-        description={description}
-        checked={checked}
-        disabled={disabled}
-        onChange={onChange}
-      />
-    );
-  }
-
   return (
     <div className="flex min-h-[52px] items-center gap-3 py-2 pl-4 pr-3">
       <div className="min-w-0 flex-1">
@@ -1024,7 +951,7 @@ function LevelRow({
     <div
       className={cn(
         'px-4 pb-1 pt-3 [&_label]:font-normal [&_label]:text-fg',
-        IS_MOBILE ? '[&_label]:text-[15px]' : '[&_label]:text-[13.5px]',
+        '[&_label]:text-[13.5px]',
       )}
       onDoubleClick={() => {
         if (!disabled) onChange(1);

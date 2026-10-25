@@ -4,8 +4,6 @@
 //! external tools, restoring the queue, building the tray -- happens here, and
 //! nothing else in the crate reaches for global state.
 
-#[cfg(target_os = "android")]
-pub mod android;
 pub mod bridge;
 pub mod cache;
 pub mod clipboard;
@@ -30,16 +28,13 @@ pub mod queue;
 pub mod range;
 pub mod settings;
 pub mod tools;
-#[cfg(desktop)]
 pub mod tray;
 pub mod updater;
 pub mod util;
 
 use std::sync::{Arc, Mutex};
 
-use tauri::{Emitter, Manager};
-#[cfg(desktop)]
-use tauri::{Listener, WindowEvent};
+use tauri::{Emitter, Listener, Manager, WindowEvent};
 
 use commands::AppState;
 use converter::ConvertManager;
@@ -52,7 +47,6 @@ use range::RangeFetchManager;
 /// Temp files older than a day are leftovers from a crash, not resumable state.
 const TEMP_SWEEP_AGE_SECS: u64 = 60 * 60 * 24;
 
-#[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let mut builder = tauri::Builder::default();
 
@@ -75,11 +69,6 @@ pub fn run() {
         ));
     }
 
-    #[cfg(target_os = "android")]
-    {
-        builder = builder.plugin(android::plugin());
-    }
-
     let builder = builder
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
@@ -88,11 +77,6 @@ pub fn run() {
         .plugin(tauri_plugin_os::init())
         .setup(|app| {
             let handle = app.handle().clone();
-
-            // The data and download directories come from the OS on Android,
-            // and everything below reads them.
-            #[cfg(target_os = "android")]
-            android::init(&handle)?;
 
             let database = Arc::new(Database::open(&paths::database_path()?)?);
             let loaded = database.load_settings().unwrap_or_default();
@@ -138,16 +122,11 @@ pub fn run() {
                 fetcher: Arc::clone(&fetcher),
             });
 
-            #[cfg(desktop)]
             if let Err(err) = tray::build(&handle, &loaded.language) {
                 log_error!("app", "tray unavailable: {err}");
             }
 
-            #[cfg(target_os = "android")]
-            android::keep_alive_while_busy(&handle);
-
             // Keep the tray's count in step with the queue without polling.
-            #[cfg(desktop)]
             {
                 let handle = handle.clone();
                 let queue = Arc::clone(&queue);
@@ -216,10 +195,7 @@ pub fn run() {
 
             // Launched by the autostart entry: stay in the tray rather than
             // stealing focus during sign-in.
-            #[cfg(desktop)]
             let start_hidden = std::env::args().any(|arg| arg == "--minimized");
-            #[cfg(mobile)]
-            let start_hidden = false;
             if !start_hidden {
                 if let Some(window) = app.get_webview_window("main") {
                     let _ = window.show();
@@ -229,9 +205,7 @@ pub fn run() {
             Ok(())
         });
 
-    // Minimising and closing to the tray are desktop ideas; a phone manages the
-    // window's lifetime itself.
-    #[cfg(desktop)]
+    // Minimising and closing to the tray.
     let builder = builder.on_window_event(handle_window_event);
 
     builder
@@ -307,11 +281,6 @@ pub fn run() {
             commands::sweep_temp_files,
             commands::provisional_download_label,
             commands::new_task_id,
-            commands::platform_open_app_settings,
-            commands::platform_pick_media_files,
-            commands::platform_set_system_bars,
-            commands::platform_take_shared_text,
-            commands::platform_set_portrait_lock,
             commands::check_app_update,
             commands::get_build_commit,
             commands::install_app_update,
@@ -321,7 +290,6 @@ pub fn run() {
         .expect("the application failed to start");
 }
 
-#[cfg(desktop)]
 fn handle_window_event(window: &tauri::Window, event: &WindowEvent) {
     match event {
         WindowEvent::CloseRequested { api, .. } => {

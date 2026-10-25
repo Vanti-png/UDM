@@ -629,7 +629,7 @@ fn entropy_or_create() -> AppResult<Vec<u8>> {
     }
 }
 
-/// The phone builds this crate too, and there is no browser on it to link to.
+/// Outside Windows there is no DPAPI to seal with, and no browser link.
 /// Everything above still has to compile; none of it has to work.
 #[cfg(not(windows))]
 fn protect(_plain: &[u8]) -> AppResult<Vec<u8>> {

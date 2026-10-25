@@ -65,7 +65,7 @@ export function ListGroup({ children, inset = 16, tone = 'card', className }: Li
 /**
  * The second line of a row, under its title. It is exactly one line high and
  * wraps: a value that does not fit drops to a second line that is clipped away,
- * so on a narrow phone it disappears whole instead of being cut mid-word. The
+ * so in a narrow window it disappears whole instead of being cut mid-word. The
  * row adds its own gap and top margin.
  */
 export const ROW_LINE =

@@ -19,9 +19,8 @@ import { useTranslation } from '@/i18n';
 import type { TranslationKey } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { PROBLEM_TEXT } from '@/lib/fileProblem';
-import { formatBytes, formatDate, formatDay } from '@/lib/format';
+import { formatBytes, formatDate } from '@/lib/format';
 import { LIST_ITEM } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import type { AppErrorInfo, HistoryEntry } from '@/types';
 import { ClearHistoryModal } from './ClearHistoryModal';
@@ -29,18 +28,15 @@ import { ClearHistoryModal } from './ClearHistoryModal';
 const PAGE_SIZE = 60;
 
 /** Where a row's text starts: its padding, the 72px thumbnail, the gap. */
-const TEXT_INSET = IS_MOBILE ? 96 : 104;
+const TEXT_INSET = 104;
 
-/** 30px under a pointer, 36px under a fingertip. */
-const ACTION_SIZE = IS_MOBILE ? 'sm' : 'md';
+const ACTION_SIZE = 'md';
 
 /**
- * How a removed row leaves. The desktop lifts it out of the flow, so the rows
- * under it glide up while it fades. A phone skips the glide (see the row's
- * `layout`), and lifted out there the row would fade over the one that jumped
- * into its place -- so it fades where it stands, and the gap closes after.
+ * How a removed row leaves: lifted out of the flow, so the rows under it glide
+ * up while it fades.
  */
-const LEAVING = IS_MOBILE ? 'sync' : 'popLayout';
+const LEAVING = 'popLayout';
 
 /**
  * Queue an entry again. Resolves to the failure, if there was one, so the row
@@ -73,10 +69,8 @@ async function redownload(entry: HistoryEntry): Promise<AppErrorInfo | null> {
 
 /**
  * The history itself: its search, its rows, what can be done to them, and what
- * it says when there are none. The desktop gives it a screen of its own (see
- * `HistoryPage`), where the search and the clear button share the screen's
- * title bar; a phone shows it as the second half of Downloads, under the
- * control that switches to it, so there it brings no title.
+ * it says when there are none. It has a screen of its own (see `HistoryPage`),
+ * where the search and the clear button share the screen's title bar.
  */
 export function HistoryList({ onGoHome }: { onGoHome: () => void }) {
   const { t } = useTranslation();
@@ -136,38 +130,19 @@ export function HistoryList({ onGoHome }: { onGoHome: () => void }) {
 
   return (
     <>
-      {IS_MOBILE ? (
-        // The control above already says this is the history; the field gets
-        // the line. Temizle sits where the Sürüyor half's does, in its words
-        // and its style, so switching halves leaves it in place.
-        <div className="flex items-center gap-1.5 pb-3">
-          <div className="min-w-0 flex-1">{search}</div>
-          {total > 0 && (
-            <Button
-              size="sm"
-              variant="ghost"
-              aria-label={t('history.clearAll')}
-              onClick={() => setConfirmClear(true)}
-            >
-              {t('history.clear')}
-            </Button>
-          )}
-        </div>
-      ) : (
-        <PageHeader
-          title={t('history.title')}
-          actions={
-            <>
-              <div className="w-[240px]">{search}</div>
-              {total > 0 && (
-                <Button size="sm" variant="ghost" onClick={() => setConfirmClear(true)}>
-                  {t('history.clearAll')}
-                </Button>
-              )}
-            </>
-          }
-        />
-      )}
+      <PageHeader
+        title={t('history.title')}
+        actions={
+          <>
+            <div className="w-[240px]">{search}</div>
+            {total > 0 && (
+              <Button size="sm" variant="ghost" onClick={() => setConfirmClear(true)}>
+                {t('history.clearAll')}
+              </Button>
+            )}
+          </>
+        }
+      />
 
       {isEmpty && (
         <EmptyState
@@ -282,11 +257,8 @@ const HistoryRow = memo(function HistoryRow({
           </span>
         ) : exists ? (
           <span className={LINE}>
-            {/* A phone has room for the day, not for the year and the minute. */}
             <span>
-              {IS_MOBILE
-                ? formatDay(entry.createdAt, language)
-                : formatDate(entry.createdAt, language)}
+              {formatDate(entry.createdAt, language)}
             </span>
             <span>{entry.qualityLabel}</span>
             <span>{entry.container.toUpperCase()}</span>
@@ -308,7 +280,7 @@ const HistoryRow = memo(function HistoryRow({
   // because the link under the title is a button of its own; see DownloadCard.
   const mainClass = cn(
     'relative flex min-w-0 flex-1 items-center py-2.5 pr-2',
-    IS_MOBILE ? 'gap-3 pl-3' : 'gap-4 pl-4',
+    'gap-4 pl-4',
   );
 
   const redownloadButton = (
@@ -347,8 +319,8 @@ const HistoryRow = memo(function HistoryRow({
   return (
     <motion.article
       // A layout animation measures every row in the list whenever one of them
-      // changes; a phone skips the glide, as the Downloads rows do.
-      layout={IS_MOBILE ? false : 'position'}
+      // changes.
+      layout="position"
       variants={LIST_ITEM}
       initial="initial"
       animate="animate"
@@ -360,7 +332,7 @@ const HistoryRow = memo(function HistoryRow({
           'transition-colors duration-150 ease-out-quint hover:bg-surface-hover has-[[data-open]:active]:bg-surface-active',
       )}
     >
-      <div className={cn('flex items-center', IS_MOBILE ? 'pr-1.5' : 'pr-3')}>
+      <div className={cn('flex items-center', 'pr-3')}>
         <div className={mainClass}>
           {exists && (
             <button
@@ -385,9 +357,7 @@ const HistoryRow = memo(function HistoryRow({
               onClick={file.share}
             />
           )}
-          {/* On a phone this only opens the system's Downloads view, and
-              pressing the row already opens the file. */}
-          {exists && !IS_MOBILE && (
+          {exists && (
             <IconButton
               icon={<FolderOpen size={15} />}
               label={t('downloads.showInFolder')}
@@ -395,10 +365,7 @@ const HistoryRow = memo(function HistoryRow({
               onClick={file.reveal}
             />
           )}
-          {/* A phone row has room for two buttons beside a title that can
-              still be read, and a third would leave it a few letters wide: a
-              file that is there is shared, one that is gone is fetched again. */}
-          {(!IS_MOBILE || !exists) && redownloadButton}
+          {redownloadButton}
           {removeButton}
         </div>
       </div>

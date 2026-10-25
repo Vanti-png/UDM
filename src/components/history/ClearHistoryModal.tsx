@@ -7,7 +7,6 @@ import { ListGroup } from '@/components/ui/ListGroup';
 import { Modal } from '@/components/ui/Modal';
 import { useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
-import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import type { HistoryRange } from '@/types';
 import { CLEAR_RANGES, DEFAULT_CLEAR_RANGE, RANGE_LABEL, clearSummaryKey } from './clearRange';
@@ -140,13 +139,13 @@ export function ClearHistoryModal({ open, onClose, onCleared }: ClearHistoryModa
                   className={cn(
                     'flex w-full items-center gap-3 px-4 text-left transition-colors duration-150 ease-out-quint',
                     'hover:bg-fill active:bg-fill-hover',
-                    IS_MOBILE ? 'min-h-12 py-2.5 text-[15px]' : 'min-h-10 py-2 text-[13.5px]',
+                    'min-h-10 py-2 text-[13.5px]',
                   )}
                 >
                   <span className="min-w-0 flex-1 text-fg">{t(RANGE_LABEL[value])}</span>
                   {selected && (
                     <Check
-                      size={IS_MOBILE ? 18 : 16}
+                      size={16}
                       strokeWidth={2.25}
                       aria-hidden="true"
                       className="shrink-0 text-accent"
@@ -157,14 +156,14 @@ export function ClearHistoryModal({ open, onClose, onCleared }: ClearHistoryModa
             })}
           </ListGroup>
         </div>
-        {/* Reserved height. On a phone every sentence with a number takes two
-            lines and the "none" ones take one, and the centred dialog would bob
-            by half a line each time the choice changed. */}
+        {/* Reserved height. A sentence with a number can take two lines where
+            the "none" ones take one, and the centred dialog would bob by half
+            a line each time the choice changed. */}
         <p
           role="status"
           className={cn(
             'mt-2 px-4 leading-snug text-fg-muted',
-            IS_MOBILE ? 'min-h-[2.75em] text-[13px]' : 'min-h-[1.375em] text-[12.5px]',
+            'min-h-[1.375em] text-[12.5px]',
           )}
         >
           {count == null ? '' : t(clearSummaryKey(range, count), { n: count })}

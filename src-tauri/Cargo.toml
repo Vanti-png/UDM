@@ -10,7 +10,7 @@ default-run = "universal-downloader"
 
 [lib]
 name = "universal_downloader_lib"
-crate-type = ["staticlib", "cdylib", "rlib"]
+crate-type = ["rlib"]
 
 # The browser link's native messaging host. A separate program rather than the
 # app re-entered with an argument: Chrome starts it, speaks to it over stdin and

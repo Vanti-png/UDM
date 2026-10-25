@@ -21,15 +21,6 @@ pub enum AppError {
     #[error("network error: {0}")]
     Network(String),
 
-    /// The phone has no network to use.
-    #[error("offline: {0}")]
-    Offline(String),
-
-    /// The phone has a network, but this app cannot get through it: Android,
-    /// a VPN or a firewall is not letting it, or its DNS is not answering.
-    #[error("no internet access for this app: {0}")]
-    NetworkBlocked(String),
-
     #[error("access denied ({status})")]
     Forbidden { status: u16, detail: String },
 
@@ -119,8 +110,6 @@ impl AppError {
             Self::InvalidUrl(_) => "invalidUrl",
             Self::Unsupported(_) => "unsupported",
             Self::Network(_) => "network",
-            Self::Offline(_) => "offline",
-            Self::NetworkBlocked(_) => "networkBlocked",
             Self::Forbidden { .. } => "forbidden",
             Self::MembershipRequired { .. } => "membershipRequired",
             Self::TiktokSignIn {
@@ -161,14 +150,12 @@ impl AppError {
             // TikTok session on, then presses Try again. Never once the session
             // was tried -- the queue repeats a retryable failure on its own
             // (`queue.rs`), and each repeat would spend the account on a post
-            // TikTok will not show it -- and never on a phone, which has no
-            // session to lend.
+            // TikTok will not show it -- and never where there is no browser
+            // link to lend one.
             Self::TiktokSignIn { session_tried, .. } => !*session_tried && cfg!(windows),
             other => matches!(
                 other,
                 Self::Network(_)
-                    | Self::Offline(_)
-                    | Self::NetworkBlocked(_)
                     | Self::Forbidden { .. }
                     | Self::MembershipRequired { .. }
                     | Self::Engine(_)
@@ -204,11 +191,6 @@ impl AppError {
             "network" => (
                 "We couldn't reach the source",
                 "Check your connection and try again.",
-            ),
-            "offline" => ("You're offline", "Connect to Wi-Fi or mobile data and try again."),
-            "networkBlocked" => (
-                "Universal Downloader can't get online",
-                "Your phone is connected, but this app can't use the connection. Allow Universal Downloader to use Wi-Fi and mobile data in its settings, check any VPN, firewall or ad blocker, then try again.",
             ),
             "forbidden" => (
                 "We couldn't access this media",

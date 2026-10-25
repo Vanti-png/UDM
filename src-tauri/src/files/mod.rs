@@ -55,7 +55,6 @@ const OPENABLE: &[&str] = &[
 
 /// What ShellExecuteEx reports when the user closed "How do you want to open
 /// this file?" without choosing. Nothing failed, so nothing is said.
-#[cfg(not(target_os = "android"))]
 const ERROR_CANCELLED: i32 = 1223;
 
 /// The file `raw` names, if it is still there and is a file.
@@ -127,53 +126,36 @@ async fn on_worker<T: Send + 'static>(
 
 /// Open a finished file in the app the system has for its type.
 pub async fn open(app: AppHandle, raw: String) -> AppResult<()> {
-    #[cfg(target_os = "android")]
-    {
-        let file = on_worker(move || handable(&raw)).await?;
-        crate::android::open_file(app, file.to_string_lossy().into_owned()).await
-    }
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = app;
-        on_worker(move || {
-            let file = handable(&raw)?;
-            // ShellExecute's documentation asks for COM on the calling thread:
-            // what opens the file may be a shell extension or a Store app.
-            #[cfg(windows)]
-            let _com = Com::sta();
-            settle(
-                tauri_plugin_opener::open_path(&file, None::<&str>),
-                "the file could not be opened",
-            )
-        })
-        .await
-    }
+    let _ = app;
+    on_worker(move || {
+        let file = handable(&raw)?;
+        // ShellExecute's documentation asks for COM on the calling thread:
+        // what opens the file may be a shell extension or a Store app.
+        #[cfg(windows)]
+        let _com = Com::sta();
+        settle(
+            tauri_plugin_opener::open_path(&file, None::<&str>),
+            "the file could not be opened",
+        )
+    })
+    .await
 }
 
-/// Show where a finished file is. A phone has no folder window to select it
-/// in; the system's Downloads view, which is where it is, stands in.
+/// Show where a finished file is, selected in its folder window.
 pub async fn reveal(app: AppHandle, raw: String) -> AppResult<()> {
-    #[cfg(target_os = "android")]
-    {
-        on_worker(move || checked_file(&raw)).await?;
-        crate::android::open_downloads(app).await
-    }
-    #[cfg(not(target_os = "android"))]
-    {
-        let _ = app;
-        on_worker(move || {
-            let file = checked_file(&raw)?;
-            // No type check: selecting a file in a folder window runs nothing.
-            // The plugin sets COM up on this thread itself, and never takes it
-            // down again; a blocking-pool thread stays in that apartment after
-            // a reveal, as an async worker did when the page called it.
-            settle(
-                tauri_plugin_opener::reveal_item_in_dir(&file),
-                "the folder could not be shown",
-            )
-        })
-        .await
-    }
+    let _ = app;
+    on_worker(move || {
+        let file = checked_file(&raw)?;
+        // No type check: selecting a file in a folder window runs nothing.
+        // The plugin sets COM up on this thread itself, and never takes it
+        // down again; a blocking-pool thread stays in that apartment after a
+        // reveal, as an async worker did when the page called it.
+        settle(
+            tauri_plugin_opener::reveal_item_in_dir(&file),
+            "the folder could not be shown",
+        )
+    })
+    .await
 }
 
 /// Hand a finished file to another app through the system's share sheet.
@@ -181,15 +163,11 @@ pub async fn reveal(app: AppHandle, raw: String) -> AppResult<()> {
 /// session file must not be one press on the page away from another app.
 pub async fn share(app: AppHandle, raw: String) -> AppResult<()> {
     let file = on_worker(move || handable(&raw)).await?;
-    #[cfg(target_os = "android")]
-    {
-        crate::android::share_file(app, file.to_string_lossy().into_owned()).await
-    }
     #[cfg(windows)]
     {
         windows_share::show(&app, file).await
     }
-    #[cfg(not(any(windows, target_os = "android")))]
+    #[cfg(not(windows))]
     {
         let _ = (app, file);
         Err(AppError::Other("sharing is not available on this system".into()))
@@ -201,35 +179,27 @@ pub async fn share(app: AppHandle, raw: String) -> AppResult<()> {
 /// which goes the same way as a row's folder button; opening the bare folder
 /// is only for the first minutes of an install that has not logged anything.
 pub async fn open_log_dir() -> AppResult<()> {
-    #[cfg(not(target_os = "android"))]
-    {
-        on_worker(|| {
-            let dir = crate::paths::logs_dir()?;
-            let log = dir.join("app.log");
-            if log.is_file() {
-                settle(
-                    tauri_plugin_opener::reveal_item_in_dir(&log),
-                    "the logs folder could not be shown",
-                )
-            } else {
-                #[cfg(windows)]
-                let _com = Com::sta();
-                settle(
-                    tauri_plugin_opener::open_path(&dir, None::<&str>),
-                    "the logs folder could not be shown",
-                )
-            }
-        })
-        .await
-    }
-    #[cfg(target_os = "android")]
-    {
-        Err(AppError::Other("the logs folder is only shown on the desktop".into()))
-    }
+    on_worker(|| {
+        let dir = crate::paths::logs_dir()?;
+        let log = dir.join("app.log");
+        if log.is_file() {
+            settle(
+                tauri_plugin_opener::reveal_item_in_dir(&log),
+                "the logs folder could not be shown",
+            )
+        } else {
+            #[cfg(windows)]
+            let _com = Com::sta();
+            settle(
+                tauri_plugin_opener::open_path(&dir, None::<&str>),
+                "the logs folder could not be shown",
+            )
+        }
+    })
+    .await
 }
 
 /// What a launch through the opener came to.
-#[cfg(not(target_os = "android"))]
 fn settle(result: Result<(), tauri_plugin_opener::Error>, doing: &str) -> AppResult<()> {
     match result {
         Ok(()) => Ok(()),
@@ -395,7 +365,6 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
-    #[cfg(not(target_os = "android"))]
     #[test]
     fn a_launch_that_found_nothing_is_missing() {
         let found_nothing = tauri_plugin_opener::Error::Io(io::Error::from_raw_os_error(2));
@@ -409,7 +378,6 @@ mod tests {
         assert!(settle(Err(cancelled), "x").is_ok());
     }
 
-    #[cfg(not(target_os = "android"))]
     #[test]
     fn any_other_refusal_is_not_called_missing() {
         let refused = settle(Err(tauri_plugin_opener::Error::UnsupportedPlatform), "x").unwrap_err();

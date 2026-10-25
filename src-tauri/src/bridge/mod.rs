@@ -72,8 +72,7 @@ pub use store::CookieLease;
 ///
 /// Windows only, and not because of the cookie handling: native messaging is
 /// registered through the registry, and the installer, the tray and autostart
-/// already make Windows the only desktop target this app ships. A phone has no
-/// desktop browser to link to, so the whole feature compiles out there.
+/// already make Windows the only target this app ships.
 pub const fn supported() -> bool {
     cfg!(windows)
 }

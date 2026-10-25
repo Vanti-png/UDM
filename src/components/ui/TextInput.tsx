@@ -1,7 +1,6 @@
 import { forwardRef, useId, type InputHTMLAttributes, type ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
-import { IS_MOBILE } from '@/lib/platform';
 
 export interface TextInputProps extends InputHTMLAttributes<HTMLInputElement> {
   label?: string;
@@ -28,7 +27,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
       <div
         className={cn(
           'flex items-center gap-2 rounded-[var(--radius-control)] bg-fill px-3',
-          IS_MOBILE ? 'h-12' : 'h-9',
+          'h-9',
           // The ring is the whole of the focus treatment: a filled field has no
           // border to recolour, and the input inside draws no outline of its own.
           'ring-inset',
@@ -46,7 +45,7 @@ export const TextInput = forwardRef<HTMLInputElement, TextInputProps>(function T
           className={cn(
             'min-w-0 flex-1 bg-transparent text-fg outline-none',
             'placeholder:text-fg-muted',
-            IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]',
+            'text-[13.5px]',
           )}
           {...rest}
         />

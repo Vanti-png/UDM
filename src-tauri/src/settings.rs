@@ -126,9 +126,7 @@ impl Default for Settings {
             start_with_windows: false,
             minimize_to_tray: true,
             close_to_tray: false,
-            // Android announces every clipboard read with a banner, and its share
-            // sheet is the natural way to hand a link over anyway.
-            clipboard_monitoring: !cfg!(target_os = "android"),
+            clipboard_monitoring: true,
             notifications_enabled: true,
             notify_on_complete: true,
             notify_on_error: true,
@@ -143,20 +141,13 @@ impl Default for Settings {
             connections_per_download: default_connections(),
             speed_limit_kbps: 0,
 
-            // A phone opens in the phone's own theme, so a light phone's first
-            // run is not a dark film. The desktop keeps the dark it has had.
-            theme: if cfg!(target_os = "android") {
-                ThemePreference::System
-            } else {
-                ThemePreference::Dark
-            },
+            theme: ThemePreference::Dark,
             language: "en".to_string(),
             reduce_motion: false,
             show_animated_background: true,
 
             low_resource_mode: false,
-            // The GPU pass is an NVIDIA encoder; a phone would only ever fail it.
-            hardware_acceleration: !cfg!(target_os = "android"),
+            hardware_acceleration: true,
             cache_limit_mb: 256,
 
             ffmpeg_path: None,
@@ -217,22 +208,16 @@ impl Settings {
     }
 }
 
-/// Armed wherever the browser link can exist at all, which is the desktop
-/// build. A phone has no desktop browser to link to, so it stores `false`
-/// rather than a preference that could never take effect.
+/// Armed wherever the browser link can exist at all, which is Windows: the
+/// native messaging host is registered under the user's own hive.
 fn default_browser_link() -> bool {
     cfg!(windows)
 }
 
 /// Eight is what download managers have long settled on: enough to fill most
-/// lines, few enough that hosts rarely object. A phone's radio gains little
-/// past four.
+/// lines, few enough that hosts rarely object.
 fn default_connections() -> u32 {
-    if cfg!(target_os = "android") {
-        4
-    } else {
-        8
-    }
+    8
 }
 
 fn normalize_optional(value: &mut Option<String>) {

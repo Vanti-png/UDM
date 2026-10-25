@@ -3,7 +3,6 @@ import { useId, type ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
 import { SPRING } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 
 export interface SegmentedOption<T extends string> {
   value: T;
@@ -59,9 +58,7 @@ export function Segmented<T extends string>({
                 'relative flex flex-1 items-center justify-center gap-1.5 rounded-[8px] font-medium',
                 'transition-colors duration-150 ease-out-quint',
                 'disabled:pointer-events-none disabled:opacity-40',
-                IS_MOBILE
-                  ? 'h-10 px-2 text-[14px]'
-                  : size === 'sm'
+                size === 'sm'
                     ? 'h-7 px-2 text-[12.5px]'
                     : 'h-8 px-3 text-[13px]',
                 selected ? 'text-fg' : 'text-fg-muted hover:text-fg',

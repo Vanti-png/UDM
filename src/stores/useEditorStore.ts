@@ -444,9 +444,8 @@ export const useEditorStore = create<EditorStoreState>((set, get) => {
         // Sound on its own is not something this screen can cut: it would
         // open as a black stage over an empty filmstrip. With a clip open it
         // is something to put under it, which is what choosing a song there
-        // means -- by the add button, a drop, or a link. The phone's picker
-        // offers audio as well and a dropped file can be anything, so the
-        // decision is made here, once, for every way in.
+        // means -- by the add button, a drop, or a link. A dropped file can be
+        // anything, so the decision is made here, once, for every way in.
         if (!probe.hasVideo) {
           const active = get().activeId;
           if (probe.hasAudio && active) {
@@ -790,16 +789,6 @@ export const useEditorStore = create<EditorStoreState>((set, get) => {
 
 export function selectActiveClip(state: EditorStoreState): Clip | null {
   return state.pool.find((clip) => clip.id === state.activeId) ?? null;
-}
-
-/**
- * Whether anything is open in the editor. On a phone this is what hands the
- * editor the whole screen -- the shell's bars step aside, and the Back gesture
- * closes the clip rather than leaving the tab -- so the shell reads it here
- * instead of asking the page.
- */
-export function selectEditing(state: EditorStoreState): boolean {
-  return state.pool.length > 0;
 }
 
 /**

@@ -1,8 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <!-- The app opens in the phone's theme; the window matches the page's
-         background (the page's bg token) so the launch does not flash before it has painted.
-         values-night has the dark one. -->
-    <color name="app_background">#FFF5F5F7</color>
-    <color name="app_accent">#FFFF8A4C</color>
-</resources>

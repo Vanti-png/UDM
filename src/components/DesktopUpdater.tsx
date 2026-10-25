@@ -4,7 +4,6 @@ import { useEffect } from 'react';
 import { Spinner } from '@/components/ui/Spinner';
 import { useTranslation } from '@/i18n';
 import { FADE } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import { useAnalysisStore } from '@/stores/useAnalysisStore';
 import { selectConvertInFlight, useConvertStore } from '@/stores/useConvertStore';
 import { selectInFlightCount, useQueueStore } from '@/stores/useQueueStore';
@@ -64,9 +63,6 @@ export function DesktopUpdater() {
   const toolsQuiet = useToolsStore((state) => Object.keys(state.installing).length === 0);
 
   useEffect(() => {
-    // The phone asks first (see `UpdatePrompt`); installing unasked there
-    // would throw the system installer at the user out of nowhere.
-    if (IS_MOBILE) return;
     void checkAndStage();
 
     const onReturn = () => {

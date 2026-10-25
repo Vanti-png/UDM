@@ -34,7 +34,6 @@ import {
   watermarkState,
 } from '@/lib/downloadOptions';
 import { formatBytes, truncateMiddle } from '@/lib/format';
-import { IS_MOBILE } from '@/lib/platform';
 import * as ipc from '@/services/ipc';
 import type { DownloadOptions } from '@/stores/useAnalysisStore';
 import { useToolsStore } from '@/stores/useToolsStore';
@@ -224,7 +223,7 @@ export function DownloadOptionsPanel({
         <div
           className={cn(
             'flex items-center gap-2 rounded-[var(--radius-control)] bg-fill pl-3 pr-1',
-            IS_MOBILE ? 'h-12' : 'h-9',
+            'h-9',
           )}
         >
           <FolderOpen size={15} className="shrink-0 text-fg-muted" />
@@ -232,22 +231,19 @@ export function DownloadOptionsPanel({
             <span
               className={cn(
                 'min-w-0 flex-1 truncate text-fg',
-                IS_MOBILE ? 'text-[15px]' : 'text-[13.5px]',
+                'text-[13.5px]',
               )}
             >
               {truncateMiddle(outputDir, 46)}
             </span>
           </Tooltip>
-          {/* Android has no folder picker that yields a writable path. */}
-          {!IS_MOBILE && (
-            <button
-              type="button"
-              onClick={pickFolder}
-              className="pressable h-7 shrink-0 rounded-[7px] px-2 text-[12.5px] font-medium text-accent hover:bg-accent-soft"
-            >
-              {t('options.change')}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={pickFolder}
+            className="pressable h-7 shrink-0 rounded-[7px] px-2 text-[12.5px] font-medium text-accent hover:bg-accent-soft"
+          >
+            {t('options.change')}
+          </button>
         </div>
       </div>
 

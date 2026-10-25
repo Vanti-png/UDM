@@ -6,13 +6,6 @@
 //! JavaScript runtime is 40 MB that plenty of installs never need. All are
 //! fetched once, on request, into the app's own data directory -- and a copy
 //! the user already has on PATH is preferred over downloading anything at all.
-//!
-//! Android differs in two respects: nothing an app downloads may be executed
-//! there, so FFmpeg ships inside the APK and is always present, and the
-//! JavaScript runtime is not a tool at all -- the APK carries QuickJS, which
-//! `android.rs` hands the engine directly. yt-dlp is still fetched on request
-//! -- it is a Python program, and the interpreter that runs it is the part the
-//! APK carries.
 
 use std::collections::HashMap;
 use std::io::Write;
@@ -30,43 +23,28 @@ use crate::model::{ToolKind, ToolSource, ToolStatus, ToolUpdateCheck, ToolsState
 use crate::settings::Settings;
 use crate::{log_info, log_warn, paths, process};
 
-#[cfg(not(target_os = "android"))]
 const ENGINE_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp.exe";
-
-/// The platform-independent zipapp, run by the Python the APK bundles.
-#[cfg(target_os = "android")]
-const ENGINE_URL: &str = "https://github.com/yt-dlp/yt-dlp/releases/latest/download/yt-dlp";
 
 /// The shared build is 77 MB against 170 MB for the static one, and the extra
 /// DLLs land in the same directory as the executable.
-#[cfg(not(target_os = "android"))]
 const FFMPEG_URL: &str =
     "https://github.com/yt-dlp/FFmpeg-Builds/releases/latest/download/ffmpeg-master-latest-win64-gpl-shared.zip";
 
 /// The file `FFMPEG_URL` fetches, by the name its release lists it under.
-#[cfg(not(target_os = "android"))]
 const FFMPEG_ASSET: &str = "ffmpeg-master-latest-win64-gpl-shared.zip";
 
-#[cfg(not(target_os = "android"))]
 const ENGINE_EXE: &str = "yt-dlp.exe";
-#[cfg(target_os = "android")]
-const ENGINE_EXE: &str = "yt-dlp";
-#[cfg(not(target_os = "android"))]
 const FFMPEG_EXE: &str = "ffmpeg.exe";
 
 /// Deno rather than Node or Bun: it is the one runtime yt-dlp looks for by
 /// itself, so it is the best-supported path and keeps working even if this app
 /// stops naming it. The Windows release is a single executable in a zip.
-#[cfg(not(target_os = "android"))]
 const JS_RUNTIME_URL: &str =
     "https://github.com/denoland/deno/releases/latest/download/deno-x86_64-pc-windows-msvc.zip";
 
-#[cfg(not(target_os = "android"))]
 const JS_RUNTIME_EXE: &str = "deno.exe";
 
-/// The managed runtime's own directory. Not `runtime`, which on Android is
-/// where the libraries unpacked from the APK go.
-#[cfg(not(target_os = "android"))]
+/// The managed runtime's own directory.
 const JS_RUNTIME_DIR: &str = "js";
 
 static STATE: Lazy<RwLock<ToolsState>> = Lazy::new(|| RwLock::new(blank_state()));
@@ -75,7 +53,6 @@ fn blank_state() -> ToolsState {
     ToolsState {
         engine: ToolStatus::missing(ToolKind::Engine),
         ffmpeg: ToolStatus::missing(ToolKind::Ffmpeg),
-        #[cfg(not(target_os = "android"))]
         js_runtime: ToolStatus::missing(ToolKind::JsRuntime),
     }
 }
@@ -135,7 +112,6 @@ pub fn ffmpeg_path() -> Option<PathBuf> {
 /// before this tool existed still works without it, so a missing runtime is
 /// never a reason to refuse a link -- it only costs the formats that have to be
 /// deciphered, which is the signed-in half of YouTube.
-#[cfg(not(target_os = "android"))]
 pub fn js_runtime_path() -> Option<PathBuf> {
     let state = STATE.read().ok()?;
     state
@@ -154,31 +130,20 @@ pub fn require_ffmpeg() -> AppResult<PathBuf> {
 }
 
 /// What yt-dlp is given as `--ffmpeg-location`, so it uses the same FFmpeg the
-/// app does rather than whatever is on PATH.
-///
-/// Normally that is the containing directory. On Android the binaries are
-/// named `libffmpeg.so` and `libffprobe.so`, which yt-dlp would not find by
-/// looking in a directory; handed the file itself, it takes the name as given
-/// and derives the ffprobe beside it by substituting the word.
+/// app does rather than whatever is on PATH: the directory that holds it.
 pub fn ffmpeg_location() -> Option<String> {
     let ffmpeg = ffmpeg_path()?;
-    #[cfg(target_os = "android")]
-    let location = Some(ffmpeg.as_path());
-    #[cfg(not(target_os = "android"))]
-    let location = ffmpeg.parent();
-    location.map(|path| path.to_string_lossy().into_owned())
+    ffmpeg.parent().map(|path| path.to_string_lossy().into_owned())
 }
 
 fn managed_engine() -> AppResult<PathBuf> {
     Ok(paths::tools_dir()?.join(ENGINE_EXE))
 }
 
-#[cfg(not(target_os = "android"))]
 fn managed_ffmpeg() -> AppResult<PathBuf> {
     Ok(paths::tools_dir()?.join("ffmpeg").join(FFMPEG_EXE))
 }
 
-#[cfg(not(target_os = "android"))]
 fn managed_js_runtime() -> AppResult<PathBuf> {
     Ok(paths::tools_dir()?.join(JS_RUNTIME_DIR).join(JS_RUNTIME_EXE))
 }
@@ -223,33 +188,19 @@ pub async fn discovered(settings: &Settings) -> ToolsState {
 pub async fn discover_for_analysis(settings: &Settings) -> ToolsState {
     let _pass = DISCOVERY.lock().await;
 
-    #[cfg(target_os = "android")]
-    prepare_android_runtime(false).await;
-
     let engine = detect_kind(ToolKind::Engine, settings).await;
-    #[cfg(not(target_os = "android"))]
     let js_runtime = detect_kind(ToolKind::JsRuntime, settings).await;
 
     publish(|state| {
         state.engine = engine;
-        #[cfg(not(target_os = "android"))]
-        {
-            state.js_runtime = js_runtime;
-        }
+        state.js_runtime = js_runtime;
     })
 }
 
 /// The caller holds `DISCOVERY`.
 async fn discover_all(settings: &Settings) -> ToolsState {
-    // Neither tool can start until the libraries they link against have been
-    // unpacked from the APK. That is a no-op on every launch but the first
-    // after an install or update.
-    #[cfg(target_os = "android")]
-    prepare_android_runtime(false).await;
-
     let engine = detect_kind(ToolKind::Engine, settings).await;
     let ffmpeg = detect_kind(ToolKind::Ffmpeg, settings).await;
-    #[cfg(not(target_os = "android"))]
     let js_runtime = detect_kind(ToolKind::JsRuntime, settings).await;
 
     // What the encoders and filters answered belongs to the FFmpeg that
@@ -260,10 +211,7 @@ async fn discover_all(settings: &Settings) -> ToolsState {
     let state = publish(|state| {
         state.engine = engine;
         state.ffmpeg = ffmpeg;
-        #[cfg(not(target_os = "android"))]
-        {
-            state.js_runtime = js_runtime;
-        }
+        state.js_runtime = js_runtime;
     });
     DISCOVERED.store(true, Ordering::SeqCst);
     state
@@ -329,8 +277,8 @@ pub async fn encoder_runs(name: &str) -> bool {
         // Asked at the speed an export would ask for, so that the answer
         // covers the settings as well as the encoder. It also keeps the
         // question short: libaom left at its own default is several times
-        // slower than an export runs it, and on a phone fifteen frames of
-        // that can outlast the timeout below.
+        // slower than an export runs it, and on a slow machine fifteen frames
+        // of that can outlast the timeout below.
         args.extend(crate::ffmpeg::speed_args(&encoder));
         // Nothing is kept. The question is whether the encoder opens and takes
         // frames, and a file on disk would not answer it any better.
@@ -400,11 +348,10 @@ pub async fn preferred_encoder(codec: VideoCodec, hardware: bool) -> String {
 /// The encoder that needs nothing but the processor, as this FFmpeg has it.
 ///
 /// Only AV1 has a choice to make. SVT-AV1 is by far the fastest of the three
-/// and is asked first. Both FFmpeg builds this app runs were configured with
-/// it -- the phone's as well, whose runtime carries `libSvtAv1Enc.so` -- but a
-/// listed encoder is only a claim (see [`encoder_runs`]), and the phone's one
-/// build goes to every kind of processor, which is where that claim is most
-/// likely to be wrong. libaom and rav1e are in both builds and are asked next.
+/// and is asked first. The FFmpeg build this app installs was configured with
+/// it, but a listed encoder is only a claim (see [`encoder_runs`]), and a
+/// build that goes to every kind of processor is where that claim is most
+/// likely to be wrong. libaom and rav1e are in the build and are asked next.
 /// All three are asked the same way a graphics card is, by running them. When
 /// none of them answers the first is returned anyway, so that the failure the
 /// user sees names the encoder they would have expected rather than the least
@@ -461,7 +408,6 @@ fn slot(state: &mut ToolsState, kind: ToolKind) -> &mut ToolStatus {
     match kind {
         ToolKind::Engine => &mut state.engine,
         ToolKind::Ffmpeg => &mut state.ffmpeg,
-        #[cfg(not(target_os = "android"))]
         ToolKind::JsRuntime => &mut state.js_runtime,
     }
 }
@@ -474,7 +420,6 @@ async fn detect_kind(kind: ToolKind, settings: &Settings) -> ToolStatus {
         ToolKind::Ffmpeg => {
             detect(kind, ffmpeg_candidates(settings), &["-version".to_string()]).await
         }
-        #[cfg(not(target_os = "android"))]
         ToolKind::JsRuntime => {
             detect(kind, js_runtime_candidates(), &["--version".to_string()]).await
         }
@@ -483,12 +428,10 @@ async fn detect_kind(kind: ToolKind, settings: &Settings) -> ToolStatus {
 
 /// Order matters: an explicit choice wins, then the copy this app manages,
 /// then whatever the system already provides.
-#[cfg(not(target_os = "android"))]
 fn engine_candidates(settings: &Settings) -> Vec<(PathBuf, ToolSource)> {
     ordered_candidates(settings.engine_path.as_deref(), managed_engine().ok(), "yt-dlp")
 }
 
-#[cfg(not(target_os = "android"))]
 fn ffmpeg_candidates(settings: &Settings) -> Vec<(PathBuf, ToolSource)> {
     ordered_candidates(settings.ffmpeg_path.as_deref(), managed_ffmpeg().ok(), "ffmpeg")
 }
@@ -499,7 +442,6 @@ fn ffmpeg_candidates(settings: &Settings) -> Vec<(PathBuf, ToolSource)> {
 /// two. Node and Bun are looked for beside Deno because the engine is happy
 /// with any of them once it is told where one is, and a machine that has one
 /// should not be asked to fetch 40 MB to learn nothing new.
-#[cfg(not(target_os = "android"))]
 fn js_runtime_candidates() -> Vec<(PathBuf, ToolSource)> {
     managed_js_runtime()
         .ok()
@@ -513,7 +455,6 @@ fn js_runtime_candidates() -> Vec<(PathBuf, ToolSource)> {
         .collect()
 }
 
-#[cfg(not(target_os = "android"))]
 fn ordered_candidates(
     custom: Option<&str>,
     managed: Option<PathBuf>,
@@ -527,31 +468,6 @@ fn ordered_candidates(
     .into_iter()
     .flatten()
     .collect()
-}
-
-/// A custom path cannot be honoured on Android: a file the user points at
-/// would not be allowed to run. Only the managed copy counts.
-#[cfg(target_os = "android")]
-fn engine_candidates(_settings: &Settings) -> Vec<(PathBuf, ToolSource)> {
-    managed_engine()
-        .ok()
-        .map(|path| (path, ToolSource::Managed))
-        .into_iter()
-        .collect()
-}
-
-#[cfg(target_os = "android")]
-fn ffmpeg_candidates(_settings: &Settings) -> Vec<(PathBuf, ToolSource)> {
-    vec![(crate::android::ffmpeg_binary(), ToolSource::Bundled)]
-}
-
-#[cfg(target_os = "android")]
-async fn prepare_android_runtime(force: bool) {
-    match tokio::task::spawn_blocking(move || crate::android::prepare_runtime(force)).await {
-        Ok(Ok(())) => {}
-        Ok(Err(err)) => log_warn!("tools", "the bundled runtime could not be unpacked: {err}"),
-        Err(err) => log_warn!("tools", "unpacking the bundled runtime panicked: {err}"),
-    }
 }
 
 // -- remembering what a version check answered ------------------------------
@@ -712,7 +628,6 @@ fn parse_version(kind: ToolKind, stdout: &str) -> String {
         // Three runtimes, three shapes: "deno 2.9.7 (stable, ...)", Node's
         // bare "v22.11.0", Bun's bare "1.1.0". The first word that starts
         // with a digit is the version in all of them.
-        #[cfg(not(target_os = "android"))]
         ToolKind::JsRuntime => first
             .split_whitespace()
             .map(|word| word.trim_start_matches('v'))
@@ -724,24 +639,19 @@ fn parse_version(kind: ToolKind, stdout: &str) -> String {
 
 // -- whether a newer release exists -----------------------------------------
 
-/// Where the engine is released. One repository on every platform: the
-/// Windows executable and the zipapp the phone runs are two files of the same
-/// release.
+/// Where the engine is released.
 const ENGINE_REPOSITORY: &str = "yt-dlp/yt-dlp";
 
-#[cfg(not(target_os = "android"))]
 const JS_RUNTIME_REPOSITORY: &str = "denoland/deno";
 
 /// FFmpeg's builds are the files of a single release that is rebuilt in place,
 /// so there is no version to compare -- only the release's own record of which
 /// file is up now.
-#[cfg(not(target_os = "android"))]
 const FFMPEG_RELEASE_API: &str =
     "https://api.github.com/repos/yt-dlp/FFmpeg-Builds/releases/tags/latest";
 
 /// Kept inside the managed FFmpeg's directory: which file of the release it
 /// was unpacked from.
-#[cfg(not(target_os = "android"))]
 const FFMPEG_BUILD_MARKER: &str = "build.json";
 
 /// Each request a check makes. Someone is watching a spinner for the length of
@@ -769,11 +679,6 @@ pub async fn check_update(kind: ToolKind, settings: &Settings) -> AppResult<Tool
                 .is_some_and(|version| version_at_least(version, &tag));
             (Some(tag), current)
         }
-        // Part of the APK, so exactly as new as the app. There is no other
-        // copy to fetch, and its row has nothing to press.
-        #[cfg(target_os = "android")]
-        ToolKind::Ffmpeg => (installed.clone(), status.available),
-        #[cfg(not(target_os = "android"))]
         ToolKind::Ffmpeg => {
             let client = crate::net::client(settings)?;
             let remote = ffmpeg_release(&client).await?;
@@ -790,7 +695,6 @@ pub async fn check_update(kind: ToolKind, settings: &Settings) -> AppResult<Tool
             let published = published_day(&remote.updated_at).map(|day| day.to_string());
             (published, current)
         }
-        #[cfg(not(target_os = "android"))]
         ToolKind::JsRuntime => {
             let client = crate::net::client(settings)?;
             let tag = latest_tag(&client, JS_RUNTIME_REPOSITORY).await?;
@@ -917,7 +821,6 @@ fn version_at_least(installed: &str, latest: &str) -> bool {
 
 /// One build of the FFmpeg release, as the release lists its file. This is
 /// also what is kept beside a managed copy, to say which build it is.
-#[cfg(not(target_os = "android"))]
 #[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 struct FfmpegBuild {
     id: u64,
@@ -925,14 +828,12 @@ struct FfmpegBuild {
     updated_at: String,
 }
 
-#[cfg(not(target_os = "android"))]
 #[derive(serde::Deserialize)]
 struct FfmpegRelease {
     #[serde(default)]
     assets: Vec<FfmpegReleaseAsset>,
 }
 
-#[cfg(not(target_os = "android"))]
 #[derive(serde::Deserialize)]
 struct FfmpegReleaseAsset {
     name: String,
@@ -941,7 +842,6 @@ struct FfmpegReleaseAsset {
     updated_at: String,
 }
 
-#[cfg(not(target_os = "android"))]
 async fn ffmpeg_release(client: &reqwest::Client) -> AppResult<FfmpegBuild> {
     let release: FfmpegRelease = github_json(client, FFMPEG_RELEASE_API).await?;
     ffmpeg_build_in(release).ok_or_else(|| {
@@ -949,7 +849,6 @@ async fn ffmpeg_release(client: &reqwest::Client) -> AppResult<FfmpegBuild> {
     })
 }
 
-#[cfg(not(target_os = "android"))]
 fn ffmpeg_build_in(release: FfmpegRelease) -> Option<FfmpegBuild> {
     release
         .assets
@@ -962,7 +861,6 @@ fn ffmpeg_build_in(release: FfmpegRelease) -> Option<FfmpegBuild> {
         })
 }
 
-#[cfg(not(target_os = "android"))]
 fn read_ffmpeg_marker(dir: &Path) -> Option<FfmpegBuild> {
     let bytes = std::fs::read(dir.join(FFMPEG_BUILD_MARKER)).ok()?;
     serde_json::from_slice(&bytes).ok()
@@ -978,7 +876,6 @@ fn read_ffmpeg_marker(dir: &Path) -> Option<FfmpegBuild> {
 /// would notice -- which from the outside looks like an app that cannot tell
 /// it is up to date. A month behind is where what has changed starts to be
 /// worth a download that size.
-#[cfg(not(target_os = "android"))]
 const FFMPEG_CURRENT_FOR_DAYS: i64 = 30;
 
 /// Whether the FFmpeg in use counts as current: at most
@@ -992,7 +889,6 @@ const FFMPEG_CURRENT_FOR_DAYS: i64 = 30;
 /// a build goes up some hours after it is made, which the month more than
 /// covers. A version with no day in it is not claimed to be current, and a copy
 /// newer than the release is never behind it.
-#[cfg(not(target_os = "android"))]
 fn ffmpeg_is_current(
     marker: Option<&FfmpegBuild>,
     version: Option<&str>,
@@ -1015,7 +911,6 @@ fn ffmpeg_is_current(
 }
 
 /// The day at the end of a build's version: "N-126767-g7499a8ba58-20260922".
-#[cfg(not(target_os = "android"))]
 fn ffmpeg_build_day(version: &str) -> Option<chrono::NaiveDate> {
     let last = version.trim().rsplit('-').next()?;
     if last.len() != 8 || !last.bytes().all(|byte| byte.is_ascii_digit()) {
@@ -1025,7 +920,6 @@ fn ffmpeg_build_day(version: &str) -> Option<chrono::NaiveDate> {
 }
 
 /// The day, in UTC, of a GitHub timestamp such as "2026-09-22T18:21:33Z".
-#[cfg(not(target_os = "android"))]
 fn published_day(timestamp: &str) -> Option<chrono::NaiveDate> {
     chrono::DateTime::parse_from_rfc3339(timestamp)
         .ok()
@@ -1045,7 +939,6 @@ pub async fn install(
     match kind {
         ToolKind::Engine => install_engine(settings, on_progress).await?,
         ToolKind::Ffmpeg => install_ffmpeg(settings, on_progress).await?,
-        #[cfg(not(target_os = "android"))]
         ToolKind::JsRuntime => install_js_runtime(settings, on_progress).await?,
     }
 
@@ -1104,17 +997,6 @@ async fn install_engine(settings: &Settings, on_progress: InstallProgress<'_>) -
     replace_path(&temp, &target)
 }
 
-/// FFmpeg is part of the APK, so "installing" it can only mean unpacking its
-/// libraries again -- which is also the repair for a damaged copy.
-#[cfg(target_os = "android")]
-async fn install_ffmpeg(_settings: &Settings, on_progress: InstallProgress<'_>) -> AppResult<()> {
-    on_progress(0, None, "extracting");
-    tokio::task::spawn_blocking(|| crate::android::prepare_runtime(true))
-        .await
-        .map_err(|err| AppError::Other(format!("unpacking FFmpeg failed: {err}")))?
-}
-
-#[cfg(not(target_os = "android"))]
 async fn install_ffmpeg(settings: &Settings, on_progress: InstallProgress<'_>) -> AppResult<()> {
     let tools_dir = paths::tools_dir()?;
     let dir = tools_dir.join("ffmpeg");
@@ -1172,7 +1054,6 @@ async fn install_ffmpeg(settings: &Settings, on_progress: InstallProgress<'_>) -
 /// live copy, swap the directory in whole. One executable rather than a
 /// directory's worth would fit in a plain file swap, but a release that one day
 /// ships a DLL beside it would then land half-installed.
-#[cfg(not(target_os = "android"))]
 async fn install_js_runtime(settings: &Settings, on_progress: InstallProgress<'_>) -> AppResult<()> {
     let tools_dir = paths::tools_dir()?;
     let dir = tools_dir.join(JS_RUNTIME_DIR);
@@ -1258,7 +1139,6 @@ fn remove_path(path: &Path) {
 
 /// Pull just the executables and their DLLs out of the release archive.
 /// `ffplay` is skipped: nothing in this app plays media back.
-#[cfg(not(target_os = "android"))]
 fn extract_ffmpeg(archive: &Path, dest: &Path) -> AppResult<()> {
     let file = std::fs::File::open(archive)?;
     let mut zip = zip::ZipArchive::new(file)
@@ -1314,7 +1194,6 @@ fn extract_ffmpeg(archive: &Path, dest: &Path) -> AppResult<()> {
 /// nothing the engine is handed would look for one. The install fails outright
 /// if the executable itself was not among them -- an empty `js` directory would
 /// otherwise read as a runtime that merely refuses to start.
-#[cfg(not(target_os = "android"))]
 fn extract_js_runtime(archive: &Path, dest: &Path) -> AppResult<()> {
     let file = std::fs::File::open(archive)?;
     let mut zip = zip::ZipArchive::new(file).map_err(|err| {
@@ -1357,7 +1236,6 @@ fn extract_js_runtime(archive: &Path, dest: &Path) -> AppResult<()> {
     Ok(())
 }
 
-#[cfg(not(target_os = "android"))]
 fn at_archive_root(path: &Path) -> bool {
     path.components().count() == 1
 }
@@ -1476,13 +1354,11 @@ mod tests {
     /// without renaming it there would leave the runtime installing into a
     /// card that never updates.
     #[test]
-    #[cfg(not(target_os = "android"))]
     fn the_js_runtime_is_called_what_the_interface_calls_it() {
         assert_eq!(ToolKind::JsRuntime.as_str(), "jsRuntime");
     }
 
     #[test]
-    #[cfg(not(target_os = "android"))]
     fn a_js_runtime_reports_a_version_whichever_runtime_it_is() {
         let version = |stdout: &str| parse_version(ToolKind::JsRuntime, stdout);
 
@@ -1498,7 +1374,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "android"))]
     fn only_the_top_of_the_runtime_archive_is_unpacked() {
         assert!(at_archive_root(Path::new("deno.exe")));
         assert!(at_archive_root(Path::new("LICENSE.md")));
@@ -1513,11 +1388,10 @@ mod tests {
         VideoCodec::Vp9,
     ];
 
-    /// The processor encoders each FFmpeg this app runs was built with. The
-    /// desktop list is the part of the downloaded build this app relies on.
-    /// The phone's build lists SVT-AV1 too, but it is left out here: this is
-    /// the phone's build on a processor SVT-AV1 will not open on, which is the
-    /// case the encoders after it in the AV1 list are there for.
+    /// The processor encoders the FFmpeg this app installs was built with: the
+    /// part of the downloaded build this app relies on. The second list is the
+    /// same build on a processor SVT-AV1 will not open on, which is the case
+    /// the encoders after it in the AV1 list are there for.
     const DESKTOP_BUILD: [&str; 6] = [
         "libx264",
         "libx265",
@@ -1526,7 +1400,7 @@ mod tests {
         "libaom-av1",
         "librav1e",
     ];
-    const ANDROID_BUILD: [&str; 5] = ["libx264", "libx265", "libvpx-vp9", "libaom-av1", "librav1e"];
+    const WITHOUT_SVT: [&str; 5] = ["libx264", "libx265", "libvpx-vp9", "libaom-av1", "librav1e"];
 
     /// The order is by how much work is taken off the processor, and every list
     /// ends somewhere that needs no hardware at all -- on every build this app
@@ -1541,7 +1415,7 @@ mod tests {
             }
             for (build, carries) in [
                 ("desktop", &DESKTOP_BUILD[..]),
-                ("android", &ANDROID_BUILD[..]),
+                ("no SVT-AV1", &WITHOUT_SVT[..]),
             ] {
                 assert!(
                     processors.iter().any(|encoder| carries.contains(encoder)),
@@ -1624,7 +1498,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "android"))]
     fn an_ffmpeg_build_is_dated_by_the_end_of_its_version() {
         let day = |y, m, d| chrono::NaiveDate::from_ymd_opt(y, m, d);
 
@@ -1644,7 +1517,6 @@ mod tests {
         assert_eq!(published_day("yesterday"), None);
     }
 
-    #[cfg(not(target_os = "android"))]
     fn published_build() -> FfmpegBuild {
         FfmpegBuild {
             id: 581977991,
@@ -1654,7 +1526,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "android"))]
     fn without_a_record_an_ffmpeg_is_current_within_a_month_of_the_build() {
         // The release went up on 22 September.
         let remote = published_build();
@@ -1681,7 +1552,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "android"))]
     fn with_a_record_an_ffmpeg_is_as_old_as_the_file_it_came_from() {
         let remote = published_build();
         let installed_on = |updated_at: &str| FfmpegBuild {
@@ -1718,7 +1588,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "android"))]
     fn the_release_record_names_the_file_that_is_downloaded() {
         assert!(FFMPEG_URL.ends_with(&format!("/{FFMPEG_ASSET}")));
 
@@ -1742,7 +1611,6 @@ mod tests {
     }
 
     #[test]
-    #[cfg(not(target_os = "android"))]
     fn the_build_record_reads_back_what_was_written() {
         let dir = scratch("marker");
         assert_eq!(read_ffmpeg_marker(&dir), None);

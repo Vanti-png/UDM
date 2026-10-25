@@ -8,7 +8,6 @@ import { useMomentary } from '@/hooks/useMomentary';
 import { errorCopy, useTranslation } from '@/i18n';
 import { cn } from '@/lib/cn';
 import { T, rise } from '@/lib/motion';
-import { IS_MOBILE } from '@/lib/platform';
 import type { AppErrorInfo } from '@/types';
 
 interface ErrorCardProps {
@@ -21,16 +20,15 @@ interface ErrorCardProps {
 
 /**
  * User-facing failure. The plain-language pair comes from the dictionary
- * keyed by the error code, with the backend's English text as the fallback
- * and the phone's own sentence where it has one; the raw technical detail
- * stays collapsed until asked for.
+ * keyed by the error code, with the backend's English text as the fallback;
+ * the raw technical detail stays collapsed until asked for.
  */
 export function ErrorCard({ error, onRetry, extraAction, actionError }: ErrorCardProps) {
   const { t } = useTranslation();
   const [showDetails, setShowDetails] = useState(false);
   const [copied, markCopied] = useMomentary();
 
-  const { title, message } = errorCopy(error, IS_MOBILE);
+  const { title, message } = errorCopy(error);
 
   const copyDetails = async () => {
     if (!error.technical) return;

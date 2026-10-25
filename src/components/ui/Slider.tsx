@@ -1,7 +1,6 @@
 import { useId } from 'react';
 
 import { cn } from '@/lib/cn';
-import { IS_MOBILE } from '@/lib/platform';
 
 interface SliderProps {
   value: number;
@@ -46,7 +45,7 @@ export function Slider({
         ) : (
           <span aria-hidden="true" />
         )}
-        <span className={cn('tabular text-fg-muted', IS_MOBILE ? 'text-[14px]' : 'text-[13px]')}>
+        <span className={cn('tabular text-fg-muted', 'text-[13px]')}>
           {formatValue ? formatValue(value) : value}
         </span>
       </div>
@@ -67,9 +66,7 @@ export function Slider({
           'disabled:pointer-events-none disabled:opacity-40',
           '[&::-webkit-slider-thumb]:appearance-none',
           // A thumb a finger can find without covering the value it sets.
-          IS_MOBILE
-            ? 'my-3 h-1 [&::-webkit-slider-thumb]:size-7'
-            : 'my-2 h-1 [&::-webkit-slider-thumb]:size-[18px]',
+          'my-2 h-1 [&::-webkit-slider-thumb]:size-[18px]',
           '[&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-white',
           '[&::-webkit-slider-thumb]:shadow-[0_0_0_0.5px_rgb(0_0_0/0.08),0_2px_6px_rgb(0_0_0/0.22)]',
         )}

@@ -24,9 +24,8 @@ import { cn } from '@/lib/cn';
 import { soundSpans, type Cut } from '@/lib/editor/segments';
 import { rulerFor, ticksIn } from '@/lib/editor/ticks';
 import { snap, toFrame, type SnapTarget } from '@/lib/editor/snap';
-import { MAX_PPS, ZOOM_STEP, clampPps, fitPps, scrollToShow, zoomAbout } from '@/lib/editor/zoom';
+import { MAX_PPS, ZOOM_STEP, fitPps, scrollToShow, zoomAbout } from '@/lib/editor/zoom';
 import { formatDuration, formatTimecode } from '@/lib/format';
-import { IS_MOBILE } from '@/lib/platform';
 import type { FilmstripData, WaveformData } from '@/types';
 
 /**
@@ -44,77 +43,30 @@ import type { FilmstripData, WaveformData } from '@/types';
  *
  * The cost is a scrollbar of our own, at the foot. It earns its place: it is
  * also the only view of the whole file once the timeline is zoomed in.
- *
- * On a phone the same dock is worked with a thumb. Its tools move up to the
- * page's transport row, its marks get grab areas a fingertip can find, two
- * fingers zoom it, and the file is laid out with a gutter at either end --
- * so the first and last edges are not pressed against the side of the screen,
- * where Android takes a sideways swipe as its Back gesture.
  */
 
-/** Worked by touch rather than by a pointer and a keyboard. */
-const TOUCH = IS_MOBILE;
-
 /** The strip of frames, and the sound under it. */
-const VIDEO_TRACK_H = TOUCH ? 56 : 68;
-const AUDIO_TRACK_H = TOUCH ? 32 : 40;
+const VIDEO_TRACK_H = 68;
+const AUDIO_TRACK_H = 40;
 /** An added sound's lane: a name over where it plays, not a picture of it. */
-const SOUND_TRACK_H = TOUCH ? 22 : 24;
+const SOUND_TRACK_H = 24;
 /**
  * What the dock grows by while a clip has a sound under it -- the lane and the
  * gap above it -- for a page that gives the dock a height of its own.
  */
 export const SOUND_LANE_ROOM = SOUND_TRACK_H + 6;
-const RULER_H = TOUCH ? 20 : 24;
+const RULER_H = 24;
 const TOOLBAR_H = 36;
 const SCROLLBAR_H = 10;
-/** The overview bar draws the same thin line on a phone, but a thumb has to find it. */
-const OVERVIEW_TOUCH_H = 22;
 
-/**
- * The grab area of a cut's edge. A 3px target is a 3px target however good it
- * looks, and a fingertip needs the 44 a touch screen asks for.
- */
-const HANDLE_W = TOUCH ? 44 : 11;
-/**
- * How far a fingertip's grab area reaches outside the piece; the rest of it
- * lies inside. Two pieces that meet share a line, and this way the half of the
- * seam on each side belongs to the piece on that side.
- */
-const HANDLE_OUT = 12;
-
-/** The clear space at either end of the file, in pixels. None with a pointer. */
-const GUTTER = TOUCH ? 22 : 0;
-
-/** The room an mm:ss label takes on the ruler, its padding included. */
-const LABEL_ROOM = 30;
-
-/**
- * The snap radius is set in pixels (see snap.ts), and a fingertip lands less
- * exactly than a pointer: on a phone the scale handed to it is shrunk, which
- * widens the same six pixels to about ten.
- */
-const SNAP_REACH = TOUCH ? 0.6 : 1;
+/** The grab area of a cut's edge. A 3px target is a 3px target however good it looks. */
+const HANDLE_W = 11;
 
 type Grip =
   | { kind: 'playhead' }
   | { kind: 'edge'; id: string; edge: 'start' | 'end' }
   | { kind: 'pan'; originX: number; originStart: number }
   | { kind: 'scrollbar'; grabOffset: number };
-
-/**
- * How soon after the first finger a second one still makes the touch a pinch
- * from the start, rather than a scrub that turned into one.
- */
-const PINCH_GRACE_MS = 300;
-
-/** Two fingers on the track: how far apart they started, and what was under them. */
-interface Pinch {
-  distance: number;
-  pps: number;
-  /** The second that sat between the fingers, which stays between them. */
-  anchorSec: number;
-}
 
 export interface TimelineDockProps {
   /** The clip on the dock. Another one opens fitted, whatever its length. */
@@ -199,11 +151,6 @@ export const TimelineDock = memo(function TimelineDock({
   const grip = useRef<Grip | null>(null);
   /** How far the grabbed edge sat from the pointer when it was pressed. */
   const edgeOffset = useRef(0);
-  /** The fingers on the track, by pointer, at their latest x. Touch only. */
-  const fingers = useRef(new Map<number, number>());
-  const pinch = useRef<Pinch | null>(null);
-  /** Where the playhead stood before the finger on the track moved it, and when. Touch only. */
-  const scrubbed = useRef<{ from: number; at: number } | null>(null);
   const [width, setWidth] = useState(0);
   const [pps, setPps] = useState(1);
   const [viewStart, setViewStart] = useState(0);
@@ -211,19 +158,18 @@ export const TimelineDock = memo(function TimelineDock({
   const [fittedFor, setFittedFor] = useState<string | null>(null);
 
   const usable = durationSec > 0 ? durationSec : 1;
-  // The part of the track the file is laid across: all of it with a pointer,
-  // and all but the gutters on a phone. `viewStart` is the second at its left
+  // The track the file is laid across. `viewStart` is the second at its left
   // end, which is where the file begins when the view is at the start.
-  const span = Math.max(0, width - 2 * GUTTER);
+  const span = Math.max(0, width);
   const viewLength = span > 0 ? span / pps : usable;
   const maxStart = Math.max(0, usable - viewLength);
   // What the two canvases are told to draw, which is everything the track
-  // shows, gutters included, rather than the part of it the file reaches. A
-  // clip shorter than the track at this scale -- anything under width/MAX_PPS
-  // seconds -- has a window longer than itself, and handing the canvases the
-  // shortened end would make them spread the file over the whole track while
-  // the ruler, the playhead and the handles still sat at seconds * pps.
-  const windowStart = viewStart - GUTTER / pps;
+  // shows rather than the part of it the file reaches. A clip shorter than the
+  // track at this scale -- anything under width/MAX_PPS seconds -- has a window
+  // longer than itself, and handing the canvases the shortened end would make
+  // them spread the file over the whole track while the ruler, the playhead
+  // and the handles still sat at seconds * pps.
+  const windowStart = viewStart;
   const windowEnd = windowStart + (width > 0 ? width / pps : usable);
   // And the part of the file that is actually on screen.
   const shownStart = Math.max(0, windowStart);
@@ -254,8 +200,8 @@ export const TimelineDock = memo(function TimelineDock({
   // layout effect, so the clip switched to is never painted at the old scale.
   //
   // A view still at the scale it was fitted to has not been zoomed, so when
-  // the track itself changes width -- the sidebar collapsing, a phone turned
-  // on its side -- it is fitted again, or the file would cover half the track.
+  // the track itself changes width -- the sidebar collapsing, the window
+  // resized -- it is fitted again, or the file would cover half the track.
   // The fitted scale is a pure function of the length and the span, so being
   // exactly on it is the proof that nobody has zoomed since.
   const fitKey = `${clipId}|${durationSec}`;
@@ -278,14 +224,14 @@ export const TimelineDock = memo(function TimelineDock({
       const element = tracksRef.current;
       if (!element || pps <= 0) return 0;
       const rect = element.getBoundingClientRect();
-      const seconds = viewStart + (clientX - rect.left - GUTTER) / pps;
+      const seconds = viewStart + (clientX - rect.left) / pps;
       return bounded ? Math.min(Math.max(seconds, 0), usable) : seconds;
     },
     [pps, usable, viewStart],
   );
 
   const xOf = useCallback(
-    (seconds: number) => GUTTER + (seconds - viewStart) * pps,
+    (seconds: number) => (seconds - viewStart) * pps,
     [pps, viewStart],
   );
 
@@ -311,7 +257,7 @@ export const TimelineDock = memo(function TimelineDock({
 
       if (event.ctrlKey || event.metaKey) {
         const rect = element.getBoundingClientRect();
-        const anchorX = event.clientX - rect.left - GUTTER;
+        const anchorX = event.clientX - rect.left;
         const notches = -event.deltaY / 100;
         const next = zoomAbout(
           pps,
@@ -339,7 +285,7 @@ export const TimelineDock = memo(function TimelineDock({
   const zoomBy = useCallback(
     (factor: number) => {
       if (span <= 0) return;
-      const anchor = Math.min(Math.max(xOf(playhead.get()) - GUTTER, 0), span);
+      const anchor = Math.min(Math.max(xOf(playhead.get()), 0), span);
       const next = zoomAbout(pps, viewStart * pps, anchor, factor, usable, span);
       setPps(next.pps);
       setViewStart(next.scrollLeft / next.pps);
@@ -459,7 +405,7 @@ export const TimelineDock = memo(function TimelineDock({
   const place = useCallback(
     (seconds: number, useTargets: boolean, list: SnapTarget[]): number => {
       const result = useTargets
-        ? snap(seconds, list, pps * SNAP_REACH, snapping)
+        ? snap(seconds, list, pps, snapping)
         : { seconds, hit: null };
       setSnapHit(result.hit ? result.seconds : null);
       return toFrame(result.seconds, fps);
@@ -529,54 +475,8 @@ export const TimelineDock = memo(function TimelineDock({
   // export started, is a release that no pointer event will report.
   useEffect(() => letGo, [letGo]);
   useEffect(() => {
-    if (disabled) {
-      letGo();
-      pinch.current = null;
-      fingers.current.clear();
-    }
+    if (disabled) letGo();
   }, [disabled, letGo]);
-
-  // -- two fingers -----------------------------------------------------------
-  //
-  // A second finger on the track turns whatever the first one was doing into a
-  // pinch: the scale follows the distance between them, and the second that
-  // sat between them stays there, so the gesture zooms about what the user is
-  // looking at and moving both fingers together pans. Whatever the first
-  // finger held is let go first -- an edge it was dragging keeps the step it
-  // already made, as one step, and a playhead it had only just placed goes
-  // back to where it stood.
-
-  const beginPinch = useCallback(
-    (at: number) => {
-      const measured = fingerSpan(tracksRef.current, fingers.current);
-      if (!measured || pps <= 0) return;
-      // The first finger of a pinch lands a moment before the second, and a
-      // finger on the track moves the playhead the moment it lands -- so
-      // every zoom threw the playhead to wherever that finger happened to
-      // touch. It goes back, unless the finger had been scrubbing for a while
-      // first: then the position is one the user chose.
-      const scrub = grip.current?.kind === 'playhead' ? scrubbed.current : null;
-      letGo();
-      if (scrub && at - scrub.at < PINCH_GRACE_MS) onSeek(scrub.from);
-      pinch.current = {
-        distance: Math.max(1, measured.distance),
-        pps,
-        anchorSec: viewStart + measured.middle / pps,
-      };
-    },
-    [letGo, onSeek, pps, viewStart],
-  );
-
-  const applyPinch = useCallback(() => {
-    const held = pinch.current;
-    const measured = fingerSpan(tracksRef.current, fingers.current);
-    if (!held || !measured || span <= 0) return;
-    const scale = clampPps(
-      Math.max((held.pps * measured.distance) / held.distance, fitPps(usable, span)),
-    );
-    setPps(scale);
-    setViewStart(clampView(held.anchorSec - measured.middle / scale, scale));
-  }, [clampView, span, usable]);
 
   const beginDrag = useCallback(
     (next: Grip) => (event: React.PointerEvent) => {
@@ -590,15 +490,6 @@ export const TimelineDock = memo(function TimelineDock({
         event.currentTarget.setPointerCapture(event.pointerId);
       } catch {
         // Not capturable. The drag still works; it simply ends at the edge.
-      }
-      if (TOUCH && (next.kind === 'playhead' || next.kind === 'edge')) {
-        fingers.current.set(event.pointerId, event.clientX);
-        if (fingers.current.size > 1) {
-          if (!pinch.current) beginPinch(event.timeStamp);
-          return;
-        }
-        scrubbed.current =
-          next.kind === 'playhead' ? { from: playhead.get(), at: event.timeStamp } : null;
       }
       // A grip whose release was lost is closed before the next one opens.
       letGo();
@@ -615,21 +506,14 @@ export const TimelineDock = memo(function TimelineDock({
       }
       applyGrip(next, event);
     },
-    [applyGrip, beginPinch, cuts, disabled, letGo, onDragEdgeStart, playhead, secondsAt],
+    [applyGrip, cuts, disabled, letGo, onDragEdgeStart, secondsAt],
   );
 
   const onPointerMove = useCallback(
     (event: React.PointerEvent) => {
-      if (TOUCH && fingers.current.has(event.pointerId)) {
-        fingers.current.set(event.pointerId, event.clientX);
-        if (pinch.current) {
-          applyPinch();
-          return;
-        }
-      }
       if (grip.current) applyGrip(grip.current, event);
     },
-    [applyGrip, applyPinch],
+    [applyGrip],
   );
 
   const endDrag = useCallback(
@@ -640,16 +524,6 @@ export const TimelineDock = memo(function TimelineDock({
         }
       } catch {
         // Already released, along with the drag it belonged to.
-      }
-      if (TOUCH) {
-        fingers.current.delete(event.pointerId);
-        if (pinch.current) {
-          // One finger lifting ends the pinch. The one still down does nothing
-          // until it lifts too: taking the scrub back up from wherever it
-          // happens to rest would throw the playhead across the file.
-          if (fingers.current.size < 2) pinch.current = null;
-          return;
-        }
       }
       letGo();
     },
@@ -663,120 +537,109 @@ export const TimelineDock = memo(function TimelineDock({
     () => ticksIn(shownStart, shownEnd, ruler.minorStep),
     [ruler.minorStep, shownEnd, shownStart],
   );
-  const labelTicks = useMemo(() => {
-    const ticks = ticksIn(shownStart, shownEnd, ruler.labelStep);
-    // A label that would run off the right-hand end is left out rather than
-    // cut in half. With a pointer the view scrolls it into reach; a phone's
-    // track ends in a gutter too narrow for the last one.
-    if (!TOUCH || width <= 0) return ticks;
-    return ticks.filter((seconds) => GUTTER + (seconds - viewStart) * pps + LABEL_ROOM <= width);
-  }, [pps, ruler.labelStep, shownEnd, shownStart, viewStart, width]);
+  const labelTicks = useMemo(
+    () => ticksIn(shownStart, shownEnd, ruler.labelStep),
+    [ruler.labelStep, shownEnd, shownStart],
+  );
 
   const canDelete = cuts.length > 1 && selectedId != null;
   const zoomLabel = pps >= 1 ? `${Math.round(pps)} px/s` : `${(1 / pps).toFixed(0)} s/px`;
-  // The file's own extent on the track, which on a phone is what is filled:
-  // the gutters either side of it stay bare, and read as the ends of the film.
-  const fileLeft = xOf(0);
-  const fileRight = xOf(usable);
   const thumbLeft = (viewStart / usable) * 100;
   const thumbWidth = Math.min(100, (viewLength / usable) * 100);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
       {/* -- the tools ------------------------------------------------------ */}
-      {/* A phone's are the page's transport row, laid out for a thumb. */}
-      {!TOUCH && (
-        <div className="flex items-center gap-1 px-3" style={{ height: TOOLBAR_H }}>
-          <IconButton
-            size="sm"
-            icon={<Scissors size={15} />}
-            label={`${t('editor.split')} · Ctrl+B`}
-            disabled={disabled}
-            onClick={onSplit}
-          />
-          <IconButton
-            size="sm"
-            icon={<Trash2 size={15} />}
-            label={canDelete ? `${t('editor.deleteSegment')} · Delete` : t('editor.lastSegment')}
-            disabled={disabled || !canDelete}
-            onClick={onDelete}
-          />
-          <IconButton
-            size="sm"
-            icon={<Magnet size={15} />}
-            label={`${t('editor.snap')} · S`}
-            active={snapping}
-            disabled={disabled}
-            onClick={onToggleSnapping}
-          />
+      <div className="flex items-center gap-1 px-3" style={{ height: TOOLBAR_H }}>
+        <IconButton
+          size="sm"
+          icon={<Scissors size={15} />}
+          label={`${t('editor.split')} · Ctrl+B`}
+          disabled={disabled}
+          onClick={onSplit}
+        />
+        <IconButton
+          size="sm"
+          icon={<Trash2 size={15} />}
+          label={canDelete ? `${t('editor.deleteSegment')} · Delete` : t('editor.lastSegment')}
+          disabled={disabled || !canDelete}
+          onClick={onDelete}
+        />
+        <IconButton
+          size="sm"
+          icon={<Magnet size={15} />}
+          label={`${t('editor.snap')} · S`}
+          active={snapping}
+          disabled={disabled}
+          onClick={onToggleSnapping}
+        />
 
-          <div className="mx-auto flex items-center gap-1">
-            <IconButton
-              size="sm"
-              icon={<ChevronFirst size={15} />}
-              label={`${t('editor.toStart')} · Home`}
-              disabled={disabled}
-              onClick={() => onSeek(0)}
-            />
-            <IconButton
-              size="sm"
-              icon={<SkipBack size={15} />}
-              label={`${t('editor.stepBack')} · ←`}
-              disabled={disabled}
-              onClick={() => onStep(-1)}
-            />
-            <IconButton
-              size="sm"
-              icon={playing ? <Pause size={16} /> : <Play size={16} />}
-              label={`${playing ? t('editor.pause') : t('editor.play')} · Space`}
-              tone="accent"
-              disabled={disabled}
-              onClick={onPlayPause}
-            />
-            <IconButton
-              size="sm"
-              icon={<SkipForward size={15} />}
-              label={`${t('editor.stepForward')} · →`}
-              disabled={disabled}
-              onClick={() => onStep(1)}
-            />
-            <IconButton
-              size="sm"
-              icon={<ChevronLast size={15} />}
-              label={`${t('editor.toEnd')} · End`}
-              disabled={disabled}
-              onClick={() => onSeek(usable)}
-            />
-          </div>
-
+        <div className="mx-auto flex items-center gap-1">
           <IconButton
             size="sm"
-            icon={<ZoomOut size={15} />}
-            label={`${t('editor.zoomOut')} · −`}
-            disabled={disabled || pps <= fitPps(usable, span)}
-            onClick={() => zoomBy(1 / ZOOM_STEP)}
+            icon={<ChevronFirst size={15} />}
+            label={`${t('editor.toStart')} · Home`}
+            disabled={disabled}
+            onClick={() => onSeek(0)}
           />
-          <Tooltip label={`${t('editor.zoomFit')} · Ctrl+0`}>
-            <button
-              type="button"
-              onClick={zoomToFit}
-              className={cn(
-                'tabular pressable-sm h-7 min-w-[64px] rounded-[7px] px-2 text-[11.5px] text-fg-faint',
-                'hover:bg-fill hover:text-fg-muted',
-              )}
-            >
-              {zoomLabel}
-            </button>
-          </Tooltip>
           <IconButton
             size="sm"
-            icon={<ZoomIn size={15} />}
-            label={`${t('editor.zoomIn')} · +`}
-            disabled={disabled || pps >= MAX_PPS}
-            onClick={() => zoomBy(ZOOM_STEP)}
+            icon={<SkipBack size={15} />}
+            label={`${t('editor.stepBack')} · ←`}
+            disabled={disabled}
+            onClick={() => onStep(-1)}
+          />
+          <IconButton
+            size="sm"
+            icon={playing ? <Pause size={16} /> : <Play size={16} />}
+            label={`${playing ? t('editor.pause') : t('editor.play')} · Space`}
+            tone="accent"
+            disabled={disabled}
+            onClick={onPlayPause}
+          />
+          <IconButton
+            size="sm"
+            icon={<SkipForward size={15} />}
+            label={`${t('editor.stepForward')} · →`}
+            disabled={disabled}
+            onClick={() => onStep(1)}
+          />
+          <IconButton
+            size="sm"
+            icon={<ChevronLast size={15} />}
+            label={`${t('editor.toEnd')} · End`}
+            disabled={disabled}
+            onClick={() => onSeek(usable)}
           />
         </div>
-      )}
+
+        <IconButton
+          size="sm"
+          icon={<ZoomOut size={15} />}
+          label={`${t('editor.zoomOut')} · −`}
+          disabled={disabled || pps <= fitPps(usable, span)}
+          onClick={() => zoomBy(1 / ZOOM_STEP)}
+        />
+        <Tooltip label={`${t('editor.zoomFit')} · Ctrl+0`}>
+          <button
+            type="button"
+            onClick={zoomToFit}
+            className={cn(
+              'tabular pressable-sm h-7 min-w-[64px] rounded-[7px] px-2 text-[11.5px] text-fg-faint',
+              'hover:bg-fill hover:text-fg-muted',
+            )}
+          >
+            {zoomLabel}
+          </button>
+        </Tooltip>
+        <IconButton
+          size="sm"
+          icon={<ZoomIn size={15} />}
+          label={`${t('editor.zoomIn')} · +`}
+          disabled={disabled || pps >= MAX_PPS}
+          onClick={() => zoomBy(ZOOM_STEP)}
+        />
+      </div>
 
       {/* -- the file, in time ---------------------------------------------- */}
       <div
@@ -821,13 +684,9 @@ export const TimelineDock = memo(function TimelineDock({
         <div className="relative px-0" style={{ paddingTop: 6 }}>
           {/* The frames. */}
           <div
-            className={cn(
-              'relative overflow-hidden',
-              GUTTER === 0 && 'rounded-[6px] bg-surface-sunken',
-            )}
+            className="relative overflow-hidden rounded-[6px] bg-surface-sunken"
             style={{ height: VIDEO_TRACK_H }}
           >
-            {GUTTER > 0 && <Extent left={fileLeft} right={fileRight} />}
             <Filmstrip
               data={filmstrip}
               windowStartSec={windowStart}
@@ -873,13 +732,9 @@ export const TimelineDock = memo(function TimelineDock({
 
           {/* The sound. */}
           <div
-            className={cn(
-              'relative mt-1.5 overflow-hidden',
-              GUTTER === 0 && 'rounded-[6px] bg-surface-sunken',
-            )}
+            className="relative mt-1.5 overflow-hidden rounded-[6px] bg-surface-sunken"
             style={{ height: AUDIO_TRACK_H }}
           >
-            {GUTTER > 0 && <Extent left={fileLeft} right={fileRight} />}
             {hasAudio ? (
               <>
                 <Waveform
@@ -930,97 +785,31 @@ export const TimelineDock = memo(function TimelineDock({
       </div>
 
       {/* -- where we are in the whole file --------------------------------- */}
-      {TOUCH ? (
-        // A thumb's height of track under the same thin line. A press beside
-        // the thumb brings the view there and carries on as a drag of it.
+      <div
+        ref={barRef}
+        className="relative mx-3 my-1.5 shrink-0 rounded-full bg-fill"
+        style={{ height: SCROLLBAR_H - 4 }}
+        onPointerMove={onPointerMove}
+        onPointerUp={endDrag}
+        onPointerCancel={endDrag}
+      >
         <div
-          ref={barRef}
-          className={cn('relative shrink-0 touch-none', disabled && 'pointer-events-none')}
-          style={{ height: OVERVIEW_TOUCH_H, marginInline: GUTTER }}
+          role="scrollbar"
+          aria-controls="editor-timeline"
+          aria-orientation="horizontal"
+          aria-valuenow={Math.round((viewStart / Math.max(maxStart, 1e-6)) * 100)}
+          tabIndex={-1}
           onPointerDown={(event) => {
             const rect = event.currentTarget.getBoundingClientRect();
-            const grabOffset = ((thumbWidth / 100) * rect.width) / 2;
-            beginDrag({ kind: 'scrollbar', grabOffset })(event);
+            beginDrag({ kind: 'scrollbar', grabOffset: event.clientX - rect.left })(event);
           }}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-        >
-          <span
-            aria-hidden="true"
-            className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-fill"
-          />
-          <div
-            role="scrollbar"
-            aria-controls="editor-timeline"
-            aria-orientation="horizontal"
-            aria-valuenow={Math.round((viewStart / Math.max(maxStart, 1e-6)) * 100)}
-            tabIndex={-1}
-            onPointerDown={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              beginDrag({ kind: 'scrollbar', grabOffset: event.clientX - rect.left })(event);
-            }}
-            className="absolute inset-y-0"
-            style={{ left: `${thumbLeft}%`, width: `${thumbWidth}%` }}
-          >
-            <span
-              aria-hidden="true"
-              className="pointer-events-none absolute inset-x-0 top-1/2 h-1 -translate-y-1/2 rounded-full bg-fg-faint/45"
-            />
-          </div>
-        </div>
-      ) : (
-        <div
-          ref={barRef}
-          className="relative mx-3 my-1.5 shrink-0 rounded-full bg-fill"
-          style={{ height: SCROLLBAR_H - 4 }}
-          onPointerMove={onPointerMove}
-          onPointerUp={endDrag}
-          onPointerCancel={endDrag}
-        >
-          <div
-            role="scrollbar"
-            aria-controls="editor-timeline"
-            aria-orientation="horizontal"
-            aria-valuenow={Math.round((viewStart / Math.max(maxStart, 1e-6)) * 100)}
-            tabIndex={-1}
-            onPointerDown={(event) => {
-              const rect = event.currentTarget.getBoundingClientRect();
-              beginDrag({ kind: 'scrollbar', grabOffset: event.clientX - rect.left })(event);
-            }}
-            className="absolute inset-y-0 cursor-grab rounded-full bg-fg-faint/45 active:cursor-grabbing"
-            style={{ left: `${thumbLeft}%`, width: `${thumbWidth}%` }}
-          />
-        </div>
-      )}
+          className="absolute inset-y-0 cursor-grab rounded-full bg-fg-faint/45 active:cursor-grabbing"
+          style={{ left: `${thumbLeft}%`, width: `${thumbWidth}%` }}
+        />
+      </div>
     </div>
   );
 });
-
-/**
- * The first two fingers on the track: how far apart they are, and where the
- * point between them falls on the file's part of it.
- */
-function fingerSpan(
-  element: HTMLElement | null,
-  fingers: Map<number, number>,
-): { distance: number; middle: number } | null {
-  const [a, b] = [...fingers.values()];
-  if (!element || a == null || b == null) return null;
-  const rect = element.getBoundingClientRect();
-  return { distance: Math.abs(a - b), middle: (a + b) / 2 - rect.left - GUTTER };
-}
-
-/** The stretch of a track the file covers, filled; only drawn where there are gutters. */
-function Extent({ left, right }: { left: number; right: number }) {
-  return (
-    <span
-      aria-hidden="true"
-      className="pointer-events-none absolute inset-y-0 rounded-[6px] bg-surface-sunken"
-      style={{ left, width: Math.max(0, right - left) }}
-    />
-  );
-}
 
 /**
  * Where an added sound plays, by name. Each kept piece it reaches gets a bar,
@@ -1122,16 +911,7 @@ const CutBlock = memo(function CutBlock({
   onSelect: (id: string) => void;
   onGrab: (grip: Grip) => (event: React.PointerEvent) => void;
 }) {
-  // By touch, taking hold of an edge also picks the piece, so the Delete
-  // beside the play button means the piece the finger was just on.
-  const grab = (edge: 'start' | 'end') => {
-    const begin = onGrab({ kind: 'edge', id: cut.id, edge });
-    if (!TOUCH) return begin;
-    return (event: React.PointerEvent) => {
-      onSelect(cut.id);
-      begin(event);
-    };
-  };
+  const grab = (edge: 'start' | 'end') => onGrab({ kind: 'edge', id: cut.id, edge });
 
   return (
     <div
@@ -1168,11 +948,7 @@ const CutBlock = memo(function CutBlock({
   );
 });
 
-/**
- * One edge of one piece. With a pointer the grab area is centred on the line;
- * by touch it is a fingertip wide and lies mostly inside the piece (see
- * HANDLE_OUT), while the handle drawn on the line stays slim.
- */
+/** One edge of one piece, its grab area centred on the line. */
 function Edge({
   side,
   onPointerDown,
@@ -1185,18 +961,10 @@ function Edge({
     <div
       onPointerDown={onPointerDown}
       className={cn(
-        'group absolute inset-y-0 flex cursor-ew-resize touch-none items-center',
-        TOUCH
-          ? start
-            ? 'justify-start'
-            : 'justify-end'
-          : cn('justify-center', start ? 'left-0 -translate-x-1/2' : 'right-0 translate-x-1/2'),
+        'group absolute inset-y-0 flex cursor-ew-resize touch-none items-center justify-center',
+        start ? 'left-0 -translate-x-1/2' : 'right-0 translate-x-1/2',
       )}
-      style={
-        TOUCH
-          ? { width: HANDLE_W, [start ? 'left' : 'right']: -HANDLE_OUT }
-          : { width: HANDLE_W }
-      }
+      style={{ width: HANDLE_W }}
     >
       <span
         aria-hidden="true"
@@ -1207,9 +975,6 @@ function Edge({
           // size moves the mark it stands for.
           'transition-[filter] duration-150 ease-out-quint group-active:brightness-125',
         )}
-        // Centred on the line, which sits HANDLE_OUT in from the grab area's
-        // outer side.
-        style={TOUCH ? { [start ? 'marginLeft' : 'marginRight']: HANDLE_OUT - 2.5 } : undefined}
       />
     </div>
   );

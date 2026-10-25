@@ -582,11 +582,6 @@ pub enum ToolKind {
     Ffmpeg,
     /// A JavaScript engine, which the download engine needs to read the formats
     /// a signed-in YouTube request is answered with.
-    ///
-    /// It does not exist on Android: the APK carries QuickJS, and nothing an
-    /// app downloads there would be allowed to run. The variant is compiled out
-    /// rather than merely ignored so that build cannot name it at all.
-    #[cfg(not(target_os = "android"))]
     JsRuntime,
 }
 
@@ -595,7 +590,6 @@ impl ToolKind {
         match self {
             Self::Engine => "engine",
             Self::Ffmpeg => "ffmpeg",
-            #[cfg(not(target_os = "android"))]
             Self::JsRuntime => "jsRuntime",
         }
     }
@@ -604,7 +598,6 @@ impl ToolKind {
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub enum ToolSource {
-    Bundled,
     Managed,
     System,
     Custom,
@@ -638,7 +631,6 @@ impl ToolStatus {
 pub struct ToolsState {
     pub engine: ToolStatus,
     pub ffmpeg: ToolStatus,
-    #[cfg(not(target_os = "android"))]
     pub js_runtime: ToolStatus,
 }
 
@@ -685,7 +677,6 @@ pub struct DiagnosticsSnapshot {
     pub os: String,
     pub engine: ToolStatus,
     pub ffmpeg: ToolStatus,
-    #[cfg(not(target_os = "android"))]
     pub js_runtime: ToolStatus,
     pub download_dir: String,
     pub db_path: String,
@@ -1111,8 +1102,7 @@ pub struct ExportRequest {
     pub segments: Vec<EditSegment>,
     pub options: ExportOptions,
     /// Where the result is written. `None` means beside the source file --
-    /// unless the source is one of the app's own files, which is every source
-    /// on a phone (private copies) and, on the desktop, a clip fetched from a
+    /// unless the source is one of the app's own files: a clip fetched from a
     /// link into the app's temporary folder. Those go to the download folder
     /// instead; see `export::export_dir` and the `export_default_dir` command.
     pub output_dir: Option<String>,
@@ -1185,8 +1175,7 @@ pub enum FetchStatus {
 }
 
 impl FetchStatus {
-    /// Reading the link counts: it is a network wait that Android would
-    /// freeze in the background exactly as it would the transfer after it.
+    /// Reading the link counts as work, as much as the transfer after it.
     pub fn is_active(self) -> bool {
         matches!(self, Self::Resolving | Self::Fetching)
     }

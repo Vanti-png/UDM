@@ -10,9 +10,6 @@
 //!      reaches one process and no further, which is fine for everything that
 //!      spawns nothing -- and quietly wrong for yt-dlp, which hands a ranged
 //!      fetch to an FFmpeg of its own.
-//!
-//! On Android a tool is not always the program that gets started: see
-//! `android::command`.
 
 use std::process::Stdio;
 
@@ -25,9 +22,6 @@ const CREATE_NO_WINDOW: u32 = 0x0800_0000;
 
 /// Build a `Command` that will not pop a console window on Windows.
 pub fn command(program: &std::path::Path) -> Command {
-    #[cfg(target_os = "android")]
-    let mut cmd = crate::android::command(program);
-    #[cfg(not(target_os = "android"))]
     let mut cmd = Command::new(program);
     #[cfg(windows)]
     cmd.creation_flags(CREATE_NO_WINDOW);

@@ -1,7 +1,6 @@
 import { forwardRef, type ButtonHTMLAttributes, type ReactNode } from 'react';
 
 import { cn } from '@/lib/cn';
-import { IS_MOBILE } from '@/lib/platform';
 import { Spinner } from './Spinner';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger' | 'cta';
@@ -16,14 +15,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
   fullWidth?: boolean;
 }
 
-const SIZES: Record<ButtonSize, string> = IS_MOBILE
-  ? // Sized for a fingertip rather than a pointer.
-    {
-      sm: 'h-10 px-3.5 text-[13.5px] gap-1.5 rounded-[var(--radius-control)]',
-      md: 'h-11 px-4 text-[14px] gap-2 rounded-[var(--radius-control)]',
-      lg: 'h-13 px-6 text-[15px] gap-2.5 rounded-[var(--radius-card)]',
-    }
-  : {
+const SIZES: Record<ButtonSize, string> = {
       sm: 'h-8 px-3 text-[12.5px] gap-1.5 rounded-[8px]',
       md: 'h-9 px-4 text-[13px] gap-2 rounded-[var(--radius-control)]',
       lg: 'h-11 px-6 text-[14px] gap-2 rounded-[12px]',
