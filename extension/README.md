@@ -177,8 +177,13 @@ visible in the output rather than in the listing.
 addons.mozilla.org from the same files, as the full build. Only the manifest
 differs: the
 background runs as a module script instead of a service worker, the id is
-`connector@universaldownloader.app` (`FIREFOX_EXTENSION_ID` in
+`udm-connector@vanti-png.github.io` (`FIREFOX_EXTENSION_ID` in
 `src-tauri/src/bridge/protocol.rs`), and it declares that no data is collected.
+The id is this fork's own: the upstream project's
+`connector@universaldownloader.app` belongs to its developer on
+addons.mozilla.org, which refuses an upload under it as a duplicate. The host
+still lets that id in, so the upstream listing keeps working until this
+fork's copy replaces it.
 The app registers a second host manifest for Firefox under
 `HKCU\Software\Mozilla\NativeMessagingHosts`, with `allowed_extensions` where
 Chrome's has `allowed_origins`, and the host accepts Firefox's way of naming

@@ -47,8 +47,13 @@ const source = join(root, 'extension');
 // service worker, needs an id of its own, and asks every new extension to
 // declare what data it collects -- none here: what the extension sends goes to
 // the app on the same computer, never off it.
+//
+// The id is this fork's own. addons.mozilla.org gives an id to one developer
+// for good, and the upstream project's `connector@universaldownloader.app`
+// is taken there, so an upload under it is refused as a duplicate.
+// `FIREFOX_EXTENSION_ID` in src-tauri/src/bridge/protocol.rs must match.
 const FIREFOX = process.argv.includes('--firefox');
-const FIREFOX_ID = 'connector@universaldownloader.app';
+const FIREFOX_ID = 'udm-connector@vanti-png.github.io';
 // Any other Chrome package is the store build, unless the full one is asked for.
 const STORE = !FIREFOX && !process.argv.includes('--full');
 const target = join(

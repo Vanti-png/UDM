@@ -75,10 +75,24 @@ pub fn origin_allowed(origin: &str) -> bool {
 
 /// The Firefox copy's id. Firefox takes it from the manifest's
 /// `browser_specific_settings` rather than deriving one, so the one id serves
-/// the listing on addons.mozilla.org and an unpacked copy alike. It is named in
-/// the Firefox host manifest's `allowed_extensions`, the field Firefox reads in
-/// place of Chrome's `allowed_origins`.
-pub const FIREFOX_EXTENSION_ID: &str = "connector@universaldownloader.app";
+/// the copy signed on addons.mozilla.org and an unpacked one alike. It is
+/// named in the Firefox host manifest's `allowed_extensions`, the field Firefox
+/// reads in place of Chrome's `allowed_origins`.
+///
+/// This fork's own: addons.mozilla.org keeps an id for the developer who first
+/// used it, and the upstream project's is taken there. `FIREFOX_ID` in
+/// scripts/pack-extension.mjs must match.
+pub const FIREFOX_EXTENSION_ID: &str = "udm-connector@vanti-png.github.io";
+
+/// The upstream project's Firefox listing, still let in: it speaks the same
+/// protocol, and it is the copy already installed from the store until this
+/// fork's own replaces it.
+pub const FIREFOX_EXTENSION_ID_UPSTREAM: &str = "connector@universaldownloader.app";
+
+/// Every Firefox id the host accepts, as `allowed_extensions` lists them.
+pub fn firefox_extensions() -> [&'static str; 2] {
+    [FIREFOX_EXTENSION_ID, FIREFOX_EXTENSION_ID_UPSTREAM]
+}
 
 /// Whether the browser started this host for one of our extensions, from the
 /// arguments it passed.
@@ -89,7 +103,7 @@ pub const FIREFOX_EXTENSION_ID: &str = "connector@universaldownloader.app";
 pub fn caller_allowed(args: &[String]) -> bool {
     match args {
         [_, first, ..] if origin_allowed(first) => true,
-        [_, _, second, ..] => second == FIREFOX_EXTENSION_ID,
+        [_, _, second, ..] => firefox_extensions().contains(&second.as_str()),
         _ => false,
     }
 }
@@ -108,10 +122,16 @@ mod caller_tests {
         let store = format!("chrome-extension://{EXTENSION_ID_STORE}/");
         assert!(caller_allowed(&args(&[exe, &store, "--parent-window=0"])));
         assert!(caller_allowed(&args(&[exe, r"C:\x\host-manifest-firefox.json", FIREFOX_EXTENSION_ID])));
+        assert!(caller_allowed(&args(&[
+            exe,
+            r"C:\x\host-manifest-firefox.json",
+            FIREFOX_EXTENSION_ID_UPSTREAM,
+        ])));
 
         assert!(!caller_allowed(&args(&[exe, "chrome-extension://aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/"])));
         assert!(!caller_allowed(&args(&[exe, r"C:\x\m.json", "other@example.com"])));
         assert!(!caller_allowed(&args(&[exe, r"C:\x\m.json", "connector@universaldownloader.appx"])));
+        assert!(!caller_allowed(&args(&[exe, r"C:\x\m.json", "udm-connector@vanti-png.github.iox"])));
         assert!(!caller_allowed(&args(&[exe])));
     }
 }

@@ -84,7 +84,7 @@ fn firefox_manifest_path() -> AppResult<PathBuf> {
 }
 
 fn firefox_extensions() -> Vec<String> {
-    vec![protocol::FIREFOX_EXTENSION_ID.to_string()]
+    protocol::firefox_extensions().iter().map(|id| id.to_string()).collect()
 }
 
 /// Point every supported browser at `host`.
@@ -366,7 +366,12 @@ mod tests {
             allowed_extensions: firefox_extensions(),
         })
         .unwrap();
-        assert!(json.contains(r#""allowed_extensions":["connector@universaldownloader.app"]"#), "{json}");
+        assert!(
+            json.contains(
+                r#""allowed_extensions":["udm-connector@vanti-png.github.io","connector@universaldownloader.app"]"#
+            ),
+            "{json}"
+        );
         assert!(!json.contains("allowed_origins"), "{json}");
         assert!(manifest_lists(&json, &host, "allowed_extensions", &firefox_extensions()));
         // A Chrome manifest is not a Firefox one, whatever its path says.
