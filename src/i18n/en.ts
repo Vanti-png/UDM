@@ -4,7 +4,7 @@
  * catch up. Placeholders use {name} and are substituted by `t()`.
  */
 export const en = {
-  'app.name': 'Universal Downloader',
+  'app.name': 'Universal Download Manager',
 
   'nav.home': 'Home',
   'nav.downloads': 'Downloads',
@@ -352,7 +352,7 @@ export const en = {
   'settings.linkConnected': 'Signed in through {browser}',
   'settings.linkConnectedProfile': 'Signed in through {browser}, profile "{profile}"',
   'settings.linkConnectedHint':
-    'Universal Downloader does not have to be open for this. The browser hands the session to a small helper, which keeps it whether the app is on screen, sitting in the tray, or closed altogether.',
+    'Universal Download Manager does not have to be open for this. The browser hands the session to a small helper, which keeps it whether the app is on screen, sitting in the tray, or closed altogether.',
   'settings.linkNoProfileName': 'The browser did not give this profile a name.',
   'settings.linkAccount': 'Looks like {account}',
   'settings.linkRefreshed': 'Last refreshed {when}',
@@ -464,7 +464,7 @@ export const en = {
   'about.externalTools': 'External tools',
   'about.system': 'System',
 
-  'welcome.title': 'Welcome to Universal Downloader',
+  'welcome.title': 'Welcome to Universal Download Manager',
   'welcome.subtitle': 'Fast. Private. Ad-free.',
   'welcome.getStarted': 'Get started',
   'welcome.pointPrivacy': 'Nothing leaves your machine',
@@ -477,7 +477,7 @@ export const en = {
 
   'setup.title': 'One-time setup',
   'setup.body':
-    'Universal Downloader uses two open-source tools to read media details and merge streams. They are downloaded once and run entirely on your machine.',
+    'Universal Download Manager uses two open-source tools to read media details and merge streams. They are downloaded once and run entirely on your machine.',
   'setup.installNow': 'Install now',
   'setup.ffmpegOptional':
     'FFmpeg is optional, but without it separate video and audio streams cannot be merged.',
@@ -625,7 +625,7 @@ export const en = {
     'The source may require login or may not currently support public downloads.',
   'error.membershipRequired.title': 'This video is for channel members',
   'error.membershipRequired.message':
-    "YouTube only serves it to an account that holds the channel's membership. Connect your browser in Settings and Universal Downloader will offer that sign-in the next time you try this link.",
+    "YouTube only serves it to an account that holds the channel's membership. Connect your browser in Settings and Universal Download Manager will offer that sign-in the next time you try this link.",
   'error.tiktokSignIn.title': 'This post needs a TikTok sign-in',
   'error.tiktokSignIn.message':
     "TikTok shows it only to signed-in viewers. Turn on TikTok session in the full browser extension, in the browser where you're signed in to TikTok, then try again.",

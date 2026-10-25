@@ -1,11 +1,11 @@
-# Privacy policy — Universal Downloader Connector
+# Privacy policy — Universal Download Manager
 
 _Last updated: 25 October 2026_
 
 This extension does not have a server. Nothing it sees is sent to the
 developer, to any website, or to any third party. There is no analytics, no
 telemetry and no account. The only thing it ever sends anything to is the
-Universal Downloader application on your own computer.
+Universal Download Manager application on your own computer.
 
 **This policy is for the full edition** -- the one on addons.mozilla.org and
 the one published with the app for loading unpacked. The copy from the
@@ -67,7 +67,7 @@ other extensions started, and files a page made itself are never looked at.
 
 ## What it sends, and where
 
-To one place: a program called `ud-bridge.exe`, part of the Universal Downloader
+To one place: a program called `ud-bridge.exe`, part of the Universal Download Manager
 desktop application, running on the same computer as your browser. Chrome starts
 that program itself, over its native messaging channel, and only for this
 extension.
@@ -163,13 +163,13 @@ Questions and reports: https://github.com/unsalable/downloader/issues
 
 ---
 
-# Gizlilik politikası — Universal Downloader Connector
+# Gizlilik politikası — Universal Download Manager
 
 _Son güncelleme: 25 Ekim 2026_
 
 Bu eklentinin sunucusu yok. Gördüğü hiçbir şey geliştiriciye, herhangi bir
 siteye veya üçüncü bir tarafa gönderilmiyor. Analitik yok, telemetri yok, hesap
-yok. Bir şey gönderdiği tek yer, kendi bilgisayarınızdaki Universal Downloader
+yok. Bir şey gönderdiği tek yer, kendi bilgisayarınızdaki Universal Download Manager
 uygulamasıdır.
 
 **Bu politika tam sürüm içindir** -- addons.mozilla.org'daki ve uygulamayla
@@ -236,7 +236,7 @@ oluşturduğu dosyalara hiç bakılmaz.
 
 ## Neyi, nereye gönderiyor
 
-Tek bir yere: bilgisayarınızda çalışan, Universal Downloader masaüstü
+Tek bir yere: bilgisayarınızda çalışan, Universal Download Manager masaüstü
 uygulamasının parçası olan `ud-bridge.exe` adlı programa. O programı Chrome'un
 kendisi başlatır, kendi yerel mesajlaşma kanalı üzerinden, yalnızca bu eklenti
 için.

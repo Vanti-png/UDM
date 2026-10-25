@@ -160,7 +160,7 @@ fn handle(mut request: Request) -> Response {
     if version > protocol::WIRE_VERSION {
         return Response::err(
             ErrorCode::Version,
-            "this extension is newer than the installed app; update Universal Downloader",
+            "this extension is newer than the installed app; update Universal Download Manager",
         );
     }
 
@@ -294,9 +294,9 @@ fn accept(state: &LinkState, push: &Push, site: Site) -> Response {
         return Response::err(
             ErrorCode::Unpaired,
             if state.bound.is_some() {
-                "another browser profile is connected to Universal Downloader"
+                "another browser profile is connected to Universal Download Manager"
             } else {
-                "no browser is connected to Universal Downloader yet"
+                "no browser is connected to Universal Download Manager yet"
             },
         );
     }
@@ -497,7 +497,7 @@ fn runtime() -> Option<&'static tokio::runtime::Runtime> {
 fn disabled() -> Response {
     Response::err(
         ErrorCode::Disabled,
-        "the browser link is turned off in Universal Downloader",
+        "the browser link is turned off in Universal Download Manager",
     )
 }
 
@@ -595,8 +595,11 @@ fn open_app(args: &[&str]) {
 /// The app sits beside this helper, under one of two names: the bundler renames
 /// the executable to the product name, while a development build keeps the one
 /// cargo gave it. An installed copy may also keep resources one level down.
+/// The product was called Universal Downloader before, and a copy installed
+/// then keeps that name until it is updated.
 fn app_exe() -> Option<PathBuf> {
-    const NAMES: [&str; 3] = [
+    const NAMES: [&str; 4] = [
+        "Universal Download Manager.exe",
         "Universal Downloader.exe",
         "universal-downloader.exe",
         "universal-downloader",

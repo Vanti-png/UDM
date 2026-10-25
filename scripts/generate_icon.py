@@ -1,5 +1,5 @@
 """
-Universal Downloader — application icon generator.
+Universal Download Manager — application icon generator.
 
 Mark concept: a six-blade aperture. It says "capture, from any source" without
 falling back on the download-arrow cliche, stays purely geometric, and still

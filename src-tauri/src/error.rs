@@ -202,7 +202,7 @@ impl AppError {
             // then served is YouTube's decision and not always a yes.
             "membershipRequired" => (
                 "This video is for channel members",
-                "YouTube only serves it to an account that holds the channel's membership. Connect your browser in Settings and Universal Downloader will offer that sign-in the next time you try this link.",
+                "YouTube only serves it to an account that holds the channel's membership. Connect your browser in Settings and Universal Download Manager will offer that sign-in the next time you try this link.",
             ),
             // Covers audience controls, a private post and TikTok's own login
             // page alike, so it says what TikTok does rather than guessing

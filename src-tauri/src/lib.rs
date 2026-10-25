@@ -168,6 +168,7 @@ pub fn run() {
             if let Err(err) = bridge::register() {
                 log_warn!("app", "browser link unavailable: {err}");
             }
+            commands::restore_autostart(&handle, loaded.start_with_windows);
             // A lease that outlived its engine process is never resumable
             // state, unlike a partial download, so it goes unconditionally.
             bridge::sweep_leases();

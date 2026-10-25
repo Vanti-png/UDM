@@ -407,7 +407,7 @@ pub fn diagnostics(settings: &Settings, app_version: &str) -> String {
     let link = state::load();
     let mut out = String::new();
 
-    out.push_str("Universal Downloader -- browser link diagnostics\n");
+    out.push_str("Universal Download Manager -- browser link diagnostics\n");
     out.push_str(&format!("app: {app_version}\n"));
     out.push_str(&format!("supported: {}\n", status.supported));
     out.push_str(&format!("enabled: {}\n", status.enabled));

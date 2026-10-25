@@ -1,4 +1,4 @@
-# Universal Downloader
+# Universal Download Manager
 
 A download manager for Windows, in the spirit of Internet Download Manager and
 Free Download Manager. It splits large files over several connections, caps
@@ -268,12 +268,14 @@ installed copy updates when the tag points at a later commit.
 
 1. Commit and push everything, then build from that clean tree:
    `npm run app:build`.
-2. Rename the installers Tauri wrote -- `bundle/nsis/Universal
-   Downloader_<version>_x64-setup.exe` and `bundle/msi/Universal
-   Downloader_<version>_x64_en-US.msi` under `src-tauri/target/release/` -- to
+2. Rename the installers Tauri wrote -- `bundle/nsis/Universal Download
+   Manager_<version>_x64-setup.exe` and `bundle/msi/Universal Download
+   Manager_<version>_x64_en-US.msi` under `src-tauri/target/release/` -- to
    `UniversalDownloader_x64-setup.exe` and `UniversalDownloader_x64.msi`, the
    names the updater looks for, and upload them to the release tagged `latest`,
-   replacing the files already there (create the release the first time).
+   replacing the files already there (create the release the first time). The
+   file names keep the product's old name on purpose: builds installed before
+   the rename look for exactly these.
 3. Only then move the `latest` tag to the commit they were built from:
    `git tag -f latest <commit> && git push -f origin latest`. Exactly that
    commit, not a later one: an installed copy compares its own build commit
@@ -377,7 +379,7 @@ URLs, so the content-security policy can forbid remote image origins outright.
 
 ## Licences
 
-Universal Downloader is released under the [MIT License](LICENSE).
+Universal Download Manager is released under the [MIT License](LICENSE).
 
 Third-party licences are listed in the app's About screen, generated into
 `src-tauri/resources/licenses.json`. Inter is used under the SIL Open Font

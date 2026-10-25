@@ -1,6 +1,6 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
-  "productName": "Universal Downloader",
+  "productName": "Universal Download Manager",
   "version": "1.0.0",
   "identifier": "io.universaldownloader.app",
   "build": {
@@ -13,7 +13,7 @@
     "windows": [
       {
         "label": "main",
-        "title": "Universal Downloader",
+        "title": "Universal Download Manager",
         "width": 1240,
         "height": 820,
         "minWidth": 1100,
@@ -48,8 +48,8 @@
       "icons/128x128@2x.png",
       "icons/icon.ico"
     ],
-    "publisher": "Universal Downloader",
-    "copyright": "Universal Downloader",
+    "publisher": "Universal Download Manager",
+    "copyright": "Universal Download Manager",
     "category": "Utility",
     "shortDescription": "Fast, private and ad-free media downloading.",
     "longDescription": "Paste a link from any supported platform and download the media at the best available quality. No ads, no tracking, no account.",
@@ -67,6 +67,9 @@
         "installerIcon": "icons/icon.ico",
         "installerHooks": "./windows/hooks.nsh",
         "compression": "lzma"
+      },
+      "wix": {
+        "upgradeCode": "f4c9a361-3719-58fc-8dd3-b073dbce2d2a"
       }
     }
   }

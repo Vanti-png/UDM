@@ -58,21 +58,21 @@ one here.
 **Item name**
 
 ```
-Universal Downloader Connector
+Universal Download Manager
 ```
 
 **Summary** (132 characters at most)
 
 ```
-Sends the videos playing in your browser to the Universal Downloader app on this computer, one button per video.
+Sends the videos playing in your browser to the Universal Download Manager app on this computer, one button per video.
 ```
 
 **Description**
 
 ```
-Universal Downloader Connector is the browser half of Universal Downloader, a free desktop application for downloading media.
+Universal Download Manager is the browser half of Universal Download Manager, a free desktop application for downloading media.
 
-Play a video on a site and click the extension's icon. The popup lists what the page is playing — streams, video files, audio — each with a Get button. Press it and Universal Downloader comes to the front with the video open, so you can pick the quality before it downloads. The extension never downloads anything itself.
+Play a video on a site and click the extension's icon. The popup lists what the page is playing — streams, video files, audio — each with a Get button. Press it and Universal Download Manager comes to the front with the video open, so you can pick the quality before it downloads. The extension never downloads anything itself.
 
 On sites the app knows, the popup offers the page itself, so the app gets the right title and every quality.
 
@@ -81,17 +81,17 @@ Use it only for videos you own or have permission to download.
 WHAT IT DOES NOT DO
 
 - It has no server, no analytics and no account. Nothing it sees goes to the developer or to any third party.
-- Nothing leaves your computer. The only recipient is the Universal Downloader application, which you installed. It says what each video would download as before you press anything, and downloads one only when you choose to in the app.
+- Nothing leaves your computer. The only recipient is the Universal Download Manager application, which you installed. It says what each video would download as before you press anything, and downloads one only when you choose to in the app.
 - It reads no cookies and no passwords.
 - It does not get around DRM. Protected videos are marked "Protected" and have no button.
 
 HOW IT WORKS
 
-1. Install Universal Downloader on your computer and open it once.
+1. Install Universal Download Manager on your computer and open it once.
 2. Add this extension. A page opens explaining the rest.
 3. Play a video, click the toolbar icon, press Get.
 
-Universal Downloader is open source: https://github.com/unsalable/downloader
+Universal Download Manager is open source: https://github.com/unsalable/downloader
 ```
 
 **Category:** Tools · **Language:** English
@@ -108,21 +108,21 @@ Mağaza girişi bölümünden dil seçiciyle Türkçe'yi ekleyip bunları doldur
 **Öğe adı**
 
 ```
-Universal Downloader Connector
+Universal Download Manager
 ```
 
 **Özet** (en çok 132 karakter)
 
 ```
-Tarayıcınızda oynayan videoları, her biri için tek düğmeyle bu bilgisayardaki Universal Downloader uygulamasına gönderir.
+Tarayıcınızda oynayan videoları, her biri için tek düğmeyle bu bilgisayardaki Universal Download Manager uygulamasına gönderir.
 ```
 
 **Açıklama**
 
 ```
-Universal Downloader Connector, ücretsiz bir masaüstü indirme uygulaması olan Universal Downloader'ın tarayıcı tarafıdır.
+Universal Download Manager, ücretsiz bir masaüstü indirme uygulaması olan Universal Download Manager'ın tarayıcı tarafıdır.
 
-Bir sitede bir video oynatın ve eklentinin simgesine tıklayın. Açılır pencere, sayfanın oynattıklarını — akışları, video dosyalarını, sesleri — her birinin yanında bir İndir düğmesiyle listeler. Bastığınızda Universal Downloader video açık olarak öne gelir; indirmeden önce kaliteyi seçersiniz. Eklentinin kendisi hiçbir şey indirmez.
+Bir sitede bir video oynatın ve eklentinin simgesine tıklayın. Açılır pencere, sayfanın oynattıklarını — akışları, video dosyalarını, sesleri — her birinin yanında bir İndir düğmesiyle listeler. Bastığınızda Universal Download Manager video açık olarak öne gelir; indirmeden önce kaliteyi seçersiniz. Eklentinin kendisi hiçbir şey indirmez.
 
 Uygulamanın tanıdığı sitelerde açılır pencere sayfanın kendisini sunar; böylece uygulama doğru başlığı ve her kaliteyi alır.
 
@@ -131,17 +131,17 @@ Yalnızca size ait olan ya da indirme izniniz olan videolar için kullanın.
 YAPMADIKLARI
 
 - Sunucusu, analitiği ve hesabı yoktur. Gördüğü hiçbir şey geliştiriciye veya üçüncü bir tarafa gitmez.
-- Hiçbir şey bilgisayarınızdan çıkmaz. Tek alıcı, sizin kurduğunuz Universal Downloader uygulamasıdır. Uygulama her videonun nasıl ineceğini siz bir şeye basmadan söyler, ama yalnızca siz uygulamada indirmeyi seçtiğinizde indirir.
+- Hiçbir şey bilgisayarınızdan çıkmaz. Tek alıcı, sizin kurduğunuz Universal Download Manager uygulamasıdır. Uygulama her videonun nasıl ineceğini siz bir şeye basmadan söyler, ama yalnızca siz uygulamada indirmeyi seçtiğinizde indirir.
 - Çerez ya da parola okumaz.
 - DRM'yi aşmaz. Korumalı videolar "Korumalı" olarak işaretlenir ve düğmeleri olmaz.
 
 NASIL ÇALIŞIR
 
-1. Universal Downloader'ı bilgisayarınıza kurun ve bir kez açın.
+1. Universal Download Manager'ı bilgisayarınıza kurun ve bir kez açın.
 2. Bu eklentiyi ekleyin. Gerisini anlatan bir sayfa kendiliğinden açılır.
 3. Bir video oynatın, araç çubuğundaki simgeye tıklayın, İndir'e basın.
 
-Universal Downloader açık kaynaktır: https://github.com/unsalable/downloader
+Universal Download Manager açık kaynaktır: https://github.com/unsalable/downloader
 ```
 
 **Kategori:** Tools · **Dil:** Türkçe
@@ -161,13 +161,13 @@ iki izni artık istemiyor.
 **Tek amaç**
 
 ```
-Kullanıcının tarayıcısında oynayan videoları, aynı bilgisayardaki ve kullanıcının kendisinin kurduğu Universal Downloader masaüstü uygulamasına göndermek; uygulama videoyu açar ve kullanıcı kaliteyi seçip indirmeyi orada seçer. Eklentinin kendisi hiçbir şey indirmez.
+Kullanıcının tarayıcısında oynayan videoları, aynı bilgisayardaki ve kullanıcının kendisinin kurduğu Universal Download Manager masaüstü uygulamasına göndermek; uygulama videoyu açar ve kullanıcı kaliteyi seçip indirmeyi orada seçer. Eklentinin kendisi hiçbir şey indirmez.
 ```
 
 **İzin: webRequest**
 
 ```
-Bir sekmenin hangi videoları ve sesleri oynattığını görmek için. Eklenti, sekmelerin medya, XHR ve fetch yanıtlarının başlıklarına bakar (adres, içerik türü, boyut) ve video ya da ses taşıyanları — HLS ve DASH akışlarını, video ve ses dosyalarını — o sekmenin listesine ekler. İstekleri engellemez, değiştirmez veya yönlendirmez; yalnızca yanıt başlıklarını okur. Liste tarayıcının oturum deposunda tutulur, sekme başka bir sayfaya geçince veya kapanınca silinir ve aynı bilgisayardaki Universal Downloader uygulamasından başka hiçbir yere gönderilmez: açılır pencere açıkken, her birinin nasıl ineceğini söylemesi için listelenen ilk birkaç öğe; kullanıcı İndir'e bastığında da o öğe.
+Bir sekmenin hangi videoları ve sesleri oynattığını görmek için. Eklenti, sekmelerin medya, XHR ve fetch yanıtlarının başlıklarına bakar (adres, içerik türü, boyut) ve video ya da ses taşıyanları — HLS ve DASH akışlarını, video ve ses dosyalarını — o sekmenin listesine ekler. İstekleri engellemez, değiştirmez veya yönlendirmez; yalnızca yanıt başlıklarını okur. Liste tarayıcının oturum deposunda tutulur, sekme başka bir sayfaya geçince veya kapanınca silinir ve aynı bilgisayardaki Universal Download Manager uygulamasından başka hiçbir yere gönderilmez: açılır pencere açıkken, her birinin nasıl ineceğini söylemesi için listelenen ilk birkaç öğe; kullanıcı İndir'e bastığında da o öğe.
 ```
 
 **İzin: scripting**
@@ -185,13 +185,13 @@ Videolar, sitenin kullandığı her türlü sunucudan gelir (CDN'ler, oynatıcı
 **İzin: nativeMessaging**
 
 ```
-Bu eklentinin iletişim kurduğu tek kanaldır. Açılır pencerede listelenen ilk birkaç videonun adresini (uygulama her birinin hangi kalitede, hangi biçimde ve yaklaşık ne boyutta ineceğini söylesin diye) ve kullanıcının İndir'e bastığı videonun adresini, Universal Downloader masaüstü uygulamasının kurduğu com.universaldownloader.bridge adlı yerel mesajlaşma sunucusuna Chrome'un stdio kanalı üzerinden gönderir. O sunucuyu Chrome'un kendisi başlatır ve yalnızca bu eklentinin kimliği için başlatır. Hiçbir ağ portu dinlenmez; eklentinin bir sunucusu yoktur.
+Bu eklentinin iletişim kurduğu tek kanaldır. Açılır pencerede listelenen ilk birkaç videonun adresini (uygulama her birinin hangi kalitede, hangi biçimde ve yaklaşık ne boyutta ineceğini söylesin diye) ve kullanıcının İndir'e bastığı videonun adresini, Universal Download Manager masaüstü uygulamasının kurduğu com.universaldownloader.bridge adlı yerel mesajlaşma sunucusuna Chrome'un stdio kanalı üzerinden gönderir. O sunucuyu Chrome'un kendisi başlatır ve yalnızca bu eklentinin kimliği için başlatır. Hiçbir ağ portu dinlenmez; eklentinin bir sunucusu yoktur.
 ```
 
 **İzin: downloads**
 
 ```
-"Tarayıcı indirmelerini yakala" anahtarı açıkken (varsayılan olarak açık), tarayıcının başlattığı bir indirmeyi Universal Downloader'a devretmek için. Eklenti indirmeyi duraklatır ve aynı bilgisayardaki uygulamaya, aynı dosyayı çerezsiz olarak kendisinin indirip indiremeyeceğini sorar. Uygulama aynı dosyaya ulaşabiliyorsa indirme ona verilir; tarayıcıdaki kopya iptal edilip indirme listesinden kaldırılır. Ulaşamıyorsa tarayıcıdaki indirme kaldığı yerden sürer. Gizli pencerelerdeki indirmelere, başka eklentilerin indirmelerine ve sayfanın kendi oluşturduğu (blob:, data:) dosyalara hiç dokunulmaz. Eklenti hiçbir şeyi kendisi indirmez.
+"Tarayıcı indirmelerini yakala" anahtarı açıkken (varsayılan olarak açık), tarayıcının başlattığı bir indirmeyi Universal Download Manager'a devretmek için. Eklenti indirmeyi duraklatır ve aynı bilgisayardaki uygulamaya, aynı dosyayı çerezsiz olarak kendisinin indirip indiremeyeceğini sorar. Uygulama aynı dosyaya ulaşabiliyorsa indirme ona verilir; tarayıcıdaki kopya iptal edilip indirme listesinden kaldırılır. Ulaşamıyorsa tarayıcıdaki indirme kaldığı yerden sürer. Gizli pencerelerdeki indirmelere, başka eklentilerin indirmelerine ve sayfanın kendi oluşturduğu (blob:, data:) dosyalara hiç dokunulmaz. Eklenti hiçbir şeyi kendisi indirmez.
 ```
 
 **İzin: storage**
@@ -254,7 +254,7 @@ parola alanları boş kalır: hiçbir hesap gerekmez.
 ```
 No account or sign-in is needed to test this extension.
 
-1. Install Universal Downloader, the free, open-source Windows application this extension works with: https://github.com/unsalable/downloader/releases/tag/latest (UniversalDownloader_x64-setup.exe). Open the app once; it registers com.universaldownloader.bridge, the native messaging host the extension talks to.
+1. Install Universal Download Manager, the free, open-source Windows application this extension works with: https://github.com/unsalable/downloader/releases/tag/latest (UniversalDownloader_x64-setup.exe). Open the app once; it registers com.universaldownloader.bridge, the native messaging host the extension talks to.
 2. Open a page that plays a video, for example https://hls-js.netlify.app/demo/, and let it play.
 3. Click the extension's toolbar icon. The popup lists the video with the quality, format and size the app would download. Press Get: the app comes to the front with the video open, and nothing is downloaded until the user chooses to download it there.
 
@@ -272,7 +272,7 @@ kimliği `oikcjjcihkfmgmmmjagilnfgnfilghic`, paketsiz kurulanınki `bkoicficlael
 Masaüstü uygulaması tanımadığı hiçbir kimliğe cevap vermez, bu yüzden ikisi de
 `src-tauri/src/bridge/protocol.rs` içinde durur (`EXTENSION_ID_STORE`, `EXTENSION_ID_DEV`).
 Mağaza kimliğini tanımayan bir uygulama sürümü, mağazadan kurulan eklentide "Universal
-Downloader'ı güncelleyin" olarak görünür; o sürüm yayımlanmadan bu eklentiyi duyurmayın.
+Download Manager'ı güncelleyin" olarak görünür; o sürüm yayımlanmadan bu eklentiyi duyurmayın.
 
 `extension/key.pem` dosyasını yeniden üretmeyin. Geliştirme kimliğini o sabitler; yenisi,
 `EXTENSION_ID_DEV` güncellenene kadar host'un geliştirme derlemelerine cevap vermesini sessizce
@@ -301,7 +301,7 @@ Zaten ödediğiniz, üyelere özel YouTube videoları için YouTube'dayken gör�
 
 **Data collection.** The Firefox manifest declares `data_collection_permissions: { required:
 ["none"] }`: nothing the extension handles leaves the computer or reaches the developer. The
-cookies the session switches read go to the Universal Downloader application on the same computer
+cookies the session switches read go to the Universal Download Manager application on the same computer
 over native messaging. If a reviewer counts that as collecting authentication information all the
 same, the category that fits is `authenticationInfo`, as optional rather than required, since
 nothing is read until the user turns a switch on. The declaration lives in `forFirefox()` in
@@ -310,7 +310,7 @@ nothing is read until the user turns a switch on. The declaration lives in `forF
 **Notes to reviewer**
 
 ```
-The extension has no server and sends nothing over the network. It talks only to com.universaldownloader.bridge, a native messaging host installed by the Universal Downloader desktop application on the same computer (free, open source: https://github.com/unsalable/downloader/releases/tag/latest). No site account is needed to test it: play a video on any site, click the toolbar icon, press Get. Three switches in the popup, "YouTube session", "TikTok session" and "Session on other sites", are off until the user turns them on. The first two each let the extension read that one site's cookies (youtube.com or tiktok.com) and pass them to that application, so it can download members-only YouTube videos the user pays for and age-restricted TikTok posts the user's own account can see. "Session on other sites" reads the cookies of one site only when the user presses Get on that site's page -- the page's registrable domain, never YouTube's or TikTok's -- and the application keeps them, encrypted, for at most an hour. Turning a switch off tells the application to delete what it holds. No source file is minified or generated.
+The extension has no server and sends nothing over the network. It talks only to com.universaldownloader.bridge, a native messaging host installed by the Universal Download Manager desktop application on the same computer (free, open source: https://github.com/unsalable/downloader/releases/tag/latest). No site account is needed to test it: play a video on any site, click the toolbar icon, press Get. Three switches in the popup, "YouTube session", "TikTok session" and "Session on other sites", are off until the user turns them on. The first two each let the extension read that one site's cookies (youtube.com or tiktok.com) and pass them to that application, so it can download members-only YouTube videos the user pays for and age-restricted TikTok posts the user's own account can see. "Session on other sites" reads the cookies of one site only when the user presses Get on that site's page -- the page's registrable domain, never YouTube's or TikTok's -- and the application keeps them, encrypted, for at most an hour. Turning a switch off tells the application to delete what it holds. No source file is minified or generated.
 ```
 
 **Version notes.** For addons.mozilla.org, which has 1.0.7:
@@ -322,7 +322,7 @@ The extension has no server and sends nothing over the network. It talks only to
 The notes 1.0.7 went out with:
 
 ```
-1.0.7: Get opens the video in the app, where the quality is chosen before it downloads. "TikTok session" lends the browser's TikTok sign-in for age-restricted posts, and "Other sites" lends the sign-in of the site Get is pressed on, for that download. YouTube's and TikTok's switches show on their own sites. Each sends only to the Universal Downloader application on this computer.
+1.0.7: Get opens the video in the app, where the quality is chosen before it downloads. "TikTok session" lends the browser's TikTok sign-in for age-restricted posts, and "Other sites" lends the sign-in of the site Get is pressed on, for that download. YouTube's and TikTok's switches show on their own sites. Each sends only to the Universal Download Manager application on this computer.
 ```
 
 ---
@@ -335,13 +335,13 @@ These are the same statements as section 3, for the store build, not different o
 **Single purpose**
 
 ```
-Sending the videos playing in the user's browser to the Universal Downloader desktop application, which the user installed on the same computer; the application opens the video, and the user chooses the quality and the download there. The extension itself downloads nothing.
+Sending the videos playing in the user's browser to the Universal Download Manager desktop application, which the user installed on the same computer; the application opens the video, and the user chooses the quality and the download there. The extension itself downloads nothing.
 ```
 
 **Permission: webRequest**
 
 ```
-To see which videos and sounds a tab plays. The extension looks at the response headers of tabs' media, XHR and fetch requests (address, content type, size) and adds the ones carrying video or audio — HLS and DASH streams, video and audio files — to that tab's list. It does not block, modify or redirect any request; it only reads response headers. The list is kept in the browser's session storage, dropped when the tab moves to another page or closes, and passed nowhere but to the Universal Downloader application on the same computer: the first few listed items while the popup is open, so the application can say how each would download, and an item the user presses Get on.
+To see which videos and sounds a tab plays. The extension looks at the response headers of tabs' media, XHR and fetch requests (address, content type, size) and adds the ones carrying video or audio — HLS and DASH streams, video and audio files — to that tab's list. It does not block, modify or redirect any request; it only reads response headers. The list is kept in the browser's session storage, dropped when the tab moves to another page or closes, and passed nowhere but to the Universal Download Manager application on the same computer: the first few listed items while the popup is open, so the application can say how each would download, and an item the user presses Get on.
 ```
 
 **Permission: scripting**
@@ -359,13 +359,13 @@ Videos come from whatever servers a site uses (CDNs, player domains), so seeing 
 **Permission: nativeMessaging**
 
 ```
-The only channel this extension communicates over. It sends the addresses of the first few videos listed in the popup (so the application can say at what quality, in what format and at roughly what size each would download) and the address of the video the user pressed Get on to com.universaldownloader.bridge, a native messaging host installed by the Universal Downloader desktop application, using Chrome's stdio channel. Chrome starts that host itself and only for this extension's ID. Nothing listens on a network port; the extension has no server.
+The only channel this extension communicates over. It sends the addresses of the first few videos listed in the popup (so the application can say at what quality, in what format and at roughly what size each would download) and the address of the video the user pressed Get on to com.universaldownloader.bridge, a native messaging host installed by the Universal Download Manager desktop application, using Chrome's stdio channel. Chrome starts that host itself and only for this extension's ID. Nothing listens on a network port; the extension has no server.
 ```
 
 **Permission: downloads**
 
 ```
-While the "Capture browser downloads" switch is on (it is by default), to hand a download the browser starts over to Universal Downloader. The extension pauses the download and asks the application on the same computer whether it can fetch the same file itself, without cookies. If it can, the download is handed over and the browser's copy is cancelled and removed from the downloads list; if it cannot, the browser's download resumes where it was. Downloads in private windows, downloads other extensions started and files a page made itself (blob:, data:) are never touched. The extension downloads nothing itself.
+While the "Capture browser downloads" switch is on (it is by default), to hand a download the browser starts over to Universal Download Manager. The extension pauses the download and asks the application on the same computer whether it can fetch the same file itself, without cookies. If it can, the download is handed over and the browser's copy is cancelled and removed from the downloads list; if it cannot, the browser's download resumes where it was. Downloads in private windows, downloads other extensions started and files a page made itself (blob:, data:) are never touched. The extension downloads nothing itself.
 ```
 
 **Permission: storage**

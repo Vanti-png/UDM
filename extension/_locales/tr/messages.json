@@ -1,7 +1,7 @@
 {
-  "extName": { "message": "Universal Downloader Connector" },
+  "extName": { "message": "Universal Download Manager" },
   "extDescription": {
-    "message": "Tarayıcınızda oynayan videoları bu bilgisayardaki Universal Downloader uygulamasına gönderir."
+    "message": "Tarayıcınızda oynayan videoları bu bilgisayardaki Universal Download Manager uygulamasına gönderir."
   },
 
   "popupTitle": { "message": "Bu sayfada" },
@@ -20,7 +20,7 @@
   "emptyTitle": { "message": "Bu sayfada video yok" },
   "emptyBody": { "message": "Videoyu oynatın; burada görünür." },
   "protectedTitle": { "message": "Bu sitenin videoları korumalı" },
-  "protectedBody": { "message": "Universal Downloader bunları indiremez." },
+  "protectedBody": { "message": "Universal Download Manager bunları indiremez." },
   "unlistedTitle": { "message": "Bu sitede kullanılamaz" },
   "unlistedBody": { "message": "Bu sitedeki videolar burada listelenmez." },
 
@@ -31,21 +31,21 @@
   "pickUnavailable": { "message": "Bu öğe gönderilemiyor" },
   "pickClose": { "message": "Kapat" },
 
-  "noticeNotInstalled": { "message": "Universal Downloader'ı bir kez açın" },
-  "noticeUpdate": { "message": "Universal Downloader'ı güncelleyin" },
-  "noticeUnreachable": { "message": "Universal Downloader yanıt vermedi" },
+  "noticeNotInstalled": { "message": "Universal Download Manager'ı bir kez açın" },
+  "noticeUpdate": { "message": "Universal Download Manager'ı güncelleyin" },
+  "noticeUnreachable": { "message": "Universal Download Manager yanıt vermedi" },
 
   "captureTitle": { "message": "Tarayıcı indirmelerini yakala" },
-  "captureOn": { "message": "İndirmeler Universal Downloader'a gider" },
+  "captureOn": { "message": "İndirmeler Universal Download Manager'a gider" },
   "captureOffHint": { "message": "İndirmeler tarayıcıda kalır" },
-  "captureUpdate": { "message": "Bunun için Universal Downloader'ı güncelleyin" },
+  "captureUpdate": { "message": "Bunun için Universal Download Manager'ı güncelleyin" },
 
   "linkTitle": { "message": "YouTube oturumu" },
   "linkOn": { "message": "Üyelere özel videolar için bağlı" },
   "linkSignedOut": { "message": "YouTube'da oturum açık değil" },
   "linkStale": { "message": "Bir süredir yenilenmedi" },
   "linkOffHint": { "message": "Üyelere özel videoları indirmek için" },
-  "linkDisabled": { "message": "Universal Downloader'da kapalı" },
+  "linkDisabled": { "message": "Universal Download Manager'da kapalı" },
   "linkOther": { "message": "Başka bir profil bağlı" },
 
   "tiktokTitle": { "message": "TikTok oturumu" },
@@ -59,23 +59,23 @@
   "rowWithSession": { "message": "TikTok oturumunuzla iner" },
   "sessionsTitle": { "message": "Oturumlar" },
 
-  "welcomeTitle": { "message": "Universal Downloader Connector hazır" },
-  "step1Title": { "message": "Universal Downloader'ı bir kez açın" },
+  "welcomeTitle": { "message": "Universal Download Manager hazır" },
+  "step1Title": { "message": "Universal Download Manager'ı bir kez açın" },
   "step1Body": { "message": "Uygulama kendi yerini Chrome'a bildirir." },
   "step2Title": { "message": "Bir video oynatın" },
   "step2Body": { "message": "Herhangi bir sitede. Eklenti, sayfanın oynattığını fark eder." },
   "step3Title": { "message": "Araç çubuğundaki simgeye, sonra İndir'e basın" },
   "step3Body": {
-    "message": "Universal Downloader video açık olarak öne gelir; kaliteyi ve filigranı orada seçip indirirsiniz."
+    "message": "Universal Download Manager video açık olarak öne gelir; kaliteyi ve filigranı orada seçip indirirsiniz."
   },
   "welcomeSession": {
     "message": "Üyelere özel YouTube videoları için açılır penceredeki YouTube oturumu anahtarını, yaş sınırlı TikTok gönderileri için TikTok'tayken görünen TikTok oturumu anahtarını, başka sitelerde yalnızca hesabınızın görebildiği gönderiler için de Diğer sitelerde oturum anahtarını açın. Bu anahtar, İndir'e bastığınız sitenin oturumunu yalnızca o indirme için verir. Her anahtar oturumu yalnızca bu bilgisayardaki uygulamaya verir ve siz açana kadar kapalı kalır."
   },
   "pinTitle": { "message": "Elinizin altında dursun" },
   "pinBody": {
-    "message": "Chrome yeni eklentileri adres çubuğunun yanındaki yapboz parçası düğmesinin arkasına gizler. Ona, sonra Universal Downloader Connector'ın yanındaki raptiyeye tıklayın."
+    "message": "Chrome yeni eklentileri adres çubuğunun yanındaki yapboz parçası düğmesinin arkasına gizler. Ona, sonra Universal Download Manager'ın yanındaki raptiyeye tıklayın."
   },
   "privacyBody": {
-    "message": "Eklenti, bu bilgisayardaki Universal Downloader dışında hiçbir yere bir şey göndermez; uygulama bir videoyu yalnızca siz indirmeyi seçtiğinizde indirir."
+    "message": "Eklenti, bu bilgisayardaki Universal Download Manager dışında hiçbir yere bir şey göndermez; uygulama bir videoyu yalnızca siz indirmeyi seçtiğinizde indirir."
   }
 }

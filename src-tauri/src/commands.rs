@@ -161,6 +161,36 @@ fn apply_autostart(app: &AppHandle, enabled: bool) {
     }
 }
 
+/// Bring the autostart entry back, at launch, when the setting is on and
+/// Windows has none under this build's name -- as after the rename from
+/// Universal Downloader, whose uninstaller took the entry it had written under
+/// that name. An entry that is there is left alone: Task Manager keeps its own
+/// on/off beside it, and enabling again would switch back on what the user
+/// switched off there.
+pub fn restore_autostart(app: &AppHandle, enabled: bool) {
+    #[cfg(windows)]
+    {
+        use winreg::enums::HKEY_CURRENT_USER;
+        use winreg::RegKey;
+
+        if !enabled {
+            return;
+        }
+        let name = &app.package_info().name;
+        let present = RegKey::predef(HKEY_CURRENT_USER)
+            .open_subkey(r"Software\Microsoft\Windows\CurrentVersion\Run")
+            .and_then(|key| key.get_value::<String, _>(name))
+            .is_ok();
+        if !present {
+            apply_autostart(app, true);
+        }
+    }
+    #[cfg(not(windows))]
+    {
+        let _ = (app, enabled);
+    }
+}
+
 /// The toggle is about the browser's sessions only. Off forgets every session
 /// and has the host refuse new ones, but leaves the host registered: it also
 /// carries the videos the extension sends to download, which lend the app

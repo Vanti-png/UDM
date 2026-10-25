@@ -1,4 +1,4 @@
-# Privacy policy — Universal Downloader Connector (Chrome Web Store)
+# Privacy policy — Universal Download Manager (Chrome Web Store)
 
 _Last updated: 25 October 2026_
 
@@ -8,7 +8,7 @@ Store.
 This extension does not have a server. Nothing it sees is sent to the
 developer, to any website, or to any third party. There is no analytics, no
 telemetry and no account. The only thing it ever sends anything to is the
-Universal Downloader application on your own computer.
+Universal Download Manager application on your own computer.
 
 It does not ask for the `cookies` permission and reads no cookies, passwords or
 sign-ins.
@@ -55,7 +55,7 @@ other extensions started, and files a page made itself are never looked at.
 
 ## What it sends, and where
 
-To one place: a program called `ud-bridge.exe`, part of the Universal Downloader
+To one place: a program called `ud-bridge.exe`, part of the Universal Download Manager
 desktop application, running on the same computer as your browser. Chrome starts
 that program itself, over its native messaging channel, and only for this
 extension.
@@ -124,7 +124,7 @@ Questions and reports: https://github.com/unsalable/downloader/issues
 
 ---
 
-# Gizlilik politikası — Universal Downloader Connector (Chrome Web Mağazası)
+# Gizlilik politikası — Universal Download Manager (Chrome Web Mağazası)
 
 _Son güncelleme: 25 Ekim 2026_
 
@@ -132,7 +132,7 @@ Bu politika, eklentinin Chrome Web Mağazası'ndan kurulan kopyası içindir.
 
 Bu eklentinin sunucusu yok. Gördüğü hiçbir şey geliştiriciye, herhangi bir
 siteye veya üçüncü bir tarafa gönderilmiyor. Analitik yok, telemetri yok, hesap
-yok. Bir şey gönderdiği tek yer, kendi bilgisayarınızdaki Universal Downloader
+yok. Bir şey gönderdiği tek yer, kendi bilgisayarınızdaki Universal Download Manager
 uygulamasıdır.
 
 `cookies` iznini istemez; hiçbir çerez, parola ya da oturum bilgisi okumaz.
@@ -181,7 +181,7 @@ oluşturduğu dosyalara hiç bakılmaz.
 
 ## Neyi, nereye gönderiyor
 
-Tek bir yere: Universal Downloader masaüstü uygulamasının parçası olan ve
+Tek bir yere: Universal Download Manager masaüstü uygulamasının parçası olan ve
 tarayıcınızla aynı bilgisayarda çalışan `ud-bridge.exe` adlı programa. O
 programı Chrome'un kendisi, yerel mesajlaşma kanalı üzerinden ve yalnızca bu
 eklenti için başlatır.

@@ -1,6 +1,6 @@
-# Universal Downloader Connector
+# Universal Download Manager
 
-The browser half of Universal Downloader. It does two things, both over Chrome's
+The browser half of Universal Download Manager. It does two things, both over Chrome's
 native messaging channel to the app on the same computer:
 
 - **It sends the videos playing in the browser to the app.** It notices the
@@ -128,7 +128,7 @@ The Chrome Web Store ignores the manifest `key` and issues its own id, so the
 published copy (`oikcjjcihkfmgmmmjagilnfgnfilghic`) has a different id from
 every development copy. That is why `protocol.rs` holds two constants and
 accepts both; an app built without the store id is what a store user meets as
-"Universal Downloader'ı güncelleyin".
+"Universal Download Manager'ı güncelleyin".
 
 Regenerating `key.pem` changes the development id. `scripts/extension-key.mjs`
 refuses to overwrite an existing key for that reason, and prints the id it
@@ -197,7 +197,7 @@ interaction.
 ## What the store listing has to say
 
 The single purpose is *sending the videos playing in the user's browser to
-Universal Downloader, a program on the same computer*. Lending the YouTube and
+Universal Download Manager, a program on the same computer*. Lending the YouTube and
 TikTok sessions is part of the same purpose: it is what lets the app download
 the members-only videos and age-restricted posts the user can already watch.
 So is lending, on İndir, the session of the site the user pressed it on: the

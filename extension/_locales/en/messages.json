@@ -1,10 +1,10 @@
 {
   "extName": {
-    "message": "Universal Downloader Connector",
+    "message": "Universal Download Manager",
     "description": "Extension name, shown in Chrome and in the store listing."
   },
   "extDescription": {
-    "message": "Sends the videos playing in your browser to the Universal Downloader app on this computer.",
+    "message": "Sends the videos playing in your browser to the Universal Download Manager app on this computer.",
     "description": "Extension description, at most 132 characters. Must not promise what any site will allow."
   },
 
@@ -48,7 +48,7 @@
   "emptyTitle": { "message": "No videos on this page" },
   "emptyBody": { "message": "Play the video and it shows up here." },
   "protectedTitle": { "message": "This site's videos are protected" },
-  "protectedBody": { "message": "Universal Downloader can't download them." },
+  "protectedBody": { "message": "Universal Download Manager can't download them." },
   "unlistedTitle": {
     "message": "Not available on this site",
     "description": "Empty state of the list on a site this edition of the extension lists nothing for."
@@ -80,17 +80,17 @@
   },
   "pickClose": { "message": "Close" },
 
-  "noticeNotInstalled": { "message": "Open Universal Downloader once" },
+  "noticeNotInstalled": { "message": "Open Universal Download Manager once" },
   "noticeUpdate": {
-    "message": "Update Universal Downloader",
+    "message": "Update Universal Download Manager",
     "description": "The installed app is older than this extension."
   },
-  "noticeUnreachable": { "message": "Universal Downloader didn't respond" },
+  "noticeUnreachable": { "message": "Universal Download Manager didn't respond" },
 
   "captureTitle": { "message": "Capture browser downloads" },
-  "captureOn": { "message": "Downloads go to Universal Downloader" },
+  "captureOn": { "message": "Downloads go to Universal Download Manager" },
   "captureOffHint": { "message": "Downloads stay in the browser" },
-  "captureUpdate": { "message": "Update Universal Downloader for this" },
+  "captureUpdate": { "message": "Update Universal Download Manager for this" },
 
   "linkTitle": {
     "message": "YouTube session",
@@ -103,7 +103,7 @@
     "message": "For members-only videos",
     "description": "Under the YouTube switch while it is off: what turning it on is for."
   },
-  "linkDisabled": { "message": "Off in Universal Downloader" },
+  "linkDisabled": { "message": "Off in Universal Download Manager" },
   "linkOther": {
     "message": "Another profile is connected",
     "description": "Under either switch while another browser profile holds the connection. Turning the switch on here takes it over."
@@ -150,14 +150,14 @@
     "description": "Heading on the welcome page, above the paragraph about the session switches."
   },
 
-  "welcomeTitle": { "message": "Universal Downloader Connector is ready" },
-  "step1Title": { "message": "Open Universal Downloader once" },
+  "welcomeTitle": { "message": "Universal Download Manager is ready" },
+  "step1Title": { "message": "Open Universal Download Manager once" },
   "step1Body": { "message": "The app tells Chrome where to find it." },
   "step2Title": { "message": "Play a video" },
   "step2Body": { "message": "On any site. The extension notices what the page plays." },
   "step3Title": { "message": "Click the toolbar icon, then Get" },
   "step3Body": {
-    "message": "Universal Downloader comes to the front with the video open, where you choose the quality and the watermark and download it."
+    "message": "Universal Download Manager comes to the front with the video open, where you choose the quality and the watermark and download it."
   },
   "welcomeSession": {
     "message": "For members-only YouTube videos, turn on YouTube session in the popup; for age-restricted TikTok posts, TikTok session, which the popup shows on TikTok; for posts on other sites that only your account can see, Session on other sites, which lends the sign-in of the site you press Get on, for that download. Each lends only to the app on this computer, and stays off until you turn it on.",
@@ -165,9 +165,9 @@
   },
   "pinTitle": { "message": "Keep it within reach" },
   "pinBody": {
-    "message": "Chrome hides new extensions behind the puzzle-piece button next to the address bar. Click it, then the pin beside Universal Downloader Connector."
+    "message": "Chrome hides new extensions behind the puzzle-piece button next to the address bar. Click it, then the pin beside Universal Download Manager."
   },
   "privacyBody": {
-    "message": "The extension sends nothing anywhere but to Universal Downloader on this computer, and the app downloads a video only when you choose to."
+    "message": "The extension sends nothing anywhere but to Universal Download Manager on this computer, and the app downloads a video only when you choose to."
   }
 }

@@ -1,7 +1,7 @@
 import type { TranslationKey } from './en';
 
 export const tr: Record<TranslationKey, string> = {
-  'app.name': 'Universal Downloader',
+  'app.name': 'Universal Download Manager',
 
   'nav.home': 'Ana sayfa',
   'nav.downloads': 'İndirmeler',
@@ -347,7 +347,7 @@ export const tr: Record<TranslationKey, string> = {
   'settings.linkConnected': '{browser} üzerinden oturum açık',
   'settings.linkConnectedProfile': '{browser} üzerinden oturum açık, "{profile}" profili',
   'settings.linkConnectedHint':
-    "Bunun için Universal Downloader'ın açık olması gerekmez. Tarayıcı oturumu küçük bir yardımcıya verir; uygulama ekranda olsa da, tepside bekliyor olsa da, büsbütün kapalı olsa da yardımcı oturumu saklar.",
+    "Bunun için Universal Download Manager'ın açık olması gerekmez. Tarayıcı oturumu küçük bir yardımcıya verir; uygulama ekranda olsa da, tepside bekliyor olsa da, büsbütün kapalı olsa da yardımcı oturumu saklar.",
   'settings.linkNoProfileName': 'Tarayıcı bu profile bir ad vermemiş.',
   'settings.linkAccount': '{account} gibi görünüyor',
   'settings.linkRefreshed': 'Son yenileme {when}',
@@ -460,7 +460,7 @@ export const tr: Record<TranslationKey, string> = {
   'about.externalTools': 'Harici araçlar',
   'about.system': 'Sistem',
 
-  'welcome.title': "Universal Downloader'a hoş geldin",
+  'welcome.title': "Universal Download Manager'a hoş geldin",
   'welcome.subtitle': 'Hızlı. Gizli. Reklamsız.',
   'welcome.getStarted': 'Başla',
   'welcome.pointPrivacy': 'Hiçbir şey cihazından çıkmaz',
@@ -473,7 +473,7 @@ export const tr: Record<TranslationKey, string> = {
 
   'setup.title': 'Tek seferlik kurulum',
   'setup.body':
-    'Universal Downloader, medya bilgilerini okumak ve akışları birleştirmek için iki açık kaynak araç kullanır. Bir kez indirilir ve tamamen bu bilgisayarda çalışır.',
+    'Universal Download Manager, medya bilgilerini okumak ve akışları birleştirmek için iki açık kaynak araç kullanır. Bir kez indirilir ve tamamen bu bilgisayarda çalışır.',
   'setup.installNow': 'Şimdi kur',
   'setup.ffmpegOptional':
     'FFmpeg isteğe bağlıdır, ancak onsuz ayrı video ve ses akışları birleştirilemez.',
@@ -618,7 +618,7 @@ export const tr: Record<TranslationKey, string> = {
     'Kaynak oturum açmayı gerektiriyor olabilir veya şu anda herkese açık indirmeyi desteklemiyor olabilir.',
   'error.membershipRequired.title': 'Bu video kanal üyelerine özel',
   'error.membershipRequired.message':
-    "YouTube bu videoyu yalnızca kanalın üyeliğine sahip bir hesaba veriyor. Ayarlar'dan tarayıcını bağla; Universal Downloader bu bağlantıyı bir dahaki denemende o oturumu kullanarak açsın.",
+    "YouTube bu videoyu yalnızca kanalın üyeliğine sahip bir hesaba veriyor. Ayarlar'dan tarayıcını bağla; Universal Download Manager bu bağlantıyı bir dahaki denemende o oturumu kullanarak açsın.",
   'error.tiktokSignIn.title': "Bu gönderi için TikTok'ta oturum açmak gerekiyor",
   'error.tiktokSignIn.message':
     "TikTok bu gönderiyi yalnızca oturum açmış izleyicilere gösteriyor. TikTok'a giriş yaptığın tarayıcıda uzantının tam sürümünden TikTok oturumunu aç, sonra tekrar dene.",

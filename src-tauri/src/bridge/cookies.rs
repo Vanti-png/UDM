@@ -20,7 +20,7 @@
 use crate::bridge::protocol::Cookie;
 
 const HEADER: &str =
-    "# Netscape HTTP Cookie File\n# Written by Universal Downloader for a single download.\n\n";
+    "# Netscape HTTP Cookie File\n# Written by Universal Download Manager for a single download.\n\n";
 
 /// The prefix yt-dlp and curl both use to mark an httpOnly cookie.
 const HTTP_ONLY_PREFIX: &str = "#HttpOnly_";

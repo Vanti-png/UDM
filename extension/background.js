@@ -1,4 +1,4 @@
-// The browser half of Universal Downloader. It notices the videos and sounds
+// The browser half of Universal Download Manager. It notices the videos and sounds
 // the open tabs play, so the popup can list them, and hands the one the user
 // picks to the app. And, as a download manager does, it takes the files the
 // browser starts downloading and hands those over too, whenever the app can
