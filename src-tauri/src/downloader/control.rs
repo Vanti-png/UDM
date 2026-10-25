@@ -9,6 +9,7 @@ use std::sync::Arc;
 
 use tokio::sync::Notify;
 
+use crate::downloader::limiter::RateLimiter;
 use crate::error::AppError;
 
 const RUNNING: u8 = 0;
@@ -26,6 +27,10 @@ pub enum ControlState {
 pub struct TaskControl {
     state: AtomicU8,
     wake: Notify,
+    /// This task's own speed cap, under the app-wide one. Every transfer of
+    /// the task asks it as it asks the global limiter, so a cap changed while
+    /// the task runs is felt on the next chunk.
+    limiter: RateLimiter,
 }
 
 impl Default for TaskControl {
@@ -39,11 +44,17 @@ impl TaskControl {
         Self {
             state: AtomicU8::new(RUNNING),
             wake: Notify::new(),
+            limiter: RateLimiter::default(),
         }
     }
 
     pub fn shared() -> Arc<Self> {
         Arc::new(Self::new())
+    }
+
+    /// The task's own speed cap. Unlimited until something sets one.
+    pub fn limiter(&self) -> &RateLimiter {
+        &self.limiter
     }
 
     pub fn state(&self) -> ControlState {

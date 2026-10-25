@@ -140,7 +140,11 @@ async fn attempt(
     clear_stale_part(options);
 
     let mut base = engine::base_args(settings);
-    base.extend(transfer_args(settings, options.section.is_some()));
+    base.extend(transfer_args(
+        settings,
+        options.section.is_some(),
+        control.limiter().limit_bps(),
+    ));
     let args = download_args(options, base, cookies);
     engine::log_engine_invocation(&args);
 
@@ -258,8 +262,11 @@ async fn attempt(
 /// is the same gain the native path gets from splitting a file. A section is
 /// fetched by FFmpeg, which takes neither option. The cap is the engine's own,
 /// per process: it holds for one engine download, and the native transfers
-/// running beside it are counted separately.
-fn transfer_args(settings: &Settings, sectioned: bool) -> Vec<String> {
+/// running beside it are counted separately. Of the app-wide cap and the
+/// download's own (`task_limit_bps`, zero for none) the lower one is given,
+/// as it stands when the engine starts: a run already going is not told of a
+/// change, which the next run -- a resume, a retry -- picks up.
+fn transfer_args(settings: &Settings, sectioned: bool, task_limit_bps: u64) -> Vec<String> {
     let mut args = Vec::new();
     if sectioned {
         return args;
@@ -268,10 +275,11 @@ fn transfer_args(settings: &Settings, sectioned: bool) -> Vec<String> {
         args.push("--concurrent-fragments".into());
         args.push(settings.connections_per_download.to_string());
     }
-    if settings.speed_limit_kbps > 0 {
+    let caps = [settings.speed_limit_kbps.saturating_mul(1024), task_limit_bps];
+    if let Some(cap) = caps.into_iter().filter(|cap| *cap > 0).min() {
         // The engine's K is 1024 bytes, as Settings' is.
         args.push("--limit-rate".into());
-        args.push(format!("{}K", settings.speed_limit_kbps));
+        args.push(format!("{}K", cap.div_ceil(1024)));
     }
     args
 }
@@ -569,6 +577,7 @@ fn parse_progress(line: &str) -> Option<ProgressSample> {
         // A segmented download resumes by re-running the engine, which picks up
         // its own fragment state.
         resumable: true,
+        segments: Vec::new(),
     })
 }
 
@@ -602,6 +611,7 @@ fn already_on_disk(line: &str) -> Option<ProgressSample> {
         eta_sec: None,
         percent: Some(100.0),
         resumable: true,
+        segments: Vec::new(),
     })
 }
 
@@ -1071,12 +1081,12 @@ mod tests {
             low_resource_mode: false,
             ..Settings::default()
         };
-        let args = transfer_args(&settings, false);
+        let args = transfer_args(&settings, false, 0);
         assert_eq!(value_after(&args, "--concurrent-fragments").as_deref(), Some("8"));
         assert_eq!(value_after(&args, "--limit-rate").as_deref(), Some("750K"));
 
         // A section is FFmpeg's to fetch, and FFmpeg takes neither.
-        assert!(transfer_args(&settings, true).is_empty());
+        assert!(transfer_args(&settings, true, 0).is_empty());
 
         // One connection and no cap say nothing at all.
         let plain = Settings {
@@ -1084,6 +1094,28 @@ mod tests {
             speed_limit_kbps: 0,
             ..Settings::default()
         };
-        assert!(transfer_args(&plain, false).is_empty());
+        assert!(transfer_args(&plain, false, 0).is_empty());
+    }
+
+    #[test]
+    fn the_lower_of_the_app_cap_and_the_download_cap_reaches_the_engine() {
+        let capped = Settings {
+            connections_per_download: 1,
+            speed_limit_kbps: 750,
+            ..Settings::default()
+        };
+        // The download's own cap, lower than the app's.
+        let args = transfer_args(&capped, false, 256 * 1024);
+        assert_eq!(value_after(&args, "--limit-rate").as_deref(), Some("256K"));
+        // Higher than the app's: the app's holds.
+        let args = transfer_args(&capped, false, 2048 * 1024);
+        assert_eq!(value_after(&args, "--limit-rate").as_deref(), Some("750K"));
+        // The download's alone.
+        let uncapped = Settings {
+            speed_limit_kbps: 0,
+            ..capped
+        };
+        let args = transfer_args(&uncapped, false, 100 * 1024);
+        assert_eq!(value_after(&args, "--limit-rate").as_deref(), Some("100K"));
     }
 }

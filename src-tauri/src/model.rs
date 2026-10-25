@@ -456,6 +456,24 @@ pub struct DownloadProgress {
     pub stage_index: u32,
     pub stage_count: u32,
     pub resumable: bool,
+    /// The pieces of the file being fetched, for a transfer split over
+    /// several connections (`downloader::segmented`), in file order. Empty for
+    /// anything fetched over one connection or by the engine. Byte offsets are
+    /// into the stream of the current stage, not into the finished file.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub segments: Vec<SegmentProgress>,
+}
+
+/// One piece of a split transfer: `[start, end)` of the stream, of which the
+/// first `received` bytes are on disk.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SegmentProgress {
+    pub start: u64,
+    pub end: u64,
+    pub received: u64,
+    /// A connection is filling it right now.
+    pub active: bool,
 }
 
 impl Default for DownloadProgress {
@@ -470,6 +488,7 @@ impl Default for DownloadProgress {
             stage_index: 1,
             stage_count: 1,
             resumable: false,
+            segments: Vec::new(),
         }
     }
 }
@@ -502,6 +521,11 @@ pub struct DownloadTask {
     pub completed_at: Option<i64>,
     pub attempt: u32,
     pub request: DownloadRequest,
+    /// This download's own speed cap in KB/s, under the app-wide one; zero is
+    /// none. Set from the download's detail window, and felt by a running
+    /// transfer on its next chunk.
+    #[serde(default)]
+    pub speed_limit_kbps: u64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

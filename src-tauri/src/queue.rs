@@ -135,6 +135,7 @@ impl QueueManager {
             completed_at: None,
             attempt: 0,
             request,
+            speed_limit_kbps: 0,
         };
 
         self.with_tasks(|tasks| tasks.push(task.clone()));
@@ -185,6 +186,21 @@ impl QueueManager {
         self.persist();
         self.emit_changed();
         self.wake.notify_one();
+    }
+
+    /// Cap one download's speed, in KB/s; zero takes the cap off. A running
+    /// transfer feels it on its next chunk; a waiting one starts under it.
+    /// The app-wide cap still holds over it.
+    pub fn set_speed_limit(self: &Arc<Self>, id: &str, kbps: u64) {
+        let kbps = clamp_speed_limit(kbps);
+        if let Some(control) = self.control_for(id) {
+            control.limiter().set_kbps(kbps);
+        }
+        let changed = self.update_task(id, |task| task.speed_limit_kbps = kbps);
+        if changed.is_some() {
+            self.persist();
+            self.emit_changed();
+        }
     }
 
     pub fn retry(self: &Arc<Self>, id: &str) {
@@ -377,6 +393,12 @@ impl QueueManager {
             .lock()
             .unwrap_or_else(|e| e.into_inner())
             .insert(task.id.clone(), Arc::clone(&control));
+        // Read after the control is registered rather than from the copy this
+        // worker was handed: a cap set in between went to the task alone.
+        let cap = self
+            .with_tasks(|tasks| tasks.iter().find(|current| current.id == task.id).map(|current| current.speed_limit_kbps))
+            .unwrap_or(task.speed_limit_kbps);
+        control.limiter().set_kbps(cap);
 
         self.emit_changed();
 
@@ -630,6 +652,13 @@ fn is_waiting(task: &DownloadTask) -> bool {
     matches!(task.status, DownloadStatus::Queued | DownloadStatus::Paused)
 }
 
+/// A download's own cap as one that can be applied: past a hundred
+/// gigabytes a second it is no cap, and could only overflow on its way to
+/// bytes. The same bound Settings puts on the app-wide one.
+fn clamp_speed_limit(kbps: u64) -> u64 {
+    kbps.min(100 * 1024 * 1024)
+}
+
 pub fn require_task(manager: &QueueManager, id: &str) -> AppResult<DownloadTask> {
     manager
         .list()
@@ -677,6 +706,7 @@ mod tests {
                 source: None,
                 file: None,
             },
+            speed_limit_kbps: 0,
         }
     }
 

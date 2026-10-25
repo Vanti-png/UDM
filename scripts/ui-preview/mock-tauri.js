@@ -1153,6 +1153,7 @@
     resume_download: ({ id }) => patch(id, { status: 'downloading' }),
     cancel_download: ({ id }) => patch(id, { status: 'canceled' }),
     retry_download: ({ id }) => patch(id, { status: 'queued', error: null }),
+    set_download_speed_limit: ({ id, kbps }) => patch(id, { speedLimitKbps: kbps }),
     remove_download: ({ id }) => {
       tasks = tasks.filter((entry) => entry.id !== id);
       changed();
@@ -1550,21 +1551,52 @@
     exe_extension: platform === 'windows' ? 'exe' : '',
   };
 
+  // A split transfer as segmented.rs reports one: eight pieces, each filled by
+  // its own connection at its own pace, the received bytes shared among them.
+  const pieceMap = (received, total) => {
+    const count = 8;
+    const size = Math.floor(total / count);
+    const pieces = [];
+    let left = received;
+    for (let index = 0; index < count; index += 1) {
+      const start = index * size;
+      const end = index === count - 1 ? total : start + size;
+      // Earlier pieces run a little ahead, as the first connections do.
+      const share = Math.min(end - start, Math.max(0, Math.round((received / count) * (1.25 - index * 0.06))), left);
+      left -= share;
+      pieces.push({ start, end, received: share, active: share < end - start });
+    }
+    // Whatever the shares left over goes to the pieces still running.
+    for (const piece of pieces) {
+      const room = piece.end - piece.start - piece.received;
+      const take = Math.min(room, left);
+      piece.received += take;
+      left -= take;
+      piece.active = piece.received < piece.end - piece.start;
+    }
+    return pieces;
+  };
+
   // The running download keeps moving, so progress rendering can be watched.
   setInterval(() => {
     for (const entry of tasks) {
       if (entry.status !== 'downloading') continue;
       const total = entry.progress.totalBytes ?? 100_000_000;
-      const received = Math.min(total, entry.progress.receivedBytes + 1_700_000);
+      const cap = (entry.speedLimitKbps ?? 0) * 1024;
+      const step = cap > 0 ? Math.min(1_700_000, cap / 2) : 1_700_000;
+      const received = Math.min(total, entry.progress.receivedBytes + step);
       const done = received >= total;
+      const speed = cap > 0 ? cap : 3_100_000 + Math.round(Math.random() * 600_000);
       const next = {
         ...entry.progress,
         receivedBytes: received,
         totalBytes: total,
         percent: (received / total) * 100,
-        speedBps: done ? 0 : 3_100_000 + Math.round(Math.random() * 600_000),
-        etaSec: done ? 0 : Math.round((total - received) / 3_400_000),
+        speedBps: done ? 0 : speed,
+        etaSec: done ? 0 : Math.round((total - received) / speed),
         stage: done ? 'done' : 'video',
+        resumable: true,
+        segments: done ? [] : pieceMap(received, total),
       };
       const status = done ? 'completed' : 'downloading';
       const outputPath = done ? `${settings.downloadDir}\\${entry.title.slice(0, 40)}.mp4` : null;

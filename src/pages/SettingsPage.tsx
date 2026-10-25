@@ -37,6 +37,7 @@ import { decodeQuality, encodeQuality } from '@/lib/downloadOptions';
 import { formatBytes, truncateMiddle } from '@/lib/format';
 import { SPRING, T } from '@/lib/motion';
 import { IS_MOBILE } from '@/lib/platform';
+import { speedLimitLabel, speedLimitOptions } from '@/lib/speedLimits';
 import * as ipc from '@/services/ipc';
 import { useSettingsStore } from '@/stores/useSettingsStore';
 import { useToolsStore } from '@/stores/useToolsStore';
@@ -113,16 +114,6 @@ const DEFAULT_HOTKEYS: Record<HotkeyAction, string> = {
 /** A control's width beside its label on the desktop; a phone gives it the row. */
 function controlWidth(desktop: string): string {
   return IS_MOBILE ? 'w-full' : desktop;
-}
-
-/** Speed caps offered in Settings, in KB/s. 0 is no cap. */
-const SPEED_LIMITS_KBPS = [0, 256, 512, 1024, 2048, 5120, 10240, 25600, 51200];
-
-/** The presets, plus a figure saved by hand that is none of them. */
-function speedLimitOptions(current: number): number[] {
-  return SPEED_LIMITS_KBPS.includes(current)
-    ? SPEED_LIMITS_KBPS
-    : [...SPEED_LIMITS_KBPS, current].sort((a, b) => a - b);
 }
 
 interface SettingsPageProps {
@@ -572,7 +563,7 @@ function DownloadsSection({ settings, update }: { settings: Settings; update: Up
                 value={String(settings.speedLimitKbps)}
                 options={speedLimitOptions(settings.speedLimitKbps).map((kbps) => ({
                   value: String(kbps),
-                  label: kbps === 0 ? t('settings.speedLimitOff') : `${formatBytes(kbps * 1024)}/s`,
+                  label: speedLimitLabel(kbps, t('settings.speedLimitOff')),
                 }))}
                 onChange={(value) => void update({ speedLimitKbps: Number(value) || 0 })}
               />

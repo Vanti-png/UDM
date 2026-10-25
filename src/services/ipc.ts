@@ -154,6 +154,9 @@ export const pauseDownload = (id: string) => invoke<void>('pause_download', { id
 export const resumeDownload = (id: string) => invoke<void>('resume_download', { id });
 export const cancelDownload = (id: string) => invoke<void>('cancel_download', { id });
 export const retryDownload = (id: string) => invoke<void>('retry_download', { id });
+/** One download's own speed cap in KB/s; 0 takes it off. Felt by a running one at once. */
+export const setDownloadSpeedLimit = (id: string, kbps: number) =>
+  invoke<void>('set_download_speed_limit', { id, kbps });
 export const removeDownload = (id: string) => invoke<void>('remove_download', { id });
 export const pauseAllDownloads = () => invoke<void>('pause_all_downloads');
 export const resumeAllDownloads = () => invoke<void>('resume_all_downloads');

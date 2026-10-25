@@ -237,6 +237,56 @@ async fn a_split_download_is_byte_exact_and_really_runs_in_parallel() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn progress_carries_a_map_of_the_pieces_that_covers_the_file() {
+    let server = start_server(slow());
+    let target = scratch("seg-map.bin");
+
+    let mut maps = Vec::new();
+    fetch(&server.url(), &target, 6, TaskControl::shared(), |sample| {
+        maps.push(sample.segments);
+    })
+    .await
+    .expect("download should succeed");
+
+    // Every map covers the file end to end, in order, with no gaps.
+    for map in maps.iter().filter(|map| !map.is_empty()) {
+        let mut expected = 0;
+        for piece in map {
+            assert_eq!(piece.start, expected, "a gap or an overlap in {map:?}");
+            assert!(piece.received <= piece.end - piece.start);
+            expected = piece.end;
+        }
+        assert_eq!(expected as usize, BODY_LEN);
+    }
+    // While it ran, several connections were seen at work at once...
+    let busiest = maps.iter().map(|map| map.iter().filter(|piece| piece.active).count()).max();
+    assert!(busiest.unwrap_or(0) >= 3, "at most {busiest:?} pieces were ever active");
+    // ...and at the end every piece is full and nobody is filling one.
+    let last = maps.last().unwrap();
+    assert!(last.iter().all(|piece| !piece.active && piece.received == piece.end - piece.start));
+    std::fs::remove_file(&target).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
+async fn a_download_of_its_own_cap_is_held_to_it_across_every_connection() {
+    let server = start_server(quick());
+    let target = scratch("seg-task-cap.bin");
+
+    // 12 MiB at 4 MiB/s is three seconds, less the half second of burst.
+    let control = TaskControl::shared();
+    control.limiter().set_kbps(4 * 1024);
+    let started = std::time::Instant::now();
+    fetch(&server.url(), &target, 6, Arc::clone(&control), |_| {})
+        .await
+        .expect("download should succeed");
+    let elapsed = started.elapsed();
+    assert!(elapsed >= Duration::from_millis(2300), "finished in {elapsed:?}, faster than its cap");
+    assert!(elapsed <= Duration::from_secs(8), "took {elapsed:?}, far slower than its cap");
+    assert_eq!(std::fs::read(&target).unwrap(), body());
+    std::fs::remove_file(&target).unwrap();
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 4)]
 async fn an_interrupted_split_download_resumes_where_each_piece_stopped() {
     let server = start_server(slow());
     let target = scratch("seg-resume.bin");

@@ -472,6 +472,12 @@ pub fn retry_download(state: State<'_, AppState>, id: String) {
     state.queue.retry(&id);
 }
 
+/// One download's own speed cap in KB/s, from its detail window; 0 is none.
+#[tauri::command]
+pub fn set_download_speed_limit(state: State<'_, AppState>, id: String, kbps: u64) {
+    state.queue.set_speed_limit(&id, kbps);
+}
+
 #[tauri::command]
 pub fn remove_download(state: State<'_, AppState>, id: String) {
     state.queue.remove(&id);

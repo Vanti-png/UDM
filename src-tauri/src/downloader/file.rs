@@ -198,6 +198,7 @@ pub async fn execute(
             stage_index: 1,
             stage_count: 1,
             resumable: sample.resumable,
+            segments: sample.segments,
         });
     };
     http::fetch(

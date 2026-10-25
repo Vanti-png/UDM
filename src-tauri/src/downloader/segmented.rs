@@ -39,6 +39,7 @@ use crate::downloader::http::{self, FetchOptions, ProgressSample};
 use crate::downloader::limiter;
 use crate::downloader::speed::SpeedTracker;
 use crate::error::{AppError, AppResult};
+use crate::model::SegmentProgress;
 use crate::{log_debug, log_info, log_warn};
 
 const MIB: u64 = 1024 * 1024;
@@ -188,6 +189,24 @@ impl Board {
         let mut segments: Vec<Segment> = self.slots.iter().map(|slot| slot.segment).collect();
         segments.sort_by_key(|segment| segment.start);
         segments
+    }
+
+    /// The map the detail window draws: every piece in file order, how much of
+    /// it is on disk, and whether a connection is filling it now.
+    fn progress(&self) -> Vec<SegmentProgress> {
+        let mut map: Vec<SegmentProgress> = self
+            .slots
+            .iter()
+            .filter(|slot| slot.segment.end > slot.segment.start)
+            .map(|slot| SegmentProgress {
+                start: slot.segment.start,
+                end: slot.segment.end,
+                received: slot.segment.received(),
+                active: slot.owner.is_some() && slot.segment.remaining() > 0,
+            })
+            .collect();
+        map.sort_by_key(|piece| piece.start);
+        map
     }
 }
 
@@ -401,7 +420,7 @@ pub async fn fetch(
     let start_received = shared.board().received();
     let mut tracker = SpeedTracker::new(start_received);
     let mut reported = start_received;
-    emit(on_progress, &tracker, total);
+    emit(on_progress, &tracker, total, shared.board().progress());
     log_info!(
         "segmented",
         "{} bytes over up to {connections} connections ({} already on disk)",
@@ -433,10 +452,13 @@ pub async fn fetch(
             _ = ticker.tick() => {
                 // A tick with nothing new still closes a window, which is
                 // what lets the readout fall to zero on a stall.
-                let received = shared.board().received();
+                let (received, map) = {
+                    let board = shared.board();
+                    (board.received(), board.progress())
+                };
                 tracker.record(received.saturating_sub(reported));
                 reported = received;
-                emit(on_progress, &tracker, total);
+                emit(on_progress, &tracker, total, map);
 
                 if last_saved.elapsed() >= SAVE_INTERVAL {
                     let segments = shared.board().segments();
@@ -450,9 +472,9 @@ pub async fn fetch(
     }
     drop(workers);
 
-    let (complete, segments) = {
+    let (complete, segments, map) = {
         let board = shared.board();
-        (board.complete(), board.segments())
+        (board.complete(), board.segments(), board.progress())
     };
     file.sync_data()?;
 
@@ -469,7 +491,7 @@ pub async fn fetch(
     drop(file);
     let received = segments.iter().map(Segment::received).sum::<u64>();
     tracker.record(received.saturating_sub(reported));
-    emit(on_progress, &tracker, total);
+    emit(on_progress, &tracker, total, map);
     http::finalize(&part_path, options.target)?;
     let _ = std::fs::remove_file(&state_path);
     Ok(Some(total))
@@ -562,6 +584,7 @@ async fn fill(slot: usize, shared: &Shared<'_>, written: &mut u64) -> AppResult<
             }
             let chunk = chunk?;
             limiter::global().acquire(chunk.len() as u64).await;
+            shared.control.limiter().acquire(chunk.len() as u64).await;
 
             for piece in chunk.chunks(MAX_WRITE_BYTES) {
                 // Read fresh each time: another connection may have taken the
@@ -605,7 +628,12 @@ fn range_start(value: &str) -> Option<u64> {
         .ok()
 }
 
-fn emit(on_progress: &mut (dyn FnMut(ProgressSample) + Send), tracker: &SpeedTracker, total: u64) {
+fn emit(
+    on_progress: &mut (dyn FnMut(ProgressSample) + Send),
+    tracker: &SpeedTracker,
+    total: u64,
+    segments: Vec<SegmentProgress>,
+) {
     on_progress(ProgressSample {
         received: tracker.received().min(total),
         total: Some(total),
@@ -613,6 +641,7 @@ fn emit(on_progress: &mut (dyn FnMut(ProgressSample) + Send), tracker: &SpeedTra
         eta_sec: tracker.eta_sec(Some(total)),
         percent: tracker.percent(Some(total)),
         resumable: true,
+        segments,
     });
 }
 
@@ -753,6 +782,36 @@ mod tests {
         assert_eq!(board.claim(0), Some(0));
         assert_eq!(board.claim(1), None);
         assert_eq!(board.active_connections(), 1);
+    }
+
+    #[test]
+    fn the_map_is_every_piece_in_file_order_with_who_is_filling_it() {
+        let mut board = Board::new(vec![Segment::fresh(10 * MIB, 20 * MIB), Segment::fresh(0, 10 * MIB)]);
+        board.claim(0);
+        board.slots[1].segment.next = 4 * MIB;
+        // A piece already finished, held by nobody.
+        board.slots[0].segment.next = 20 * MIB;
+
+        assert_eq!(
+            board.progress(),
+            vec![
+                SegmentProgress {
+                    start: 0,
+                    end: 10 * MIB,
+                    received: 4 * MIB,
+                    active: true
+                },
+                SegmentProgress {
+                    start: 10 * MIB,
+                    end: 20 * MIB,
+                    received: 10 * MIB,
+                    active: false
+                },
+            ]
+        );
+        // A connection that has finished its piece is not shown as filling it.
+        board.slots[1].segment.next = 10 * MIB;
+        assert!(board.progress().iter().all(|piece| !piece.active));
     }
 
     #[test]

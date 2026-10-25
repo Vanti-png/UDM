@@ -28,12 +28,14 @@ const BURST_SEC: f64 = 0.5;
 /// old figure has been slept off.
 const MAX_WAIT: Duration = Duration::from_millis(500);
 
+#[derive(Debug)]
 pub struct RateLimiter {
     /// Bytes per second; zero is no limit.
     limit_bps: AtomicU64,
     bucket: Mutex<Bucket>,
 }
 
+#[derive(Debug)]
 struct Bucket {
     /// Positive is allowance in hand, negative is debt.
     tokens: f64,

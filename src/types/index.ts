@@ -272,6 +272,12 @@ export interface DownloadProgress {
   stageIndex: number;
   stageCount: number;
   resumable: boolean;
+  /**
+   * The pieces of a transfer split over several connections, in file order;
+   * absent for one fetched over a single connection or by the engine. Offsets
+   * are into the current stage's stream.
+   */
+  segments?: SegmentProgress[];
 }
 
 /** A user-facing failure. `technical` is only shown behind "View details". */
@@ -300,6 +306,17 @@ export interface DownloadTask {
   completedAt: number | null;
   attempt: number;
   request: DownloadRequest;
+  /** This download's own speed cap in KB/s, under the app-wide one; 0 is none. */
+  speedLimitKbps?: number;
+}
+
+/** One piece of a split transfer: `[start, end)`, the first `received` bytes on disk. */
+export interface SegmentProgress {
+  start: number;
+  end: number;
+  received: number;
+  /** A connection is filling it right now. */
+  active: boolean;
 }
 
 export interface HistoryEntry {

@@ -118,6 +118,9 @@ impl Aggregator {
             stage_index: self.stage_index,
             stage_count: self.stage_count,
             resumable: sample.resumable,
+            // The current stream's own pieces; the detail window draws them
+            // against that stream, not against the whole download.
+            segments: sample.segments.clone(),
         }
     }
 
@@ -139,6 +142,7 @@ impl Aggregator {
             stage_index: self.stage_count,
             stage_count: self.stage_count,
             resumable: false,
+            segments: Vec::new(),
         }
     }
 }

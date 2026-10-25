@@ -1,5 +1,5 @@
 import { AnimatePresence, motion } from 'motion/react';
-import { FolderOpen, Pause, Play, RotateCw, Share, X } from 'lucide-react';
+import { Activity, FolderOpen, Pause, Play, RotateCw, Share, X } from 'lucide-react';
 import { memo, useState } from 'react';
 
 import { IconButton } from '@/components/ui/IconButton';
@@ -25,6 +25,8 @@ interface DownloadCardProps {
   onCancel: (id: string) => void;
   onRetry: (id: string) => void;
   onRemove: (id: string) => void;
+  /** Open the download's detail window. A row still to finish opens it when pressed. */
+  onDetails?: (id: string) => void;
 }
 
 /** Stages that are simply "downloading"; the bar already says that. */
@@ -49,6 +51,7 @@ export const DownloadCard = memo(function DownloadCard({
   onCancel,
   onRetry,
   onRemove,
+  onDetails,
 }: DownloadCardProps) {
   const { t } = useTranslation();
   const { src } = useThumbnail(task.thumbnailUrl);
@@ -59,6 +62,9 @@ export const DownloadCard = memo(function DownloadCard({
   const isActive = status === 'downloading' || status === 'preparing' || status === 'processing';
   const isDone = status === 'completed';
   const isAbandoned = status === 'failed' || status === 'canceled';
+  // A row still to finish opens its detail window, as a finished one opens
+  // its file.
+  const details = onDetails && !isDone && !isAbandoned ? () => onDetails(task.id) : null;
   const outputPath = isDone ? task.outputPath : null;
   // A finished row is a button that opens its file, which is a big target to
   // press for nothing when the file has since been moved or deleted. The
@@ -216,7 +222,7 @@ export const DownloadCard = memo(function DownloadCard({
       aria-label={task.title}
       className={cn(
         'group',
-        outputPath &&
+        (outputPath || details) &&
           'transition-colors duration-150 ease-out-quint hover:bg-surface-hover has-[[data-open]:active]:bg-surface-active',
       )}
     >
@@ -228,6 +234,15 @@ export const DownloadCard = memo(function DownloadCard({
               data-open=""
               onClick={file.open}
               aria-label={t('downloads.openFileNamed', { title: task.title })}
+              className="absolute inset-0 cursor-pointer rounded-[12px]"
+            />
+          )}
+          {details && (
+            <button
+              type="button"
+              data-open=""
+              onClick={details}
+              aria-label={t('downloads.detailsOf', { title: task.title })}
               className="absolute inset-0 cursor-pointer rounded-[12px]"
             />
           )}
@@ -247,6 +262,14 @@ export const DownloadCard = memo(function DownloadCard({
               'reveal-on-hover transition-opacity duration-150 ease-out-quint group-focus-within:opacity-100',
           )}
         >
+          {details && !IS_MOBILE && (
+            <IconButton
+              icon={<Activity size={15} />}
+              label={t('downloads.openDetails')}
+              size={ACTION_SIZE}
+              onClick={details}
+            />
+          )}
           {isActive && (
             <IconButton
               icon={<Pause size={15} />}

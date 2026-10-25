@@ -30,6 +30,7 @@ use crate::downloader::control::TaskControl;
 use crate::downloader::speed::SpeedTracker;
 use crate::downloader::{limiter, segmented};
 use crate::error::{AppError, AppResult};
+use crate::model::SegmentProgress;
 use crate::{log_debug, log_warn};
 
 /// Bytes requested per ranged request. Large enough that per-request overhead
@@ -50,7 +51,7 @@ const MAX_STALL_RETRIES: u32 = 4;
 const _: () = assert!(LOW_RESOURCE_CHUNK_BYTES < CHUNK_BYTES);
 const _: () = assert!(LOW_RESOURCE_BUFFER_BYTES < BUFFER_BYTES);
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Default)]
 pub struct ProgressSample {
     pub received: u64,
     pub total: Option<u64>,
@@ -58,6 +59,9 @@ pub struct ProgressSample {
     pub eta_sec: Option<f64>,
     pub percent: Option<f64>,
     pub resumable: bool,
+    /// The pieces of a split transfer and how far each has got; empty for one
+    /// fetched over a single connection.
+    pub segments: Vec<SegmentProgress>,
 }
 
 pub struct FetchOptions<'a> {
@@ -304,6 +308,7 @@ async fn fetch_span(
             }
         };
         limiter::global().acquire(chunk.len() as u64).await;
+        control.limiter().acquire(chunk.len() as u64).await;
 
         buffer.extend_from_slice(&chunk);
         if buffer.len() >= buffer_capacity {
@@ -346,6 +351,7 @@ fn emit(
         eta_sec: tracker.eta_sec(total),
         percent: tracker.percent(total),
         resumable,
+        segments: Vec::new(),
     });
 }
 
