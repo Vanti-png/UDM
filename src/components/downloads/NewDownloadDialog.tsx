@@ -70,6 +70,9 @@ function FileDialog({ file, open, count, settings, onQueued }: FileDialogProps) 
   const [name, setName] = useState(file.fileName ?? '');
   const [folder, setFolder] = useState(settings.downloadDir);
   const [submitting, setSubmitting] = useState(false);
+  // Read and set in the same tick, which the state above is not: Enter in the
+  // name field, pressed twice or after the button, queued the file twice.
+  const sending = useRef(false);
   const [enqueueError, setEnqueueError] = useState<AppErrorInfo | null>(null);
   const edited = useRef(file.fileName !== null);
 
@@ -101,6 +104,8 @@ function FileDialog({ file, open, count, settings, onQueued }: FileDialogProps) 
   };
 
   const start = async () => {
+    if (sending.current) return;
+    sending.current = true;
     setSubmitting(true);
     setEnqueueError(null);
     const fileName = name.trim() || null;
@@ -128,6 +133,7 @@ function FileDialog({ file, open, count, settings, onQueued }: FileDialogProps) 
     } catch (caught) {
       setEnqueueError(ipc.toAppError(caught));
       setSubmitting(false);
+      sending.current = false;
     }
   };
 

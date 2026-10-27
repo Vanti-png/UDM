@@ -23,9 +23,10 @@ use once_cell::sync::Lazy;
 /// idle minute turn into a minute-long burst.
 const BURST_SEC: f64 = 0.5;
 
-/// A single wait is never longer than this. A limit raised or switched off in
-/// Settings takes effect within it rather than after a debt run up under the
-/// old figure has been slept off.
+/// A wait is slept in steps no longer than this. Between them the caller looks
+/// again: a limit raised or switched off in Settings, or a transfer paused or
+/// cancelled, ends the wait within one step rather than after a debt run up
+/// under the old figure has been slept off.
 const MAX_WAIT: Duration = Duration::from_millis(500);
 
 #[derive(Debug)]
@@ -45,14 +46,19 @@ struct Bucket {
 impl Bucket {
     /// Charge `bytes` at `limit_bps` as of `now`, and say how long the caller
     /// has to wait before that much would have been allowed.
+    ///
+    /// The debt is kept in full, however large. It is what makes connections
+    /// queue: each one waits for every share charged before its own, so the
+    /// total stays at the limit however many there are. A limit changed
+    /// meanwhile starts the bucket over (`set_limit_bps`), and a wait ends
+    /// early when its transfer stops (`acquire`), so a long debt never holds
+    /// anything up that no longer needs to wait.
     fn charge(&mut self, now: Instant, bytes: u64, limit_bps: u64) -> Duration {
         let rate = limit_bps as f64;
         let elapsed = now.saturating_duration_since(self.refilled).as_secs_f64();
         self.refilled = now;
         self.tokens = (self.tokens + elapsed * rate).min(rate * BURST_SEC);
         self.tokens -= bytes as f64;
-        // A limit lowered mid-transfer must not leave a debt minutes long.
-        self.tokens = self.tokens.max(-rate * 2.0);
 
         if self.tokens >= 0.0 {
             Duration::ZERO
@@ -100,7 +106,11 @@ impl RateLimiter {
     }
 
     /// Account for `bytes` just received, sleeping while the limit says so.
-    pub async fn acquire(&self, bytes: u64) {
+    ///
+    /// `stopped` is asked between steps of the wait: a transfer paused or
+    /// cancelled meanwhile goes on to notice that at once, instead of sitting
+    /// out its place in the queue first.
+    pub async fn acquire(&self, bytes: u64, stopped: impl Fn() -> bool) {
         let limit = self.limit_bps();
         if limit == 0 || bytes == 0 {
             return;
@@ -114,8 +124,9 @@ impl RateLimiter {
             let step = remaining.min(MAX_WAIT);
             tokio::time::sleep(step).await;
             remaining -= step;
-            // Switched off, or changed, while this caller slept.
-            if self.limit_bps() != limit {
+            // Switched off, or changed, while this caller slept; or the
+            // transfer it is pacing is over.
+            if self.limit_bps() != limit || stopped() {
                 return;
             }
         }
@@ -171,6 +182,20 @@ mod tests {
     }
 
     #[test]
+    fn many_connections_still_add_up_to_the_limit() {
+        // Eight connections each bring in 64 KiB at once under a 100 KiB/s
+        // cap. All of it is paid for: the last in line waits for every share
+        // before its own. Forgiving the debt past a couple of seconds let
+        // eight connections through at more than twice the cap.
+        let start = Instant::now();
+        let mut bucket = bucket(start);
+        let rate = 100 * 1024;
+        let waits: Vec<Duration> = (0..8).map(|_| bucket.charge(start, 64 * 1024, rate)).collect();
+        let last = waits.last().unwrap().as_secs_f64();
+        assert!((last - 8.0 * 64.0 / 100.0).abs() < 1e-6, "{last}");
+    }
+
+    #[test]
     fn an_idle_spell_saves_up_only_a_short_burst() {
         let start = Instant::now();
         let mut bucket = bucket(start);
@@ -181,12 +206,28 @@ mod tests {
         assert!((wait.as_secs_f64() - 0.5).abs() < 1e-6, "{wait:?}");
     }
 
-    #[test]
-    fn a_huge_chunk_cannot_run_up_an_endless_debt() {
-        let start = Instant::now();
-        let mut bucket = bucket(start);
-        let wait = bucket.charge(start, 1_000_000_000, 1000);
-        assert!(wait <= Duration::from_secs(2), "{wait:?}");
+    #[tokio::test]
+    async fn a_long_wait_ends_when_its_transfer_stops() {
+        // Ten seconds of debt at 1000 B/s, for a transfer paused a moment in.
+        let limiter = RateLimiter::new(1000);
+        let started = std::time::Instant::now();
+        limiter
+            .acquire(10_000, || started.elapsed() >= Duration::from_millis(100))
+            .await;
+        assert!(started.elapsed() < Duration::from_secs(2), "{:?}", started.elapsed());
+    }
+
+    #[tokio::test]
+    async fn a_long_wait_ends_when_the_limit_is_switched_off() {
+        let limiter = std::sync::Arc::new(RateLimiter::new(1000));
+        let switcher = std::sync::Arc::clone(&limiter);
+        tokio::spawn(async move {
+            tokio::time::sleep(Duration::from_millis(100)).await;
+            switcher.set_kbps(0);
+        });
+        let started = std::time::Instant::now();
+        limiter.acquire(10_000, || false).await;
+        assert!(started.elapsed() < Duration::from_secs(2), "{:?}", started.elapsed());
     }
 
     #[test]
@@ -202,7 +243,7 @@ mod tests {
     async fn no_limit_never_waits() {
         let limiter = RateLimiter::default();
         let started = Instant::now();
-        limiter.acquire(u64::MAX / 2).await;
+        limiter.acquire(u64::MAX / 2, || false).await;
         assert!(started.elapsed() < Duration::from_millis(50));
     }
 }

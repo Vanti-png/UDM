@@ -583,8 +583,9 @@ async fn fill(slot: usize, shared: &Shared<'_>, written: &mut u64) -> AppResult<
                 return Err(AppError::Canceled);
             }
             let chunk = chunk?;
-            limiter::global().acquire(chunk.len() as u64).await;
-            shared.control.limiter().acquire(chunk.len() as u64).await;
+            let stopped = || shared.control.interrupted();
+            limiter::global().acquire(chunk.len() as u64, stopped).await;
+            shared.control.limiter().acquire(chunk.len() as u64, stopped).await;
 
             for piece in chunk.chunks(MAX_WRITE_BYTES) {
                 // Read fresh each time: another connection may have taken the

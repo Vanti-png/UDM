@@ -60,6 +60,31 @@ pub fn copied_link(text: &str) -> Option<CopiedLink> {
     Some(CopiedLink { url, file })
 }
 
+/// How long the same link counts as the same copy.
+const SAME_COPY: std::time::Duration = std::time::Duration::from_secs(2);
+
+/// One copy is one offer. A program that puts several formats on the
+/// clipboard moves the count once for each, so one copy can be seen two or
+/// three times within a moment. The same link copied again later is the user
+/// asking again -- after closing the dialog, say -- and is offered again.
+#[derive(Default)]
+struct RepeatGuard {
+    last: Option<(String, std::time::Instant)>,
+}
+
+impl RepeatGuard {
+    /// Whether `url`, seen at `now`, is a new copy rather than an echo of the
+    /// last one.
+    fn fresh(&mut self, url: &str, now: std::time::Instant) -> bool {
+        let echo = self
+            .last
+            .as_ref()
+            .is_some_and(|(last, at)| last == url && now.saturating_duration_since(*at) < SAME_COPY);
+        self.last = Some((url.to_string(), now));
+        !echo
+    }
+}
+
 #[cfg(windows)]
 pub fn spawn(app: tauri::AppHandle) {
     let started = std::thread::Builder::new()
@@ -87,7 +112,7 @@ fn watch(app: &tauri::AppHandle) {
     // Whatever was copied before the app started is not something the user
     // just did.
     let mut seen = sequence();
-    let mut last_url: Option<String> = None;
+    let mut repeats = RepeatGuard::default();
 
     loop {
         std::thread::sleep(POLL);
@@ -126,11 +151,9 @@ fn watch(app: &tauri::AppHandle) {
         let Some(link) = text.as_deref().and_then(copied_link) else {
             continue;
         };
-        // Copying the same link twice is one link.
-        if last_url.as_deref() == Some(link.url.as_str()) {
+        if !repeats.fresh(&link.url, std::time::Instant::now()) {
             continue;
         }
-        last_url = Some(link.url.clone());
 
         if link.file {
             crate::tray::show_main_window(app);
@@ -177,5 +200,19 @@ mod tests {
             })
         );
         assert_eq!(copied_link("plain words"), None);
+    }
+
+    #[test]
+    fn one_copy_is_offered_once_and_a_later_copy_again() {
+        let start = std::time::Instant::now();
+        let mut guard = RepeatGuard::default();
+        let link = "https://cdn.example/setup.exe";
+        assert!(guard.fresh(link, start));
+        // The same copy seen again as its other formats land.
+        assert!(!guard.fresh(link, start + std::time::Duration::from_millis(300)));
+        // The user copying it again after closing the dialog.
+        assert!(guard.fresh(link, start + std::time::Duration::from_secs(10)));
+        // Another link is always new.
+        assert!(guard.fresh("https://cdn.example/other.zip", start + std::time::Duration::from_secs(10)));
     }
 }

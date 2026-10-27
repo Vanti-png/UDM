@@ -307,8 +307,9 @@ async fn fetch_span(
                 return Err(err.into());
             }
         };
-        limiter::global().acquire(chunk.len() as u64).await;
-        control.limiter().acquire(chunk.len() as u64).await;
+        let stopped = || control.interrupted();
+        limiter::global().acquire(chunk.len() as u64, stopped).await;
+        control.limiter().acquire(chunk.len() as u64, stopped).await;
 
         buffer.extend_from_slice(&chunk);
         if buffer.len() >= buffer_capacity {
