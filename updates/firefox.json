@@ -1,0 +1,18 @@
+{
+  "addons": {
+    "udm-connector@vanti-png.github.io": {
+      "updates": [
+        {
+          "version": "1.1.2",
+          "update_link": "https://github.com/Vanti-png/UDM/releases/download/latest/udm-connector-1.1.2.xpi",
+          "update_hash": "sha256:f666150482b7d3055d0465bfb8e3cb53532cd38298458b95b6c9d42074a0e62c",
+          "applications": {
+            "gecko": {
+              "strict_min_version": "140.0"
+            }
+          }
+        }
+      ]
+    }
+  }
+}
