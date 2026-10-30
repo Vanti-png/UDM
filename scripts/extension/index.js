@@ -7,3 +7,4 @@ import './describe.test.mjs';
 import './sessions.test.mjs';
 import './capture.test.mjs';
 import './edition.test.mjs';
+import './publish-firefox.test.mjs';

@@ -81,7 +81,7 @@ pub fn origin_allowed(origin: &str) -> bool {
 ///
 /// This fork's own: addons.mozilla.org keeps an id for the developer who first
 /// used it, and the upstream project's is taken there. `FIREFOX_ID` in
-/// scripts/pack-extension.mjs must match.
+/// scripts/firefox-addon.mjs must match.
 pub const FIREFOX_EXTENSION_ID: &str = "udm-connector@vanti-png.github.io";
 
 /// The upstream project's Firefox listing, still let in: it speaks the same

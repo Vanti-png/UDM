@@ -27,6 +27,21 @@ The app updates itself from this fork's own releases (`REPOSITORY` in
 project, whose builds lack the features below. Each kind of install fetches
 the same kind of installer. See [Publishing a release](#publishing-a-release).
 
+### The browser extension
+
+The extension hands the browser's downloads and videos to the app.
+
+- **Firefox:** download
+  [`UniversalDownloadManager-firefox.xpi`](https://github.com/Vanti-png/UDM/releases/download/latest/UniversalDownloadManager-firefox.xpi)
+  and drag it into a Firefox window, or open `about:addons` -> the gear ->
+  **Install Add-on From File**. It is signed by Mozilla, so it stays installed,
+  and from 1.1.2 it updates itself from this repository.
+- **Chrome / Edge:** not in a store yet; load the `extension` folder unpacked
+  (see [The browser extension during development](#the-browser-extension-during-development)).
+
+Open the app once after installing it: that is what registers the helper the
+extension talks to.
+
 ---
 
 ## What it does
@@ -284,6 +299,27 @@ installed copy updates when the tag points at a later commit.
 An installed copy downloads the installer it was installed with, checks it
 against the SHA-256 digest GitHub publishes for the file, and installs it once
 nothing is downloading or converting.
+
+### Publishing the Firefox extension
+
+Mozilla signs it; this repository hands it out and tells Firefox about new
+versions (`scripts/firefox-addon.mjs` says where).
+
+1. Raise `version` in `extension/manifest.json`, then
+   `node scripts/pack-extension.mjs --firefox`.
+2. Upload `extension-firefox-<version>.zip` to addons.mozilla.org as a new
+   version, distributed **On your own**, and download the signed `.xpi` it
+   gives back from **Manage Status & Versions**.
+3. `node scripts/publish-firefox.mjs <signed .xpi>`. It refuses a file that is
+   not signed, not this extension, or unable to update itself; copies it into
+   `scripts/` under the release's two names; and writes
+   `updates/firefox.json`, the update manifest Firefox reads.
+4. Upload the two files to the `latest` release, then commit and push
+   `updates/firefox.json` -- in that order, so Firefox is never pointed at a
+   file that is not there yet. The script prints both commands.
+
+Firefox checks for updates about once a day and installs one it can verify
+against the SHA-256 in the manifest.
 
 ### The browser extension during development
 

@@ -178,7 +178,14 @@ addons.mozilla.org from the same files, as the full build. Only the manifest
 differs: the
 background runs as a module script instead of a service worker, the id is
 `udm-connector@vanti-png.github.io` (`FIREFOX_EXTENSION_ID` in
-`src-tauri/src/bridge/protocol.rs`), and it declares that no data is collected.
+`src-tauri/src/bridge/protocol.rs`), it names an `update_url`, and it declares
+that no data is collected. The copy is signed on addons.mozilla.org for
+distribution "on your own" and handed out from this repository's `latest`
+release; Firefox learns of new versions from `updates/firefox.json`, which
+`scripts/publish-firefox.mjs` writes (`scripts/firefox-addon.mjs` holds the
+id, the addresses and the file names, and the top-level README the steps). A
+version listed on the store would have to drop `update_url`: the store refuses
+a listed version that names its own updates.
 The id is this fork's own: the upstream project's
 `connector@universaldownloader.app` belongs to its developer on
 addons.mozilla.org, which refuses an upload under it as a duplicate. The host
@@ -188,7 +195,7 @@ The app registers a second host manifest for Firefox under
 `HKCU\Software\Mozilla\NativeMessagingHosts`, with `allowed_extensions` where
 Chrome's has `allowed_origins`, and the host accepts Firefox's way of naming
 the caller -- the manifest path first, the extension id second. `npx web-ext
-lint` on the unpacked zip reports no errors or warnings.
+lint --self-hosted` on the unpacked zip reports no errors or warnings.
 
 `node scripts/build-store-assets.mjs` photographs the real popup for the
 listing images in `store-assets/`, with headless Chrome and no user

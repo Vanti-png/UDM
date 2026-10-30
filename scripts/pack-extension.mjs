@@ -39,6 +39,7 @@ import { dirname, join, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { forStore } from './extension-edition.mjs';
+import { FIREFOX_ID, FIREFOX_UPDATE_URL } from './firefox-addon.mjs';
 
 const root = join(dirname(fileURLToPath(import.meta.url)), '..');
 const source = join(root, 'extension');
@@ -49,12 +50,8 @@ const source = join(root, 'extension');
 // declare what data it collects -- none here: what the extension sends goes to
 // the app on the same computer, never off it.
 //
-// The id is this fork's own. addons.mozilla.org gives an id to one developer
-// for good, and the upstream project's `connector@universaldownloader.app`
-// is taken there, so an upload under it is refused as a duplicate.
-// `FIREFOX_EXTENSION_ID` in src-tauri/src/bridge/protocol.rs must match.
+// The id, and where Firefox asks for updates, are in firefox-addon.mjs.
 const FIREFOX = process.argv.includes('--firefox');
-const FIREFOX_ID = 'udm-connector@vanti-png.github.io';
 // Any other Chrome package is the store build, unless the full one is asked for.
 const STORE = !FIREFOX && !process.argv.includes('--full');
 const { version } = JSON.parse(readFileSync(join(source, 'manifest.json'), 'utf8'));
@@ -78,6 +75,7 @@ function forFirefox(manifest) {
   manifest.browser_specific_settings = {
     gecko: {
       id: FIREFOX_ID,
+      update_url: FIREFOX_UPDATE_URL,
       // The data collection declaration is the newest key here: Firefox
       // reads it from 140 (the ESR line) and Firefox for Android from 142,
       // and addons.mozilla.org warns about any minimum below that.
