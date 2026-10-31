@@ -36,8 +36,15 @@ The extension hands the browser's downloads and videos to the app.
   and drag it into a Firefox window, or open `about:addons` -> the gear ->
   **Install Add-on From File**. It is signed by Mozilla, so it stays installed,
   and from 1.1.2 it updates itself from this repository.
-- **Chrome / Edge:** not in a store yet; load the `extension` folder unpacked
-  (see [The browser extension during development](#the-browser-extension-during-development)).
+- **Brave, Chrome, Edge** and other Chromium browsers: not in a store yet.
+  Download
+  [`UniversalDownloadManager-chromium.zip`](https://github.com/Vanti-png/UDM/releases/download/latest/UniversalDownloadManager-chromium.zip)
+  and extract it to a folder you keep -- the browser loads the extension from
+  that folder every time it starts. Then open `brave://extensions`
+  (`chrome://extensions`, `edge://extensions`), turn on **Developer mode**,
+  press **Load unpacked** and pick the folder. It does not update itself: for a
+  new version, extract the new zip over the same folder and press the
+  extension's reload button there.
 
 Open the app once after installing it: that is what registers the helper the
 extension talks to.
@@ -320,6 +327,13 @@ versions (`scripts/firefox-addon.mjs` says where).
 
 Firefox checks for updates about once a day and installs one it can verify
 against the SHA-256 in the manifest.
+
+The Chromium copy is the full build, `node scripts/pack-extension.mjs --full`,
+uploaded to the same release as `UniversalDownloadManager-chromium.zip`. It is
+loaded unpacked, and the manifest's `key` gives it the id the app's helper lets
+in (`EXTENSION_ID_DEV` in `src-tauri/src/bridge/protocol.rs`); the app
+registers that helper for Brave, Chrome, Edge, Vivaldi, Opera and Chromium
+alike.
 
 ### The browser extension during development
 

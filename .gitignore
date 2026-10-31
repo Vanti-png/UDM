@@ -33,5 +33,6 @@ extension-upload.zip
 /scripts/UniversalDownloader_*
 /scripts/UniversalDownloadManager-firefox.xpi
 /scripts/udm-connector-*.xpi
+/scripts/UniversalDownloadManager-chromium.zip
 extension-firefox*.zip
 extension-full.zip
